@@ -55,9 +55,9 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .nav-cta:hover{background:var(--verde-neon);color:var(--verde-noite)!important;animation:none;box-shadow:0 0 24px rgba(53,197,88,.6)}
 @keyframes navPulse{0%,100%{box-shadow:0 0 0 rgba(53,197,88,0)}50%{box-shadow:0 0 16px rgba(53,197,88,.5)}}
 @media(prefers-reduced-motion:reduce){.nav-cta{animation:none}}
-.nav-login{border:1px solid rgba(237,237,232,.25);padding:.55rem 1.1rem;transition:all .25s}
+.nav-login{border:1px solid rgba(237,237,232,.25);padding:.55rem 1.1rem;transition:all .25s;white-space:nowrap}
 .nav-login:hover{border-color:var(--verde-neon);color:var(--verde-neon)!important}
-@media(max-width:760px){.nav-links li:not(:last-child):not(.keep-mobile){display:none}}
+@media(max-width:760px){.nav-links li:not(:last-child):not(.keep-mobile){display:none}.nav-links{gap:.6rem}.nav-links a.nav-login{font-size:.68rem;padding:.45rem .7rem;letter-spacing:.08em}.nav-links a.nav-cta{font-size:.72rem;padding:.45rem .9rem}}
 
 /* ── HERO ── */
 .hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;padding:6rem 1.5rem 4rem;border-bottom:1px solid var(--dourado-dim)}
