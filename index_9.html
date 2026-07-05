@@ -740,9 +740,9 @@ render();
 
 <!-- ═══════════ APP DO CLIENTE (OVERLAY) ═══════════ -->
 <style>
-#clientApp{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;background:#050906;display:none;overflow:hidden}
+#clientApp{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;z-index:1000;background:#050906;display:none;overflow:hidden}
 #clientApp.open{display:block}
-#clientApp .phone{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--verde-noite);overflow:hidden;display:flex;flex-direction:column}
+#clientApp .phone{position:absolute;top:0;bottom:0;height:100%;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--verde-noite);overflow:hidden;display:flex;flex-direction:column}
 #clientApp .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow:hidden;animation:caFade .4s ease}
 #clientApp .screen.active{display:flex}
 @keyframes caFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -1560,9 +1560,9 @@ addEventListener('resize', caApplyMode, {passive:true});
 
 <!-- ═══════════ PAINEL DO BARBEIRO (OVERLAY) ═══════════ -->
 <style>
-#barberApp{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;background:#050906;display:none;overflow:hidden}
+#barberApp{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;z-index:1000;background:#050906;display:none;overflow:hidden}
 #barberApp.open{display:block}
-#barberApp .phone{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--verde-noite);overflow:hidden;display:flex;flex-direction:column}
+#barberApp .phone{position:absolute;top:0;bottom:0;height:100%;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--verde-noite);overflow:hidden;display:flex;flex-direction:column}
 #barberApp .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow:hidden;animation:caFade .4s ease}
 #barberApp .screen.active{display:flex}
 #barberApp .ba-close{position:absolute;top:.9rem;right:1rem;z-index:80;width:36px;height:36px;border-radius:50%;background:rgba(20,23,21,.9);border:1px solid var(--dourado-dim);color:var(--prata);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -1633,7 +1633,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-item .info .n{font-size:.95rem;color:var(--prata)}
 #barberApp .ba-item .info .d{font-size:.78rem;color:var(--prata-dim);margin-top:.15rem}
 #barberApp .ba-item .val{font-family:var(--font-display);color:var(--verde-neon);white-space:nowrap}
-#barberApp .ba-tabbar{position:absolute;top:auto;left:0;right:0;bottom:0;height:auto;display:none;background:rgba(11,20,13,.96);border-top:1px solid var(--dourado-dim);backdrop-filter:blur(6px);z-index:20;padding:.5rem 0 .7rem}
+#barberApp .ba-tabbar{position:absolute;top:auto;left:0;right:0;bottom:0;width:100%;height:auto;display:none;background:rgba(11,20,13,.96);border-top:1px solid var(--dourado-dim);backdrop-filter:blur(6px);z-index:20;padding:.5rem 0 .7rem;justify-content:space-around;align-items:stretch;transition:none}
 #barberApp.logged:not(.desktop) .ba-tabbar{display:flex}
 #barberApp .ba-tab{flex:1;background:none;border:none;color:var(--prata-dim);display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.7rem 0 .9rem;font-family:var(--font-body);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 #barberApp .ba-tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6}
