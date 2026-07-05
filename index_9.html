@@ -511,6 +511,27 @@ const HORARIOS = {
 };
 const SLOT_MIN = 45; // intervalo entre horários, em minutos
 
+// resolve o horário efetivo de um barbeiro num dia da semana, considerando folga/horário customizado dele
+// barber.hours: ausente = herda o horário da loja; null = folga nesse dia; [abre,fecha] = horário próprio
+function resolveBarberHours(barber, weekday){
+  const shop = HORARIOS[weekday];
+  if(!shop) return null;
+  if(!barber || !barber.hours || !(weekday in barber.hours)) return shop;
+  return barber.hours[weekday];
+}
+// quantos barbeiros (que atendem clientes) estão de fato escalados nesse dia+horário
+function barbersScheduledAt(weekday, timeStr){
+  const roster = typeof primeGetBarberRoster==='function' ? primeGetBarberRoster() : [];
+  return roster.filter(b=>{
+    const h = resolveBarberHours(b, weekday);
+    if(!h) return false;
+    const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
+    const [tH,tM]=timeStr.split(':').map(Number);
+    const t=tH*60+tM;
+    return t>=oH*60+oM && t+SLOT_MIN<=cH*60+cM;
+  });
+}
+
 // ══ Estado do wizard ══
 const state = {step:1, services:[], day:null, dayLabel:null, time:null, barber:null, barberIntroAnswered:null};
 let pendingBooking = null;
@@ -597,15 +618,16 @@ function buildTimes(){
   const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
   const now=new Date(); const isToday = state.day===now.toISOString().slice(0,10);
   const dayAppts = (typeof primeGetAppointments==='function'?primeGetAppointments():[]).filter(a=>a.day===state.day);
-  const totalBarbers = (typeof primeGetBarberRoster==='function' ? primeGetBarberRoster().length : 0) || 1;
+  const weekday = d.getDay();
   const bookedCountByTime = {};
   dayAppts.forEach(a=>{ bookedCountByTime[a.time] = (bookedCountByTime[a.time]||0) + 1; });
   for(let t=oH*60+oM; t+SLOT_MIN<=cH*60+cM; t+=SLOT_MIN){
     if(isToday && t <= now.getHours()*60+now.getMinutes()+30) continue;
     const hh=String(Math.floor(t/60)).padStart(2,'0'), mm=String(t%60).padStart(2,'0');
     const timeStr=`${hh}:${mm}`;
-    // só bloqueia o horário se TODOS os barbeiros já estiverem ocupados nele
-    const isTaken = (bookedCountByTime[timeStr]||0) >= totalBarbers;
+    // só bloqueia o horário se NENHUM barbeiro estiver escalado, ou se todos os escalados já estiverem ocupados
+    const scheduledCount = barbersScheduledAt(weekday, timeStr).length;
+    const isTaken = scheduledCount===0 || (bookedCountByTime[timeStr]||0) >= scheduledCount;
     const btn=document.createElement('button');
     btn.className='chip'+(isTaken?' taken':''); btn.dataset.v=timeStr; btn.textContent=timeStr;
     if(isTaken){ btn.disabled=true; btn.title='Nenhum barbeiro disponível nesse horário'; }
@@ -620,7 +642,16 @@ function renderBarberStep(){
   const favorite = acc && acc.favoriteBarber;
   const allBarbers = typeof primeGetBarberRoster==='function' ? primeGetBarberRoster() : [];
   const appts = typeof primeGetAppointments==='function' ? primeGetAppointments() : [];
-  const available = allBarbers.filter(b => !appts.some(a=>a.day===state.day && a.time===state.time && a.barber===b.name));
+  const weekday = new Date(state.day+'T12:00:00').getDay();
+  const available = allBarbers.filter(b => {
+    const h = resolveBarberHours(b, weekday);
+    if(!h) return false;
+    const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
+    const [tH,tM]=state.time.split(':').map(Number);
+    const t=tH*60+tM;
+    if(t<oH*60+oM || t+SLOT_MIN>cH*60+cM) return false;
+    return !appts.some(a=>a.day===state.day && a.time===state.time && a.barber===b.name);
+  });
 
   if(!favorite && !state.barberIntroAnswered){
     area.innerHTML = `
@@ -1602,7 +1633,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-item .info .n{font-size:.95rem;color:var(--prata)}
 #barberApp .ba-item .info .d{font-size:.78rem;color:var(--prata-dim);margin-top:.15rem}
 #barberApp .ba-item .val{font-family:var(--font-display);color:var(--verde-neon);white-space:nowrap}
-#barberApp .ba-tabbar{position:absolute;left:0;right:0;bottom:0;display:none;background:rgba(11,20,13,.96);border-top:1px solid var(--dourado-dim);backdrop-filter:blur(6px);z-index:20}
+#barberApp .ba-tabbar{position:absolute;top:auto;left:0;right:0;bottom:0;height:auto;display:none;background:rgba(11,20,13,.96);border-top:1px solid var(--dourado-dim);backdrop-filter:blur(6px);z-index:20;padding:.5rem 0 .7rem}
 #barberApp.logged:not(.desktop) .ba-tabbar{display:flex}
 #barberApp .ba-tab{flex:1;background:none;border:none;color:var(--prata-dim);display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.7rem 0 .9rem;font-family:var(--font-body);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 #barberApp .ba-tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6}
@@ -1718,7 +1749,7 @@ addEventListener('resize', caApplyMode, {passive:true});
           <div style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:.3rem" id="ba-perfil-nome">—</div>
           <div style="color:var(--prata-dim);font-size:.85rem;margin-bottom:1.2rem" id="ba-perfil-funcao">—</div>
           <div class="ba-slabel" style="margin-top:0">Comissão sobre vendas</div>
-          <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--dourado)">60<span style="font-size:1rem">%</span> <span style="font-size:.85rem;color:var(--prata-dim);font-family:var(--font-body);letter-spacing:0;text-transform:none">pra você · 40% barbearia</span></div>
+          <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--dourado)"><span id="ba-perfil-comm-pct">60</span><span style="font-size:1rem">%</span> <span style="font-size:.85rem;color:var(--prata-dim);font-family:var(--font-body);letter-spacing:0;text-transform:none">pra você · <span id="ba-perfil-comm-salao">40</span>% barbearia</span></div>
         </div>
 
         <div class="ba-card" id="ba-admin-panel" style="display:none">
@@ -1846,15 +1877,21 @@ function baTab(tab){
   if(tab==='perfil') baRenderPerfil();
 }
 
+function baMyCommissionPct(){
+  const me = baGetRoster().find(b=>b.email===localStorage.getItem(BARBER_KEYS.loggedInEmail));
+  return (me && typeof me.commissionPct==='number') ? me.commissionPct : BARBER_COMMISSION_PCT;
+}
 function baRenderVendas(){
   const sales = baMySales().slice().sort((a,b)=> b.date.localeCompare(a.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
-  const minha = total*BARBER_COMMISSION_PCT;
+  const pct = baMyCommissionPct();
+  const minha = total*pct;
   const salao = total-minha;
+  const pctLabel = Math.round(pct*100), salaoLabel = 100-pctLabel;
   document.getElementById('ba-comm-card').innerHTML =
     `<div class="row"><span class="lbl">Total vendido</span><span class="val small">${baFormatMoney(total)}</span></div>
-     <div class="row"><span class="lbl">Sua comissão (60%)</span><span class="val">${baFormatMoney(minha)}</span></div>
-     <div class="row"><span class="lbl">Repasse à barbearia (40%)</span><span class="val small">${baFormatMoney(salao)}</span></div>`;
+     <div class="row"><span class="lbl">Sua comissão (${pctLabel}%)</span><span class="val">${baFormatMoney(minha)}</span></div>
+     <div class="row"><span class="lbl">Repasse à barbearia (${salaoLabel}%)</span><span class="val small">${baFormatMoney(salao)}</span></div>`;
   document.getElementById('ba-vendas-list').innerHTML = sales.map(s=>
     `<div class="ba-item"><div class="ic">✂</div><div class="info"><div class="n">${s.service}</div><div class="d">${s.client} · ${baFormatDate(s.date)}</div></div><div class="val">${baFormatMoney(s.value)}</div></div>`
   ).join('');
@@ -2081,10 +2118,11 @@ function baToggleNotifs(){
 
 function baBuildAgendaDays(){
   const box = document.getElementById('ba-agenda-days'); box.innerHTML='';
+  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
   const today = new Date();
   for(let i=0;i<10;i++){
     const d = new Date(today); d.setDate(today.getDate()+i);
-    if(!HORARIOS[d.getDay()]) continue;
+    if(!resolveBarberHours(me, d.getDay())) continue;
     const iso = d.toISOString().slice(0,10);
     if(!baAgendaDay) baAgendaDay = iso;
     const btn = document.createElement('button');
@@ -2101,21 +2139,26 @@ function baBuildAgendaTimes(){
   timesBox.innerHTML = ''; listBox.innerHTML = '';
   if(!baAgendaDay) return;
   const d = new Date(baAgendaDay+'T12:00:00');
-  const h = HORARIOS[d.getDay()]; if(!h) return;
-  const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
+  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
   const appts = (typeof primeGetAppointments==='function' ? primeGetAppointments() : [])
     .filter(a=>a.day===baAgendaDay && a.barber===baCurrentBarber);
+  const h = resolveBarberHours(me, d.getDay());
   const byTime = {}; appts.forEach(a=>{ byTime[a.time]=a; });
-  for(let t=oH*60+oM; t+SLOT_MIN<=cH*60+cM; t+=SLOT_MIN){
-    const hh=String(Math.floor(t/60)).padStart(2,'0'), mm=String(t%60).padStart(2,'0');
-    const timeStr = `${hh}:${mm}`;
-    const taken = byTime[timeStr];
-    const chip = document.createElement('div');
-    chip.className = 'chip'+(taken?' taken':'');
-    chip.style.cursor = 'default';
-    chip.textContent = timeStr;
-    if(taken) chip.title = `${taken.name||'Cliente'} · ${taken.services.join(' + ')}`;
-    timesBox.appendChild(chip);
+  if(!h){
+    timesBox.innerHTML = '<p style="color:var(--prata-dim);padding:.4rem 0">Você está de folga neste dia.</p>';
+  } else {
+    const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
+    for(let t=oH*60+oM; t+SLOT_MIN<=cH*60+cM; t+=SLOT_MIN){
+      const hh=String(Math.floor(t/60)).padStart(2,'0'), mm=String(t%60).padStart(2,'0');
+      const timeStr = `${hh}:${mm}`;
+      const taken = byTime[timeStr];
+      const chip = document.createElement('div');
+      chip.className = 'chip'+(taken?' taken':'');
+      chip.style.cursor = 'default';
+      chip.textContent = timeStr;
+      if(taken) chip.title = `${taken.name||'Cliente'} · ${taken.services.join(' + ')}`;
+      timesBox.appendChild(chip);
+    }
   }
   const booked = appts.slice().sort((a,b)=>a.time.localeCompare(b.time));
   const statusBadge = {pendente:'<span style="color:#E5574B">● Pendente</span>', confirmado:'<span style="color:var(--verde-neon)">● Confirmado</span>', concluido:'<span style="color:var(--prata-dim)">● Concluído</span>'};
@@ -2162,15 +2205,25 @@ function baLogin(){
 function baRenderPerfil(){
   document.getElementById('ba-perfil-nome').textContent = baCurrentBarber;
   document.getElementById('ba-perfil-funcao').textContent = (baCurrentRole==='admin' ? 'Admin' : 'Barbeiro') + ' · Prime Barbearia';
+  const pct = baMyCommissionPct();
+  document.getElementById('ba-perfil-comm-pct').textContent = Math.round(pct*100);
+  document.getElementById('ba-perfil-comm-salao').textContent = 100-Math.round(pct*100);
   const isAdmin = baCurrentRole==='admin';
   document.getElementById('ba-admin-panel').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderRoster();
 }
 function baRenderRoster(){
   const roster = baGetRoster();
-  document.getElementById('ba-roster-list').innerHTML = roster.map(b=>
-    `<div class="ba-item"><div class="ic">${b.name.charAt(0)}</div><div class="info"><div class="n">${b.name}</div><div class="d">${b.email} · ${b.role==='admin'?'Admin':'Barbeiro'}</div></div><div class="val" style="cursor:pointer;font-size:.72rem;text-transform:uppercase;color:${b.isBarber?'var(--verde-neon)':'var(--prata-dim)'}" onclick="baToggleIsBarber('${b.email.replace(/'/g,"\\'")}')">${b.isBarber ? 'Atende clientes' : 'Não atende'}</div></div>`
-  ).join('');
+  document.getElementById('ba-roster-list').innerHTML = roster.map((b,i)=>{
+    const safeEmail = b.email.replace(/'/g,"\\'");
+    return `<div class="ba-item"><div class="ic">${b.name.charAt(0)}</div><div class="info"><div class="n">${b.name}</div><div class="d">${b.email} · ${b.role==='admin'?'Admin':'Barbeiro'}</div></div>
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-end">
+        <span class="val" style="cursor:pointer;font-size:.72rem;text-transform:uppercase;color:${b.isBarber?'var(--verde-neon)':'var(--prata-dim)'}" onclick="baToggleIsBarber('${safeEmail}')">${b.isBarber ? 'Atende' : 'Não atende'}</span>
+        <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.4rem .7rem;margin:0;font-size:.68rem" onclick="baToggleEditBarber(${i})">Editar</button>
+        <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.4rem .7rem;margin:0;font-size:.68rem;border-color:#E5574B;color:#E5574B" onclick="baDeleteBarber('${safeEmail}')">Remover</button>
+      </div></div>
+      <div id="ba-edit-row-${i}" class="ba-card" style="display:none;margin-top:-.4rem;margin-bottom:.9rem"></div>`;
+  }).join('');
 }
 function baToggleIsBarber(email){
   const roster = baGetRoster();
@@ -2178,6 +2231,157 @@ function baToggleIsBarber(email){
   if(!b) return;
   b.isBarber = !b.isBarber;
   baSaveRoster(roster);
+  baRenderRoster();
+  renderTeamSection();
+}
+
+let baEditingIndex = null;
+function baToggleEditBarber(i){
+  const container = document.getElementById('ba-edit-row-'+i);
+  if(!container) return;
+  if(baEditingIndex===i){ container.style.display='none'; container.innerHTML=''; baEditingIndex=null; return; }
+  document.querySelectorAll('[id^="ba-edit-row-"]').forEach(el=>{ el.style.display='none'; el.innerHTML=''; });
+  baEditingIndex = i;
+  const b = baGetRoster()[i];
+  if(!b) return;
+  container.style.display='block';
+  container.innerHTML = baBuildEditForm(b, i);
+  container.querySelectorAll('.ba-edit-off').forEach(cb=>cb.addEventListener('change', e=>{
+    const day = e.target.dataset.day;
+    const openEl = container.querySelector(`.ba-edit-open[data-day="${day}"]`);
+    const closeEl = container.querySelector(`.ba-edit-close[data-day="${day}"]`);
+    if(openEl) openEl.disabled = e.target.checked;
+    if(closeEl) closeEl.disabled = e.target.checked;
+  }));
+}
+
+function baBuildEditForm(b, i){
+  const pct = typeof b.commissionPct==='number' ? Math.round(b.commissionPct*100) : Math.round(BARBER_COMMISSION_PCT*100);
+  const weekdays = [1,2,3,4,5,6,0];
+  const scheduleRows = weekdays.filter(d=>HORARIOS[d]).map(d=>{
+    const shopH = HORARIOS[d];
+    const override = b.hours && (d in b.hours) ? b.hours[d] : undefined;
+    const isOff = override===null;
+    const open = override ? override[0] : shopH[0];
+    const close = override ? override[1] : shopH[1];
+    return `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.8rem;flex-wrap:wrap">
+      <span style="width:32px;color:var(--prata-dim)">${DIAS[d]}</span>
+      <label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;color:var(--prata-dim)"><input type="checkbox" class="ba-edit-off" data-day="${d}" ${isOff?'checked':''} style="accent-color:var(--dourado)"> Folga</label>
+      <input type="time" class="ba-edit-open" data-day="${d}" value="${open}" ${isOff?'disabled':''} style="background:var(--verde-noite);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.3rem;font-size:.78rem;width:100px">
+      <span style="color:var(--prata-dim)">–</span>
+      <input type="time" class="ba-edit-close" data-day="${d}" value="${close}" ${isOff?'disabled':''} style="background:var(--verde-noite);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.3rem;font-size:.78rem;width:100px">
+    </div>`;
+  }).join('');
+  return `
+    <div class="ba-field"><label>Nome</label><input type="text" id="ba-edit-name-${i}" value="${b.name.replace(/"/g,'&quot;')}"></div>
+    <div class="ba-field"><label>E-mail</label><input type="email" id="ba-edit-email-${i}" value="${b.email.replace(/"/g,'&quot;')}"></div>
+    <div class="ba-field"><label>Nova senha (deixe em branco pra manter)</label><input type="password" id="ba-edit-pass-${i}" placeholder="••••••••"></div>
+    <div class="ba-field"><label>Função</label>
+      <select id="ba-edit-role-${i}">
+        <option value="barbeiro" ${b.role!=='admin'?'selected':''}>Barbeiro</option>
+        <option value="admin" ${b.role==='admin'?'selected':''}>Admin</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;color:var(--prata-dim);margin-bottom:1rem;cursor:pointer">
+      <input type="checkbox" id="ba-edit-isbarber-${i}" ${b.isBarber?'checked':''} style="width:16px;height:16px;accent-color:var(--dourado)">
+      Atende clientes como barbeiro
+    </label>
+    <div class="ba-field"><label>Comissão (%)</label><input type="number" id="ba-edit-comm-${i}" min="0" max="100" value="${pct}"></div>
+    <div class="ba-slabel" style="margin-top:0">Escala semanal</div>
+    ${scheduleRows}
+    <p class="ba-err" id="ba-edit-err-${i}" style="display:none;margin-top:.4rem"></p>
+    <button class="ba-btn" style="max-width:100%;margin-top:.8rem" onclick="baSaveEditBarber(${i})">Salvar alterações</button>
+    <button class="ba-btn ghost" style="max-width:100%" onclick="baToggleEditBarber(${i})">Cancelar</button>`;
+}
+
+function baSaveEditBarber(i){
+  const roster = baGetRoster();
+  const b = roster[i];
+  if(!b) return;
+  const errEl = document.getElementById('ba-edit-err-'+i);
+  errEl.style.display='none';
+  const newName = document.getElementById('ba-edit-name-'+i).value.trim();
+  const newEmail = document.getElementById('ba-edit-email-'+i).value.trim().toLowerCase();
+  const newPass = document.getElementById('ba-edit-pass-'+i).value;
+  const newRole = document.getElementById('ba-edit-role-'+i).value;
+  const newIsBarber = document.getElementById('ba-edit-isbarber-'+i).checked;
+  const newCommPct = Number(document.getElementById('ba-edit-comm-'+i).value);
+
+  function fail(msg){ errEl.textContent = msg; errEl.style.display='block'; }
+
+  if(!newName) return fail('Digite um nome.');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail)) return fail('E-mail inválido.');
+  if(newPass && newPass.length<6) return fail('A nova senha precisa ter ao menos 6 caracteres.');
+  if(isNaN(newCommPct) || newCommPct<0 || newCommPct>100) return fail('Comissão inválida.');
+  if(roster.some((x,xi)=> xi!==i && x.email.toLowerCase()===newEmail)) return fail('Já existe outro barbeiro com esse e-mail.');
+  const otherAdmins = roster.filter((x,xi)=> xi!==i && x.role==='admin');
+  if(b.role==='admin' && newRole!=='admin' && otherAdmins.length===0) return fail('Não é possível remover o último admin da equipe.');
+
+  const isSelf = b.email === localStorage.getItem(BARBER_KEYS.loggedInEmail);
+  const oldName = b.name;
+  const nameChanged = oldName !== newName;
+
+  const hours = {};
+  document.querySelectorAll(`#ba-edit-row-${i} .ba-edit-off`).forEach(cb=>{
+    const day = Number(cb.dataset.day);
+    if(cb.checked){ hours[day] = null; }
+    else{
+      const openEl = document.querySelector(`#ba-edit-row-${i} .ba-edit-open[data-day="${day}"]`);
+      const closeEl = document.querySelector(`#ba-edit-row-${i} .ba-edit-close[data-day="${day}"]`);
+      const shopH = HORARIOS[day];
+      if(shopH && (openEl.value!==shopH[0] || closeEl.value!==shopH[1])){
+        hours[day] = [openEl.value, closeEl.value];
+      }
+    }
+  });
+
+  roster[i] = {
+    ...b,
+    name:newName, email:newEmail, role:newRole, isBarber:newIsBarber,
+    commissionPct: newCommPct/100,
+    hours: Object.keys(hours).length ? hours : undefined,
+    ...(newPass ? {pass:newPass} : {})
+  };
+  baSaveRoster(roster);
+
+  if(nameChanged){
+    const sales = baGetSales().map(s=> s.barber===oldName ? {...s, barber:newName} : s);
+    localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
+    const clients = baGetClients().map(c=> c.barber===oldName ? {...c, barber:newName} : c);
+    localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(clients));
+    if(typeof primeGetAppointments==='function' && typeof primeSaveAppointments==='function'){
+      const appts = primeGetAppointments().map(a=> a.barber===oldName ? {...a, barber:newName} : a);
+      primeSaveAppointments(appts);
+    }
+  }
+  if(isSelf){
+    baCurrentBarber = newName;
+    baCurrentRole = newRole;
+    baSetLoggedInEmail(newEmail);
+  }
+  baToggleEditBarber(i);
+  baRenderRoster();
+  renderTeamSection();
+  if(document.getElementById('ba-screen-perfil').classList.contains('active')) baRenderPerfil();
+}
+
+function baDeleteBarber(email){
+  const roster = baGetRoster();
+  const b = roster.find(x=>x.email===email);
+  if(!b) return;
+  const isSelf = email === localStorage.getItem(BARBER_KEYS.loggedInEmail);
+  if(isSelf){
+    alert('Você não pode remover a própria conta enquanto estiver logado com ela. Peça pra outro admin remover.');
+    return;
+  }
+  const otherAdmins = roster.filter(x=>x.email!==email && x.role==='admin');
+  if(b.role==='admin' && otherAdmins.length===0){
+    alert('Não é possível remover o último admin da equipe.');
+    return;
+  }
+  if(!confirm(`Remover ${b.name} da equipe? O histórico de vendas, clientes e agendamentos dele(a) é mantido, mas essa pessoa não vai mais conseguir fazer login.`)) return;
+  baSaveRoster(roster.filter(x=>x.email!==email));
+  baEditingIndex = null;
   baRenderRoster();
   renderTeamSection();
 }
