@@ -509,7 +509,8 @@ const HORARIOS = {
   1: ["09:00","20:00"], 2: ["09:00","20:00"], 3: ["09:00","20:00"],
   4: ["09:00","20:00"], 5: ["09:00","20:00"], 6: ["09:00","18:00"]
 };
-const SLOT_MIN = 45; // intervalo entre horários, em minutos
+const SLOT_MIN = 45;
+const SVC_PRICES = {'Corte':45,'Barba':35,'Corte + Barba':70,'Barbaterapia':60,'Sobrancelha':15,'Pigmentação':40};
 
 // resolve o horário efetivo de um barbeiro num dia da semana, considerando folga/horário customizado dele
 // barber.hours: ausente = herda o horário da loja; null = folga nesse dia; [abre,fecha] = horário próprio
@@ -1620,6 +1621,23 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-cli-row:last-child{border-bottom:none}
 #barberApp .ba-cli-row .lbl{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--prata-dim);flex:none}
 #barberApp .ba-cli-row .val{color:var(--prata);text-align:right}
+#barberApp .ba-vendas-hoje{background:linear-gradient(155deg,#1a2a1c,var(--grafite-card));border:1px solid var(--verde-neon);padding:1.2rem 1.4rem;margin-bottom:1rem}
+#barberApp .ba-vendas-hoje .vh-title{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--verde-neon);margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem}
+#barberApp .ba-vendas-hoje .vh-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem}
+#barberApp .ba-vendas-hoje .vh-row:last-child{margin-bottom:0}
+#barterApp .ba-vendas-hoje .vh-lbl,#barberApp .ba-vendas-hoje .vh-lbl{font-size:.78rem;color:var(--prata-dim)}
+#barberApp .ba-vendas-hoje .vh-val{font-family:var(--font-display);font-size:1.1rem;color:var(--prata)}
+#barberApp .ba-vendas-hoje .vh-val.destaque{color:var(--verde-neon);font-size:1.3rem}
+#barberApp .ba-vfiltros{display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap}
+#barberApp .ba-vf{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);padding:.4rem .9rem;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-body);cursor:pointer;transition:all .2s}
+#barberApp .ba-vf.active{background:var(--dourado);color:var(--verde-noite);border-color:var(--dourado)}
+#barberApp .ba-vf:hover:not(.active){border-color:var(--dourado);color:var(--dourado)}
+#barberApp .ba-vf-dates{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap}
+#barberApp .ba-vf-dates input[type=date]{background:var(--grafite-card);border:1px solid var(--dourado-dim);color:var(--prata);padding:.4rem .6rem;font-family:var(--font-body);font-size:.82rem}
+#barberApp .ba-vday-group{margin-top:1rem}
+#barberApp .ba-vday-header{display:flex;justify-content:space-between;align-items:baseline;padding:.5rem 0 .3rem;border-bottom:1px solid var(--dourado-dim);margin-bottom:0}
+#barberApp .ba-vday-header .vd-date{font-size:.78rem;color:var(--dourado);letter-spacing:.08em;text-transform:uppercase}
+#barberApp .ba-vday-header .vd-summary{font-size:.75rem;color:var(--prata-dim)}
 #barberApp .ba-comm{background:linear-gradient(155deg,#2a2216,var(--grafite-card));border:1px solid var(--dourado);padding:1.4rem}
 #barberApp .ba-comm .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.7rem}
 #barberApp .ba-comm .row:last-child{margin-bottom:0}
@@ -1697,8 +1715,19 @@ addEventListener('resize', caApplyMode, {passive:true});
 
     <!-- VENDAS -->
     <div class="screen" id="ba-screen-vendas">
-      <div class="ba-head"><div><div class="hi">Este mês</div><div class="name">Minhas vendas</div></div></div>
+      <div class="ba-head"><div><div class="hi">Suas vendas</div><div class="name">Vendas</div></div></div>
       <div class="ba-body">
+        <div id="ba-vendas-hoje"></div>
+        <div class="ba-vfiltros" id="ba-vendas-filtros">
+          <button class="ba-vf active" data-vf="hoje" onclick="baSetVendasFilter('hoje')">Hoje</button>
+          <button class="ba-vf" data-vf="semana" onclick="baSetVendasFilter('semana')">Semana</button>
+          <button class="ba-vf" data-vf="mes" onclick="baSetVendasFilter('mes')">Mês</button>
+          <button class="ba-vf" data-vf="custom" onclick="baSetVendasFilter('custom')">Período</button>
+        </div>
+        <div class="ba-vf-dates" id="ba-vf-dates" style="display:none">
+          <input type="date" id="ba-vf-from"> <span style="color:var(--prata-dim)">até</span> <input type="date" id="ba-vf-to">
+          <button class="ba-btn" style="padding:.4rem .9rem;font-size:.72rem" onclick="baRenderVendas()">Filtrar</button>
+        </div>
         <div class="ba-comm" id="ba-comm-card"></div>
         <div class="ba-slabel" id="ba-reviews-label">Avaliações dos clientes</div>
         <div id="ba-reviews-list"></div>
@@ -1881,20 +1910,77 @@ function baMyCommissionPct(){
   const me = baGetRoster().find(b=>b.email===localStorage.getItem(BARBER_KEYS.loggedInEmail));
   return (me && typeof me.commissionPct==='number') ? me.commissionPct : BARBER_COMMISSION_PCT;
 }
+let baVendasFilter = 'hoje';
+function baSetVendasFilter(f){
+  baVendasFilter = f;
+  document.querySelectorAll('#ba-vendas-filtros .ba-vf').forEach(b=>b.classList.toggle('active',b.dataset.vf===f));
+  document.getElementById('ba-vf-dates').style.display = f==='custom' ? 'flex' : 'none';
+  baRenderVendas();
+}
+function baGetFilterRange(){
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+  if(baVendasFilter==='hoje') return [todayStr, todayStr];
+  if(baVendasFilter==='semana'){
+    const d = new Date(now); d.setDate(d.getDate()-d.getDay());
+    return [d.toISOString().slice(0,10), todayStr];
+  }
+  if(baVendasFilter==='mes'){
+    return [todayStr.slice(0,8)+'01', todayStr];
+  }
+  const from = document.getElementById('ba-vf-from').value;
+  const to = document.getElementById('ba-vf-to').value;
+  if(from && to) return [from, to];
+  return [todayStr.slice(0,8)+'01', todayStr];
+}
+function baRenderVendasHoje(){
+  const box = document.getElementById('ba-vendas-hoje');
+  const todayStr = new Date().toISOString().slice(0,10);
+  const sales = baMySales().filter(s=>s.date===todayStr);
+  const realizado = sales.reduce((s,x)=>s+x.value,0);
+  const realizadoCount = sales.length;
+  const appts = (typeof primeGetAppointments==='function'?primeGetAppointments():[])
+    .filter(a=>a.day===todayStr && a.barber===baCurrentBarber && a.status!=='cancelado' && !sales.some(s=>s.client===a.name && s.date===a.day));
+  const previstoVal = appts.reduce((s,a)=>{
+    const svcs = a.services || (a.service ? [a.service] : []);
+    return s + svcs.reduce((t,name)=> t + (SVC_PRICES[name]||0), 0);
+  },0);
+  const previstoCount = appts.length;
+  const pct = baMyCommissionPct();
+  const totalDia = realizado + previstoVal;
+  const comissaoDia = totalDia * pct;
+  box.innerHTML =
+    `<div class="vh-title">📅 Resumo de hoje</div>
+     <div class="vh-row"><span class="vh-lbl">Realizados</span><span class="vh-val">${realizadoCount} corte${realizadoCount!==1?'s':''} · ${baFormatMoney(realizado)}</span></div>
+     <div class="vh-row"><span class="vh-lbl">Previstos (agenda)</span><span class="vh-val">${previstoCount} corte${previstoCount!==1?'s':''} · ${baFormatMoney(previstoVal)}</span></div>
+     <div class="vh-row"><span class="vh-lbl">Total estimado do dia</span><span class="vh-val destaque">${baFormatMoney(totalDia)}</span></div>
+     <div class="vh-row"><span class="vh-lbl">Comissão estimada (${Math.round(pct*100)}%)</span><span class="vh-val">${baFormatMoney(comissaoDia)}</span></div>`;
+}
 function baRenderVendas(){
-  const sales = baMySales().slice().sort((a,b)=> b.date.localeCompare(a.date));
+  baRenderVendasHoje();
+  const [from, to] = baGetFilterRange();
+  const sales = baMySales().filter(s=>s.date>=from && s.date<=to).sort((a,b)=> b.date.localeCompare(a.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
   const pct = baMyCommissionPct();
   const minha = total*pct;
   const salao = total-minha;
   const pctLabel = Math.round(pct*100), salaoLabel = 100-pctLabel;
+  const filterLabel = baVendasFilter==='hoje'?'Hoje':baVendasFilter==='semana'?'Esta semana':baVendasFilter==='mes'?'Este mês':'Período';
   document.getElementById('ba-comm-card').innerHTML =
-    `<div class="row"><span class="lbl">Total vendido</span><span class="val small">${baFormatMoney(total)}</span></div>
+    `<div class="row"><span class="lbl">Total vendido · ${filterLabel}</span><span class="val small">${baFormatMoney(total)}</span></div>
      <div class="row"><span class="lbl">Sua comissão (${pctLabel}%)</span><span class="val">${baFormatMoney(minha)}</span></div>
      <div class="row"><span class="lbl">Repasse à barbearia (${salaoLabel}%)</span><span class="val small">${baFormatMoney(salao)}</span></div>`;
-  document.getElementById('ba-vendas-list').innerHTML = sales.map(s=>
-    `<div class="ba-item"><div class="ic">✂</div><div class="info"><div class="n">${s.service}</div><div class="d">${s.client} · ${baFormatDate(s.date)}</div></div><div class="val">${baFormatMoney(s.value)}</div></div>`
-  ).join('');
+  const groups = {};
+  sales.forEach(s=>{ if(!groups[s.date]) groups[s.date]=[]; groups[s.date].push(s); });
+  const listHtml = Object.keys(groups).sort((a,b)=>b.localeCompare(a)).map(date=>{
+    const items = groups[date];
+    const dayTotal = items.reduce((s,x)=>s+x.value,0);
+    return `<div class="ba-vday-group">
+      <div class="ba-vday-header"><span class="vd-date">${baFormatDate(date)}</span><span class="vd-summary">${items.length} atend. · ${baFormatMoney(dayTotal)}</span></div>
+      ${items.map(s=>`<div class="ba-item"><div class="ic">✂</div><div class="info"><div class="n">${s.service}</div><div class="d">${s.client}</div></div><div class="val">${baFormatMoney(s.value)}</div></div>`).join('')}
+    </div>`;
+  }).join('');
+  document.getElementById('ba-vendas-list').innerHTML = listHtml || '<p style="color:var(--prata-dim);padding:.6rem 0">Nenhuma venda neste período.</p>';
   baRenderReviews();
 }
 
