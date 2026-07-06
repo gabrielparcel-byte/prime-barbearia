@@ -1646,6 +1646,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-comm .val.small{font-size:1rem;color:var(--prata);font-family:var(--font-body)}
 #barberApp .ba-item{display:flex;align-items:center;gap:.9rem;padding:.9rem 0;border-bottom:1px solid rgba(198,167,94,.12)}
 #barberApp .ba-item:last-child{border-bottom:none}
+#barberApp .ba-roster-row{border-bottom:1px solid rgba(198,167,94,.12);padding-left:.2rem}
 #barberApp .ba-item .ic{width:38px;height:38px;flex:none;border-radius:50%;background:rgba(198,167,94,.1);border:1px solid var(--dourado-dim);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);color:var(--dourado);font-size:.85rem}
 #barberApp .ba-item .info{flex:1;min-width:0}
 #barberApp .ba-item .info .n{font-size:.95rem;color:var(--prata)}
@@ -2302,13 +2303,21 @@ function baRenderRoster(){
   const roster = baGetRoster();
   document.getElementById('ba-roster-list').innerHTML = roster.map((b,i)=>{
     const safeEmail = b.email.replace(/'/g,"\\'");
-    return `<div class="ba-item"><div class="ic">${b.name.charAt(0)}</div><div class="info"><div class="n">${b.name}</div><div class="d">${b.email} · ${b.role==='admin'?'Admin':'Barbeiro'}</div></div>
-      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-end">
-        <span class="val" style="cursor:pointer;font-size:.72rem;text-transform:uppercase;color:${b.isBarber?'var(--verde-neon)':'var(--prata-dim)'}" onclick="baToggleIsBarber('${safeEmail}')">${b.isBarber ? 'Atende' : 'Não atende'}</span>
-        <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.4rem .7rem;margin:0;font-size:.68rem" onclick="baToggleEditBarber(${i})">Editar</button>
-        <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.4rem .7rem;margin:0;font-size:.68rem;border-color:#E5574B;color:#E5574B" onclick="baDeleteBarber('${safeEmail}')">Remover</button>
-      </div></div>
-      <div id="ba-edit-row-${i}" class="ba-card" style="display:none;margin-top:-.4rem;margin-bottom:.9rem"></div>`;
+    const badge = b.isBarber
+      ? '<span style="color:var(--verde-neon)">✓ Atende</span>'
+      : '<span style="color:var(--prata-dim)">Não atende</span>';
+    return `<div class="ba-roster-row">
+      <div class="ba-item" style="border-bottom:none;padding-bottom:.3rem">
+        <div class="ic">${b.name.charAt(0)}</div>
+        <div class="info"><div class="n">${b.name}</div><div class="d">${b.email} · ${b.role==='admin'?'Admin':'Barbeiro'}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;padding:0 0 .7rem;flex-wrap:wrap">
+        <span style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;flex:1" onclick="baToggleIsBarber('${safeEmail}')">${badge}</span>
+        <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.35rem .7rem;margin:0;font-size:.68rem" onclick="baToggleEditBarber(${i})">Editar</button>
+        <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.35rem .7rem;margin:0;font-size:.68rem;border-color:#E5574B;color:#E5574B" onclick="baDeleteBarber('${safeEmail}')">Remover</button>
+      </div>
+    </div>
+    <div id="ba-edit-row-${i}" class="ba-card" style="display:none;margin-top:-.4rem;margin-bottom:.9rem"></div>`;
   }).join('');
 }
 function baToggleIsBarber(email){
