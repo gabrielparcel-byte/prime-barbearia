@@ -181,7 +181,7 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 @media(max-width:720px){.f-grid{grid-template-columns:1fr}}
 
 /* ── MODAL WIZARD DE AGENDAMENTO ── */
-.modal-backdrop{position:fixed;inset:0;background:rgba(5,10,6,.85);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-backdrop{position:fixed;inset:0;background:rgba(5,10,6,.85);backdrop-filter:blur(4px);z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem}
 .modal-backdrop.open{display:flex}
 .modal{background:var(--grafite-card);border:1px solid var(--dourado);max-width:520px;width:100%;max-height:92svh;overflow-y:auto;padding:clamp(1.5rem,4vw,2.5rem);position:relative}
 .modal .close{position:absolute;top:1rem;right:1.1rem;background:none;border:none;color:var(--prata-dim);font-size:1.3rem;cursor:pointer;line-height:1}
@@ -541,7 +541,7 @@ const steps = [...document.querySelectorAll('.wstep')];
 const labels = ["Escolha o serviço","Escolha o dia","Escolha o horário","Escolha o barbeiro","Seus dados"];
 
 function openModal(){ modal.classList.add('open'); document.body.style.overflow='hidden'; buildDays(); }
-function closeModal(){ modal.classList.remove('open'); document.body.style.overflow=''; }
+function closeModal(){ modal.classList.remove('open'); const appOpen = document.querySelector('#clientApp.open,#barberApp.open'); if(!appOpen) document.body.style.overflow=''; }
 function closeAuthPrompt(){ document.getElementById('authPromptModal').classList.remove('open'); }
 function dismissAuthPrompt(){ pendingBooking=null; closeAuthPrompt(); }
 function authPromptGo(kind){
@@ -1439,7 +1439,6 @@ function caToggleNotifs(){
 function caResumeBookingIfPending(){
   if(!pendingBooking) return;
   const p = pendingBooking; pendingBooking = null;
-  caClose();
   state.services = p.services; state.day = p.day; state.dayLabel = p.dayLabel; state.time = p.time; state.step = 4;
   openModal();
   renderBarberStep();
@@ -1455,7 +1454,7 @@ function caTab(tab){
   if(tab==='perfil')caRenderPerfil();
   if(tab==='home'){ caRenderHomeBarbeiro(); caRenderPlanCard(); caRenderNextAppointment(); caRenderNotifs(); }
 }
-function caGoBook(){ caClose(); openModal(); }
+function caGoBook(){ openModal(); }
 function caLogin(){
   const e=document.getElementById('ca-email'),p=document.getElementById('ca-pass'),fe=document.getElementById('ca-f-email'),fp=document.getElementById('ca-f-pass'),err=document.getElementById('ca-login-err');
   let ok=true;
