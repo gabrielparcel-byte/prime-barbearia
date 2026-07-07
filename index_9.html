@@ -818,7 +818,6 @@ render();
 #clientApp .club-stk.locked .club-medal>svg{filter:grayscale(1) brightness(.55);opacity:.5}
 #clientApp .club-stk.locked .cn{color:var(--prata-dim)}
 #clientApp .club-lock{position:absolute;bottom:0;right:0;width:22px;height:22px;border-radius:50%;background:var(--grafite-card);border:1px solid var(--dourado-dim);display:flex;align-items:center;justify-content:center}
-#clientApp .club-hint{font-size:.78rem;color:var(--prata);background:rgba(198,167,94,.1);border-left:2px solid var(--dourado);padding:.5rem .8rem;max-width:340px;margin-top:.9rem;line-height:1.5}
 #clientApp .ca-plan{background:var(--grafite-card);border:1px solid var(--dourado);padding:1.3rem 1.4rem;position:relative;overflow:hidden}
 #clientApp .ca-plan .ptop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
 #clientApp .ca-plan .pname{font-family:var(--font-display);font-size:1.15rem;letter-spacing:.04em}
@@ -907,7 +906,6 @@ render();
 #clientApp.desktop .ca-body>.club-card{max-width:520px;margin-left:0}
 #clientApp.desktop .ca-body>.club-grid{max-width:760px;margin-left:0;grid-template-columns:repeat(8,1fr);gap:1.1rem .9rem}
 #clientApp.desktop .ca-body>.club-grid .cn{font-size:.55rem}
-#clientApp.desktop .ca-body>.club-hint{max-width:520px;margin-left:0}
 #clientApp .ca-tab{flex:1;background:none;border:none;color:var(--prata-dim);display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.4rem;cursor:pointer;font-family:var(--font-body)}
 #clientApp .ca-tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6}
 #clientApp .ca-tab span{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase}
@@ -1050,7 +1048,6 @@ render();
         <div class="ca-slabel" style="margin-top:0">Prime Club <span class="club-beta">beta</span></div>
         <div class="club-card" id="ca-club-level"></div>
         <div class="club-grid" id="ca-club-grid"></div>
-        <p class="club-hint" id="ca-club-hint" style="display:none"></p>
 
         <div class="ca-slabel" style="margin-top:2.2rem">Seus dados</div>
         <div class="ca-field"><label>Nome</label><input type="text" id="ca-pf-nome" placeholder="Seu nome"></div>
@@ -1104,6 +1101,18 @@ render();
     <div id="feedbackStars" style="display:flex;justify-content:center;gap:.4rem;font-size:2rem;margin-bottom:1.2rem"></div>
     <textarea id="feedbackComment" placeholder="Quer deixar um comentário? (opcional)" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:1.2rem;resize:vertical;min-height:70px"></textarea>
     <button class="btn btn-primary" style="width:100%" id="feedbackSubmit">Enviar avaliação</button>
+  </div>
+</div>
+
+<!-- MODAL: detalhe do sticker (Prime Club) -->
+<div class="modal-backdrop" id="clubStickerModal" role="dialog" aria-modal="true" style="z-index:1200" onclick="if(event.target===this)closeClubSticker()">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <button class="close" aria-label="Fechar" onclick="closeClubSticker()">✕</button>
+    <div id="clubStkMedal" style="width:130px;margin:0 auto 1rem"></div>
+    <h3 id="clubStkName" style="letter-spacing:.1em;font-size:1.2rem"></h3>
+    <p id="clubStkLabel" style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;margin:.5rem 0 .4rem"></p>
+    <p id="clubStkDesc" style="color:var(--prata-dim);font-size:.92rem;line-height:1.55;margin-bottom:1.4rem"></p>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeClubSticker()">Fechar</button>
   </div>
 </div>
 
@@ -1613,22 +1622,29 @@ function caRenderClub(){
   grid.innerHTML = ACH_CATALOG.map(a=>{
     const un = st.unlocked[a.id];
     const lock = un ? '' : `<div class="club-lock"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#C6A75E" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11 V8 a4 4 0 0 1 8 0 v3"/></svg></div>`;
-    return `<div class="club-stk${un?'':' locked'}" onclick="caClubHint('${a.id}')">
+    return `<div class="club-stk${un?'':' locked'}" onclick="caOpenSticker('${a.id}')">
       <div class="club-medal">${primeAchMedal(a.id)}${lock}</div>
       <div class="cn">${a.nome}</div>
     </div>`;
   }).join('');
-  document.getElementById('ca-club-hint').style.display='none';
 }
-function caClubHint(id){
+function caOpenSticker(id){
   const a = ACH_CATALOG.find(x=>x.id===id);
   if(!a) return;
   const st = primeGetAch((primeGetAccount()||{}).email||'');
   const un = st.unlocked[id];
-  const el = document.getElementById('ca-club-hint');
-  el.textContent = un ? `✔ ${a.desc} — conquistado em ${un.split('-').reverse().join('/')}` : `🔒 ${a.dica}`;
-  el.style.display='block';
+  const medal = document.getElementById('clubStkMedal');
+  medal.innerHTML = primeAchMedal(id);
+  medal.style.filter = un ? '' : 'grayscale(1) brightness(.6)';
+  medal.style.opacity = un ? '' : '.6';
+  document.getElementById('clubStkName').textContent = a.nome;
+  const lab = document.getElementById('clubStkLabel');
+  lab.textContent = un ? `✔ Conquistado em ${un.split('-').reverse().join('/')}` : '🔒 Como desbloquear';
+  lab.style.color = un ? 'var(--verde-neon)' : 'var(--dourado)';
+  document.getElementById('clubStkDesc').textContent = un ? a.desc : a.dica;
+  document.getElementById('clubStickerModal').classList.add('open');
 }
+function closeClubSticker(){ document.getElementById('clubStickerModal').classList.remove('open'); }
 function caRenderPerfil(){
   caRenderClub();
   const acc = primeGetAccount() || {};
