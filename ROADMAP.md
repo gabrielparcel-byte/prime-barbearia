@@ -8,7 +8,7 @@
 ## 🏆 Fase 1 — Prime Club (Gamificação + Fidelidade)
 
 ### Conquistas / Stickers Colecionáveis
-- [ ] Sistema base de conquistas (modelo de dados, storage, lógica de desbloqueio)
+- [x] Sistema base de conquistas (modelo de dados, storage, lógica de desbloqueio)
 - [ ] Vitrine de stickers no perfil do cliente (grid visual com stickers bloqueados/desbloqueados)
 - [ ] Animação de desbloqueio (confetti/brilho ao conquistar)
 - [ ] Conquistas implementadas:
