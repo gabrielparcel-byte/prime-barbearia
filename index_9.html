@@ -1116,6 +1116,33 @@ render();
   </div>
 </div>
 
+<!-- OVERLAY: conquista desbloqueada (Prime Club) -->
+<style>
+#clubUnlockOverlay{position:fixed;inset:0;z-index:1300;background:rgba(5,10,6,.9);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center}
+#clubUnlockOverlay.open{display:flex}
+#clubUnlockOverlay canvas{position:absolute;inset:0;pointer-events:none}
+#clubUnlockOverlay .cu-box{position:relative;text-align:center;padding:1rem 2rem;max-width:340px}
+#clubUnlockOverlay .cu-medal{width:160px;margin:0 auto 1.2rem;animation:cuPop .55s cubic-bezier(.34,1.56,.64,1) both}
+#clubUnlockOverlay .cu-glow{position:absolute;top:70px;left:50%;transform:translateX(-50%);width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(198,167,94,.35),transparent 65%);pointer-events:none;animation:cuGlow 2.2s ease-in-out infinite}
+#clubUnlockOverlay .cu-sup{font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--dourado);margin-bottom:.4rem}
+#clubUnlockOverlay .cu-name{font-family:var(--font-display);font-size:1.7rem;color:#E8D5A4;letter-spacing:.08em;margin-bottom:.4rem}
+#clubUnlockOverlay .cu-desc{color:var(--prata-dim);font-size:.92rem;line-height:1.5;margin-bottom:1.6rem}
+#clubUnlockOverlay .cu-btn{width:100%}
+@keyframes cuPop{0%{transform:scale(.2) rotate(-12deg);opacity:0}70%{transform:scale(1.12) rotate(2deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes cuGlow{0%,100%{opacity:.55}50%{opacity:1}}
+</style>
+<div id="clubUnlockOverlay" role="dialog" aria-modal="true">
+  <canvas id="clubConfetti"></canvas>
+  <div class="cu-box">
+    <div class="cu-glow"></div>
+    <div class="cu-medal" id="cuMedal"></div>
+    <div class="cu-sup">Conquista desbloqueada</div>
+    <div class="cu-name" id="cuName"></div>
+    <div class="cu-desc" id="cuDesc"></div>
+    <button class="btn btn-primary cu-btn" id="cuBtn" onclick="caNextUnlock()">Aêêê! 🎉</button>
+  </div>
+</div>
+
 <script>
 // ══ Persistência (localStorage) ══
 const PRIME_KEYS = {loggedIn:'primeLoggedIn', account:'primeAccount', appts:'primeAppointments', notifs:'primeNotifs', seq:'primeSeq'};
@@ -1470,7 +1497,11 @@ document.getElementById('feedbackSubmit').addEventListener('click', ()=>{
     ? {status:'concluido', clientRating:feedbackStars, clientRatingComment:comment}
     : {status:'concluido', rating:feedbackStars, ratingComment:comment, ratingBy:'cliente'};
   const ap = primeUpdateAppointment(feedbackTargetId, patch);
-  if(ap && ap.clientEmail) primeCheckAchievements(ap.clientEmail);
+  if(ap && ap.clientEmail){
+    primeCheckAchievements(ap.clientEmail);
+    // celebra na hora se foi o próprio cliente avaliando
+    if(feedbackWho==='cliente' && typeof caCelebrateUnlocks==='function') setTimeout(caCelebrateUnlocks, 400);
+  }
   // notifica a outra parte
   if(ap){
     if(feedbackWho==='cliente' && ap.barber){
@@ -1508,6 +1539,7 @@ function caEnter(){
   updateNavAuthUI();
   caRenderHomeBarbeiro();
   caRenderNotifs();
+  setTimeout(caCelebrateUnlocks, 600);
 }
 function caRenderHomeBarbeiro(){
   const acc = primeGetAccount();
@@ -1645,6 +1677,69 @@ function caOpenSticker(id){
   document.getElementById('clubStickerModal').classList.add('open');
 }
 function closeClubSticker(){ document.getElementById('clubStickerModal').classList.remove('open'); }
+
+// ══ Prime Club — celebração de desbloqueio ══
+let cuQueue = [];
+let cfAnim = null;
+function caCelebrateUnlocks(){
+  const acc = primeGetAccount();
+  if(!acc || !acc.email) return;
+  const pend = primeTakePendingAchs(acc.email);
+  if(!pend.length) return;
+  cuQueue = pend;
+  caShowUnlock(cuQueue.shift());
+}
+function caShowUnlock(id){
+  const a = ACH_CATALOG.find(x=>x.id===id);
+  if(!a){ caNextUnlock(); return; }
+  const medal = document.getElementById('cuMedal');
+  medal.innerHTML = primeAchMedal(id);
+  medal.style.animation = 'none'; void medal.offsetWidth; medal.style.animation = '';
+  document.getElementById('cuName').textContent = a.nome;
+  document.getElementById('cuDesc').textContent = a.desc;
+  document.getElementById('cuBtn').textContent = cuQueue.length ? 'Próxima conquista →' : 'Aêêê! 🎉';
+  document.getElementById('clubUnlockOverlay').classList.add('open');
+  clubConfettiBurst();
+}
+function caNextUnlock(){
+  if(cuQueue.length){ caShowUnlock(cuQueue.shift()); return; }
+  document.getElementById('clubUnlockOverlay').classList.remove('open');
+  clubConfettiStop();
+  if(typeof caRenderClub==='function') caRenderClub();
+}
+function clubConfettiBurst(){
+  const cv = document.getElementById('clubConfetti');
+  cv.width = innerWidth; cv.height = innerHeight;
+  const ctx = cv.getContext('2d');
+  const colors = ['#C6A75E','#E8D5A4','#8F7538','#EDEDE8'];
+  const parts = Array.from({length:90},()=>({
+    x: cv.width/2 + (Math.random()-.5)*90,
+    y: cv.height*0.32,
+    vx: (Math.random()-.5)*10, vy: -(Math.random()*10+4),
+    w: 5+Math.random()*5, h: 8+Math.random()*6,
+    r: Math.random()*Math.PI, vr: (Math.random()-.5)*.3,
+    c: colors[Math.floor(Math.random()*colors.length)]
+  }));
+  cancelAnimationFrame(cfAnim);
+  const t0 = performance.now();
+  (function tick(t){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    parts.forEach(p=>{
+      p.x += p.vx; p.y += p.vy; p.vy += .25; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.globalAlpha = Math.max(0, 1-(t-t0)/2600);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.restore();
+    });
+    if(t-t0 < 2600) cfAnim = requestAnimationFrame(tick);
+    else ctx.clearRect(0,0,cv.width,cv.height);
+  })(t0);
+}
+function clubConfettiStop(){
+  cancelAnimationFrame(cfAnim);
+  const cv = document.getElementById('clubConfetti');
+  cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+}
 function caRenderPerfil(){
   caRenderClub();
   const acc = primeGetAccount() || {};
