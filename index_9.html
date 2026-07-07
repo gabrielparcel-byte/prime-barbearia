@@ -1637,6 +1637,28 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-vday-header{display:flex;justify-content:space-between;align-items:baseline;padding:.5rem 0 .3rem;border-bottom:1px solid var(--dourado-dim);margin-bottom:0}
 #barberApp .ba-vday-header .vd-date{font-size:.78rem;color:var(--dourado);letter-spacing:.08em;text-transform:uppercase}
 #barberApp .ba-vday-header .vd-summary{font-size:.75rem;color:var(--prata-dim)}
+#barberApp .ba-timeline{margin-top:.6rem}
+#barberApp .ba-tslot{display:flex;align-items:stretch;min-height:52px;border-left:2px solid var(--dourado-dim);margin-left:.6rem;position:relative}
+#barberApp .ba-tslot.taken{border-left-color:var(--verde-neon)}
+#barberApp .ba-tslot.encaixe{border-left-color:var(--dourado)}
+#barberApp .ba-tslot .ts-time{width:42px;flex:none;font-size:.72rem;color:var(--prata-dim);text-align:right;padding-right:.7rem;padding-top:.3rem;position:relative}
+#barberApp .ba-tslot .ts-time::after{content:'';position:absolute;right:-.55rem;top:.45rem;width:8px;height:8px;border-radius:50%;background:var(--grafite-card);border:2px solid var(--dourado-dim)}
+#barberApp .ba-tslot.taken .ts-time::after{background:var(--verde-neon);border-color:var(--verde-neon)}
+#barberApp .ba-tslot.encaixe .ts-time::after{background:var(--dourado);border-color:var(--dourado)}
+#barberApp .ba-tslot .ts-card{flex:1;background:var(--grafite-card);border:1px solid var(--dourado-dim);padding:.6rem .8rem;margin:0 0 .4rem .8rem;display:flex;align-items:center;gap:.6rem}
+#barberApp .ba-tslot.taken .ts-card{border-color:rgba(53,197,88,.3);background:rgba(53,197,88,.06)}
+#barberApp .ba-tslot.encaixe .ts-card{border-color:rgba(198,167,94,.4);background:rgba(198,167,94,.06)}
+#barberApp .ba-tslot .ts-info{flex:1;min-width:0}
+#barberApp .ba-tslot .ts-name{font-size:.88rem;color:var(--prata)}
+#barberApp .ba-tslot .ts-detail{font-size:.75rem;color:var(--prata-dim);margin-top:.1rem}
+#barberApp .ba-tslot .ts-badge{font-size:.65rem;letter-spacing:.06em;text-transform:uppercase;padding:.2rem .5rem;border-radius:2px;white-space:nowrap}
+#barberApp .ba-tslot .ts-empty{flex:1;padding:.5rem .8rem;margin-left:.8rem;color:rgba(198,167,94,.3);font-size:.75rem;font-style:italic}
+#barberApp .ba-encaixe{background:var(--grafite-card);border:1px solid var(--dourado);padding:1rem 1.2rem;margin:.6rem 0}
+#barberApp .ba-encaixe .ba-slabel:first-child{margin-top:0}
+#barberApp .ba-enc-results{max-height:120px;overflow-y:auto;margin-bottom:.6rem}
+#barberApp .ba-enc-result{padding:.5rem .6rem;cursor:pointer;font-size:.85rem;color:var(--prata);border-bottom:1px solid rgba(198,167,94,.1)}
+#barberApp .ba-enc-result:hover{background:rgba(198,167,94,.1)}
+#barberApp .ba-enc-result .enc-sub{font-size:.72rem;color:var(--prata-dim)}
 #barberApp .ba-comm{background:linear-gradient(155deg,#2a2216,var(--grafite-card));border:1px solid var(--dourado);padding:1.4rem}
 #barberApp .ba-comm .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.7rem}
 #barberApp .ba-comm .row:last-child{margin-bottom:0}
@@ -1706,10 +1728,13 @@ addEventListener('resize', caApplyMode, {passive:true});
         <div id="ba-pending-wrap"></div>
         <div class="ba-slabel" style="margin-top:.4rem">Escolha o dia</div>
         <div class="chips" id="ba-agenda-days"></div>
-        <div class="ba-slabel">Horários do dia</div>
-        <div class="chips" id="ba-agenda-times"></div>
-        <div class="ba-slabel">Reservados nesse dia</div>
-        <div id="ba-agenda-list"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.6rem">
+          <div class="ba-slabel" style="margin:0">Agenda do dia</div>
+          <button class="ba-btn" style="width:auto;max-width:none;padding:.35rem .9rem;margin:0;font-size:.7rem" onclick="baToggleEncaixe()">＋ Encaixe</button>
+        </div>
+        <div id="ba-encaixe-form" style="display:none"></div>
+        <div id="ba-agenda-timeline"></div>
+        <div id="ba-agenda-list" style="display:none"></div>
       </div>
     </div>
 
@@ -2220,41 +2245,185 @@ function baBuildAgendaDays(){
 }
 
 function baBuildAgendaTimes(){
-  const timesBox = document.getElementById('ba-agenda-times');
-  const listBox = document.getElementById('ba-agenda-list');
-  timesBox.innerHTML = ''; listBox.innerHTML = '';
+  const tlBox = document.getElementById('ba-agenda-timeline');
+  if(!tlBox) return;
+  tlBox.innerHTML = '';
   if(!baAgendaDay) return;
   const d = new Date(baAgendaDay+'T12:00:00');
   const me = baGetRoster().find(b=>b.name===baCurrentBarber);
   const appts = (typeof primeGetAppointments==='function' ? primeGetAppointments() : [])
-    .filter(a=>a.day===baAgendaDay && a.barber===baCurrentBarber);
+    .filter(a=>a.day===baAgendaDay && a.barber===baCurrentBarber && a.status!=='cancelado');
   const h = resolveBarberHours(me, d.getDay());
-  const byTime = {}; appts.forEach(a=>{ byTime[a.time]=a; });
   if(!h){
-    timesBox.innerHTML = '<p style="color:var(--prata-dim);padding:.4rem 0">Você está de folga neste dia.</p>';
-  } else {
-    const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
-    for(let t=oH*60+oM; t+SLOT_MIN<=cH*60+cM; t+=SLOT_MIN){
-      const hh=String(Math.floor(t/60)).padStart(2,'0'), mm=String(t%60).padStart(2,'0');
-      const timeStr = `${hh}:${mm}`;
-      const taken = byTime[timeStr];
-      const chip = document.createElement('div');
-      chip.className = 'chip'+(taken?' taken':'');
-      chip.style.cursor = 'default';
-      chip.textContent = timeStr;
-      if(taken) chip.title = `${taken.name||'Cliente'} · ${taken.services.join(' + ')}`;
-      timesBox.appendChild(chip);
+    tlBox.innerHTML = '<p style="color:var(--prata-dim);padding:.6rem 0">Você está de folga neste dia.</p>';
+    return;
+  }
+  const byTime = {}; appts.forEach(a=>{ byTime[a.time]=a; });
+  const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
+  const statusLabel = {pendente:'Pendente', confirmado:'Confirmado', concluido:'Concluído'};
+  const statusColor = {pendente:'#E5574B', confirmado:'var(--verde-neon)', concluido:'var(--prata-dim)'};
+  const allTimes = new Set();
+  for(let t=oH*60+oM; t+SLOT_MIN<=cH*60+cM; t+=SLOT_MIN){
+    allTimes.add(String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'));
+  }
+  appts.forEach(a=>allTimes.add(a.time));
+  const sortedTimes = [...allTimes].sort();
+  let html = '<div class="ba-timeline">';
+  for(const timeStr of sortedTimes){
+    const a = byTime[timeStr];
+    if(a){
+      const st = a.status||'confirmado';
+      const isEncaixe = a.isEncaixe;
+      const cls = isEncaixe ? 'encaixe' : 'taken';
+      const svcName = a.services ? a.services.join(' + ') : (a.service||'');
+      const dur = a.duration ? ` · ~${a.duration}min` : '';
+      const action = st==='pendente' ? `<button class="ba-btn" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baAcceptAppt(${a.id})">Aceitar</button>`
+        : st==='confirmado' ? `<button class="ba-btn ghost" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baFinishAppt(${a.id})">Finalizar</button>`
+        : '';
+      html += `<div class="ba-tslot ${cls}">
+        <div class="ts-time">${timeStr}</div>
+        <div class="ts-card">
+          <div class="ts-info">
+            <div class="ts-name">${a.name||'Cliente'}</div>
+            <div class="ts-detail">${svcName}${dur} · <span style="color:${statusColor[st]}">${statusLabel[st]||st}</span></div>
+          </div>
+          ${action}
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="ba-tslot">
+        <div class="ts-time">${timeStr}</div>
+        <div class="ts-empty">Livre</div>
+      </div>`;
     }
   }
-  const booked = appts.slice().sort((a,b)=>a.time.localeCompare(b.time));
-  const statusBadge = {pendente:'<span style="color:#E5574B">● Pendente</span>', confirmado:'<span style="color:var(--verde-neon)">● Confirmado</span>', concluido:'<span style="color:var(--prata-dim)">● Concluído</span>'};
-  listBox.innerHTML = booked.length ? booked.map(a=>{
-    const st = a.status||'confirmado';
-    const action = st==='pendente' ? `<button class="ba-btn" style="max-width:130px;padding:.5rem" onclick="baAcceptAppt(${a.id})">Aceitar</button>`
-      : st==='confirmado' ? `<button class="ba-btn ghost" style="max-width:130px;padding:.5rem" onclick="baFinishAppt(${a.id})">Finalizar</button>`
-      : (a.rating?`<span style="color:var(--dourado);white-space:nowrap">${'★'.repeat(a.rating)}</span>`:'');
-    return `<div class="ba-item"><div class="ic">${a.time.slice(0,2)}h</div><div class="info"><div class="n">${a.services.join(' + ')}</div><div class="d">${a.name||'Cliente do site'} · ${a.time} · ${statusBadge[st]||''}</div></div><div class="val">${action}</div></div>`;
-  }).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Nenhum horário reservado neste dia.</p>';
+  html += '</div>';
+  const totalDay = appts.length;
+  const totalVal = appts.reduce((s,a)=>{
+    const svcs = a.services || (a.service ? [a.service] : []);
+    return s + svcs.reduce((t,name)=> t + (SVC_PRICES[name]||0), 0);
+  },0);
+  const summary = `<div style="display:flex;gap:1.2rem;margin:.5rem 0 .2rem;font-size:.78rem;color:var(--prata-dim)">
+    <span><strong style="color:var(--prata)">${totalDay}</strong> agendamento${totalDay!==1?'s':''}</span>
+    <span>≈ <strong style="color:var(--dourado)">${baFormatMoney(totalVal)}</strong></span>
+  </div>`;
+  tlBox.innerHTML = summary + html;
+}
+
+function baToggleEncaixe(){
+  const form = document.getElementById('ba-encaixe-form');
+  if(form.style.display !== 'none'){ form.style.display='none'; form.innerHTML=''; return; }
+  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
+  const h = resolveBarberHours(me, new Date(baAgendaDay+'T12:00:00').getDay());
+  if(!h){ alert('Você está de folga neste dia.'); return; }
+  const svcsHtml = Object.keys(SVC_PRICES).map(name=>
+    `<label style="display:inline-flex;align-items:center;gap:.4rem;margin:.2rem .5rem .2rem 0;font-size:.82rem;color:var(--prata);cursor:pointer">
+      <input type="checkbox" class="ba-enc-svc" value="${name}" style="width:15px;height:15px;accent-color:var(--dourado)"> ${name}
+    </label>`).join('');
+  form.innerHTML = `<div class="ba-encaixe">
+    <div class="ba-slabel">Novo encaixe</div>
+    <div class="ba-field" style="max-width:100%;margin-bottom:.4rem">
+      <label>Cliente (nome ou @)</label>
+      <input type="text" id="ba-enc-search" placeholder="Buscar cliente..." oninput="baEncSearchClient()" autocomplete="off">
+    </div>
+    <div class="ba-enc-results" id="ba-enc-results"></div>
+    <div id="ba-enc-selected" style="display:none;margin-bottom:.6rem"></div>
+    <div class="ba-slabel" style="margin-top:.2rem">Serviço</div>
+    <div style="margin-bottom:.6rem">${svcsHtml}</div>
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.6rem">
+      <div class="ba-field" style="flex:1;min-width:100px;margin:0">
+        <label>Horário</label>
+        <input type="time" id="ba-enc-time" style="width:100%">
+      </div>
+      <div class="ba-field" style="flex:1;min-width:100px;margin:0">
+        <label>Duração (min)</label>
+        <input type="number" id="ba-enc-dur" value="45" min="15" max="180" step="15" style="width:100%">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--prata-dim);margin-bottom:.8rem;cursor:pointer">
+      <input type="checkbox" id="ba-enc-notify" checked style="width:15px;height:15px;accent-color:var(--dourado)"> Notificar cliente
+    </label>
+    <p class="ba-err" id="ba-enc-err" style="display:none;margin-bottom:.6rem"></p>
+    <div style="display:flex;gap:.5rem">
+      <button class="ba-btn" style="flex:1;margin:0" onclick="baSaveEncaixe()">Confirmar encaixe</button>
+      <button class="ba-btn ghost" style="flex:1;margin:0" onclick="baToggleEncaixe()">Cancelar</button>
+    </div>
+  </div>`;
+  form.style.display = 'block';
+}
+
+let baEncSelectedClient = null;
+function baEncSearchClient(){
+  const q = document.getElementById('ba-enc-search').value.trim().toLowerCase();
+  const box = document.getElementById('ba-enc-results');
+  if(!q || q.length < 2){ box.innerHTML=''; return; }
+  const clients = baGetClients();
+  const matches = clients.filter(c=>
+    c.name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q)
+  ).slice(0,5);
+  box.innerHTML = matches.length ? matches.map(c=>
+    `<div class="ba-enc-result" onclick="baEncSelectClient('${c.name.replace(/'/g,"\\'")}')">
+      ${c.name} <span class="enc-sub">${c.instagram||''} · ${c.email||''}</span>
+    </div>`
+  ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
+}
+function baEncSelectClient(name){
+  const client = baGetClients().find(c=>c.name===name);
+  if(!client) return;
+  baEncSelectedClient = client;
+  document.getElementById('ba-enc-search').value = '';
+  document.getElementById('ba-enc-results').innerHTML = '';
+  document.getElementById('ba-enc-selected').style.display = 'block';
+  document.getElementById('ba-enc-selected').innerHTML =
+    `<div class="ba-card" style="padding:.6rem .8rem;margin:0;display:flex;align-items:center;justify-content:space-between">
+      <div><strong style="color:var(--prata)">${client.name}</strong> <span style="font-size:.78rem;color:var(--prata-dim)">${client.instagram||''}</span></div>
+      <button style="background:none;border:none;color:#E5574B;cursor:pointer;font-size:.85rem" onclick="baEncClearClient()">✕</button>
+    </div>`;
+}
+function baEncClearClient(){
+  baEncSelectedClient = null;
+  document.getElementById('ba-enc-selected').style.display = 'none';
+  document.getElementById('ba-enc-selected').innerHTML = '';
+}
+function baSaveEncaixe(){
+  const errEl = document.getElementById('ba-enc-err');
+  const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; };
+  errEl.style.display='none';
+  if(!baEncSelectedClient) return fail('Selecione um cliente.');
+  const svcs = [...document.querySelectorAll('.ba-enc-svc:checked')].map(x=>x.value);
+  if(!svcs.length) return fail('Selecione pelo menos um serviço.');
+  const time = document.getElementById('ba-enc-time').value;
+  if(!time) return fail('Informe o horário do encaixe.');
+  const dur = parseInt(document.getElementById('ba-enc-dur').value)||45;
+  const notify = document.getElementById('ba-enc-notify').checked;
+  const d = new Date(baAgendaDay+'T12:00:00');
+  const dayLabel = `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  const appt = {
+    services: svcs,
+    day: baAgendaDay,
+    dayLabel: dayLabel,
+    time: time,
+    duration: dur,
+    name: baEncSelectedClient.name,
+    clientEmail: baEncSelectedClient.email || null,
+    barber: baCurrentBarber,
+    status: 'confirmado',
+    isEncaixe: true,
+    id: primeNextId()
+  };
+  const list = primeGetAppointments();
+  list.unshift(appt);
+  primeSaveAppointments(list);
+  if(notify && baEncSelectedClient.email){
+    primeAddNotif({forRole:'client', target:baEncSelectedClient.email, type:'encaixe', apptId:appt.id,
+      text:`${baCurrentBarber} encaixou você na agenda: ${svcs.join(' + ')} — ${dayLabel} às ${time}`});
+  }
+  baEncSelectedClient = null;
+  document.getElementById('ba-encaixe-form').style.display='none';
+  document.getElementById('ba-encaixe-form').innerHTML='';
+  baRenderAgenda();
+  if(typeof caRenderNextAppointment==='function') caRenderNextAppointment();
+  if(typeof renderMyAppointments==='function') renderMyAppointments();
 }
 
 function baEnter(barber){
