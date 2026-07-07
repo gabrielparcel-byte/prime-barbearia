@@ -9,7 +9,7 @@
 
 ### Conquistas / Stickers Colecionáveis
 - [x] Sistema base de conquistas (modelo de dados, storage, lógica de desbloqueio)
-- [ ] Vitrine de stickers no perfil do cliente (grid visual com stickers bloqueados/desbloqueados)
+- [x] Vitrine de stickers no perfil do cliente (grid visual com stickers bloqueados/desbloqueados) *(beta)*
 - [ ] Animação de desbloqueio (confetti/brilho ao conquistar)
 - [ ] Conquistas implementadas:
   - [ ] "Primeiro Corte" — primeiro agendamento realizado
