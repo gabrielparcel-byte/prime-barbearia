@@ -721,6 +721,7 @@ document.getElementById('wNext').addEventListener('click',()=>{
   primeAddNotif({forRole:'barber', target:state.barber, type:'novo', apptId:savedAppt.id,
     text:`Novo agendamento de ${name} — ${state.dayLabel} às ${state.time} (${state.services.join(' + ')})`});
   if(acc && !acc.favoriteBarber){ acc.favoriteBarber = state.barber; primeSaveAccount(acc); }
+  if(acc && acc.email) primeCheckAchievements(acc.email, {bookedTime: state.time, bookedDay: state.day});
   closeModal();
   state.step=1; state.services=[]; state.day=null; state.dayLabel=null; state.time=null; state.barber=null; state.barberIntroAnswered=null;
   document.querySelectorAll('#wService .chip, #wDay .chip, #wTime .chip').forEach(c=>c.classList.remove('active'));
@@ -1113,6 +1114,82 @@ function primeAddNotif(n){ const list=primeGetNotifs(); n.id=primeNextId(); n.re
 function primeNotifsFor(role, target){ return primeGetNotifs().filter(n=>n.forRole===role && n.target===target); }
 function primeMarkNotifRead(id){ const list=primeGetNotifs(); const n=list.find(x=>x.id===id); if(n){ n.read=true; primeSaveNotifs(list); } }
 function primeMarkAllNotifsRead(role, target){ const list=primeGetNotifs(); list.forEach(n=>{ if(n.forRole===role && n.target===target) n.read=true; }); primeSaveNotifs(list); }
+
+// ══ Prime Club — Conquistas e níveis ══
+// estado por cliente (e-mail): { unlocked: {id: 'YYYY-MM-DD'}, pending: [ids ainda não vistos na UI] }
+const ACH_CATALOG = [
+  {id:'primeiro-corte', nome:'Primeiro Corte', desc:'Fez seu primeiro corte na Prime',            dica:'Finalize seu primeiro atendimento'},
+  {id:'fiel',           nome:'Fiel',           desc:'5 cortes concluídos na Prime',               dica:'Complete 5 atendimentos'},
+  {id:'madrugador',     nome:'Madrugador',     desc:'Agendou o primeiro horário do dia',          dica:'Agende o primeiro horário da agenda'},
+  {id:'combo-master',   nome:'Combo Master',   desc:'Corte + Barba + Barbaterapia numa visita',   dica:'Faça o ritual completo em uma visita'},
+  {id:'veterano',       nome:'Veterano',       desc:'1 ano como cliente Prime',                   dica:'Complete 1 ano desde seu primeiro corte'},
+  {id:'embaixador',     nome:'Embaixador',     desc:'Indicou um amigo pra Prime',                 dica:'Indique um amigo (em breve)'},
+  {id:'nota-10',        nome:'Nota 10',        desc:'Avaliou 5 atendimentos',                     dica:'Deixe 5 avaliações após os cortes'},
+  {id:'vip',            nome:'VIP',            desc:'Alcançou o nível Ouro',                      dica:'Chegue ao nível Ouro do Prime Club'}
+];
+const CLUB_LEVELS = [
+  {id:'bronze',   nome:'Bronze',   min:0},
+  {id:'prata',    nome:'Prata',    min:5},
+  {id:'ouro',     nome:'Ouro',     min:15},
+  {id:'diamante', nome:'Diamante', min:30}
+];
+function primeGetAchAll(){ try{ return JSON.parse(localStorage.getItem('primeAchievements')||'{}'); }catch(e){ return {}; } }
+function primeSaveAchAll(a){ localStorage.setItem('primeAchievements', JSON.stringify(a)); }
+function primeGetAch(email){ const all=primeGetAchAll(); return all[email] || {unlocked:{}, pending:[]}; }
+function primeClientCuts(email){ if(!email) return []; return primeGetAppointments().filter(a=>a.clientEmail===email && a.status==='concluido'); }
+function primeClientLevel(email){
+  const cuts = primeClientCuts(email).length;
+  let level = CLUB_LEVELS[0], next = null;
+  for(const l of CLUB_LEVELS){ if(cuts >= l.min) level = l; else { next = l; break; } }
+  return {level, next, cuts};
+}
+function primeUnlockAch(email, id){
+  if(!email) return false;
+  const all = primeGetAchAll();
+  const st = all[email] || (all[email] = {unlocked:{}, pending:[]});
+  if(st.unlocked[id]) return false;
+  st.unlocked[id] = new Date().toISOString().slice(0,10);
+  st.pending.push(id);
+  primeSaveAchAll(all);
+  const ach = ACH_CATALOG.find(a=>a.id===id);
+  if(ach) primeAddNotif({forRole:'client', target:email, type:'conquista', text:`🏆 Conquista desbloqueada: ${ach.nome}!`});
+  return true;
+}
+// roda todas as regras pro cliente; ctx = {bookedTime, bookedDay} quando chamado na criação de agendamento
+function primeCheckAchievements(email, ctx){
+  if(!email) return [];
+  const done = primeClientCuts(email);
+  const newly = [];
+  const un = id => { if(primeUnlockAch(email, id)) newly.push(id); };
+  if(done.length >= 1) un('primeiro-corte');
+  if(done.length >= 5) un('fiel');
+  if(ctx && ctx.bookedTime && ctx.bookedDay){
+    const dow = new Date(ctx.bookedDay+'T12:00:00').getDay();
+    const h = HORARIOS[dow];
+    if(h && ctx.bookedTime === h[0]) un('madrugador');
+  }
+  if(done.some(a=>{ const s=a.services||[]; return s.includes('Barbaterapia') && (s.includes('Corte + Barba') || (s.includes('Corte') && s.includes('Barba'))); })) un('combo-master');
+  if(done.length){
+    const first = done.map(a=>a.day).sort()[0];
+    if(first && (Date.now() - new Date(first+'T12:00:00').getTime()) >= 365*24*60*60*1000) un('veterano');
+  }
+  const rated = primeGetAppointments().filter(a=>a.clientEmail===email && a.ratingBy==='cliente').length;
+  if(rated >= 5) un('nota-10');
+  if(primeClientLevel(email).level.min >= 15) un('vip');
+  const acc = primeGetAccount();
+  if(acc && acc.email===email && (acc.referrals||0) >= 1) un('embaixador');
+  return newly;
+}
+// consome a fila de conquistas ainda não vistas (a UI chama pra exibir a animação)
+function primeTakePendingAchs(email){
+  const all = primeGetAchAll();
+  const st = all[email];
+  if(!st || !st.pending || !st.pending.length) return [];
+  const out = st.pending.slice();
+  st.pending = [];
+  primeSaveAchAll(all);
+  return out;
+}
 // só retorna quem atende clientes de fato (barbeiros + admins vinculados como barbeiro, ex-dono/gerente fica de fora)
 function primeGetBarberRoster(){
   try{
@@ -1334,6 +1411,7 @@ document.getElementById('feedbackSubmit').addEventListener('click', ()=>{
     ? {status:'concluido', clientRating:feedbackStars, clientRatingComment:comment}
     : {status:'concluido', rating:feedbackStars, ratingComment:comment, ratingBy:'cliente'};
   const ap = primeUpdateAppointment(feedbackTargetId, patch);
+  if(ap && ap.clientEmail) primeCheckAchievements(ap.clientEmail);
   // notifica a outra parte
   if(ap){
     if(feedbackWho==='cliente' && ap.barber){
