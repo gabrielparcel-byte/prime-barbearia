@@ -2089,10 +2089,10 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .rank-name{font-size:.85rem;color:var(--prata);font-weight:500}
 #barberApp .rank-bar-track{height:4px;background:rgba(198,167,94,.1);border-radius:99px;margin-top:.35rem;overflow:hidden}
 #barberApp .rank-bar-fill{height:100%;background:var(--dourado);border-radius:99px}
-#barberApp .rank-stats{text-align:right;flex:none}
-#barberApp .rank-value{font-size:.88rem;color:var(--prata);font-weight:600;font-variant-numeric:tabular-nums}
-#barberApp .rank-sub{font-size:.65rem;color:var(--prata-dim);margin-top:.15rem}
-#barberApp .rank-sub .stars{color:var(--dourado)}
+#barberApp .rank-resumo{font-size:.65rem;color:var(--prata-dim);margin-top:.35rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#barberApp .rank-resumo .stars{color:var(--dourado)}
+#barberApp .rank-stats{text-align:right;flex:none;padding-left:.4rem}
+#barberApp .rank-value{font-size:.88rem;color:var(--prata);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 #barberApp .ba-enc-results{max-height:120px;overflow-y:auto;margin-bottom:.6rem}
 #barberApp .ba-enc-result{padding:.5rem .6rem;cursor:pointer;font-size:.85rem;color:var(--prata);border-bottom:1px solid rgba(198,167,94,.1)}
 #barberApp .ba-enc-result:hover{background:rgba(198,167,94,.1)}
@@ -2244,9 +2244,8 @@ addEventListener('resize', caApplyMode, {passive:true});
           <div class="ba-slabel" style="display:flex;justify-content:space-between;align-items:center">
             <span>Ranking da equipe · este mês</span>
             <div class="period-chips" id="ba-dash-rank-sort">
-              <button class="period-chip active" data-sort="revenue">R$</button>
-              <button class="period-chip" data-sort="rating">★</button>
-              <button class="period-chip" data-sort="clients">clientes</button>
+              <button class="period-chip active" data-sort="attendances">Atend.</button>
+              <button class="period-chip" data-sort="rating">Feedbacks</button>
             </div>
           </div>
           <div class="rank-list" id="ba-dash-ranking"></div>
@@ -2557,7 +2556,7 @@ function baMyGoal(){
   return me && typeof me.monthlyGoal==='number' && me.monthlyGoal>0 ? me.monthlyGoal : null;
 }
 
-let baDashRankSort = 'revenue';
+let baDashRankSort = 'attendances';
 function baRenderDashboard(){
   baRenderDashMeta();
   baRenderDashComparativo();
@@ -2673,6 +2672,24 @@ function baRenderDashLine(months){
   }).join('');
 }
 
+function baServiceResumo(sales){
+  let cortes=0, barbas=0, terapia=0, outros=0;
+  sales.forEach(s=>{
+    const svc = s.service||'';
+    if(svc==='Barbaterapia'){ terapia++; return; }
+    let counted=false;
+    if(svc.includes('Corte')){ cortes++; counted=true; }
+    if(svc.includes('Barba')){ barbas++; counted=true; }
+    if(!counted) outros++;
+  });
+  const parts = [];
+  if(cortes) parts.push(`${cortes} corte${cortes===1?'':'s'}`);
+  if(barbas) parts.push(`${barbas} barba${barbas===1?'':'s'}`);
+  if(terapia) parts.push(`${terapia} barbaterapia`);
+  if(outros) parts.push(`${outros} outro${outros===1?'':'s'}`);
+  return parts.join(' · ') || 'sem atendimentos';
+}
+
 function baTeamRankingData(){
   const today = new Date();
   const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
@@ -2683,11 +2700,9 @@ function baTeamRankingData(){
   const roster = (typeof primeGetBarberRoster==='function'?primeGetBarberRoster():[]);
   return roster.map(b=>{
     const mySales = monthSales.filter(s=>s.barber===b.name);
-    const revenue = mySales.reduce((s,x)=>s+x.value,0);
-    const clients = new Set(mySales.map(s=>s.client)).size;
     const myRatings = monthAppts.filter(a=>a.barber===b.name && a.rating);
     const rating = myRatings.length ? myRatings.reduce((s,a)=>s+a.rating,0)/myRatings.length : 0;
-    return {name:b.name, revenue, clients, rating, ratingCount:myRatings.length};
+    return {name:b.name, attendances:mySales.length, rating, ratingCount:myRatings.length, resumo:baServiceResumo(mySales)};
   });
 }
 
@@ -2699,23 +2714,22 @@ function baRenderRanking(sortKey){
   const max = Math.max(...sorted.map(b=>b[sortKey]), 1);
   document.getElementById('ba-dash-ranking').innerHTML = sorted.length ? sorted.map((b,i)=>{
     const pct = Math.max((b[sortKey]/max)*100, b[sortKey]>0?4:0);
-    const mainVal = sortKey==='revenue' ? baFormatMoney(b.revenue)
-      : sortKey==='rating' ? (b.ratingCount ? b.rating.toFixed(1)+' ★' : '—')
-      : b.clients+' cliente'+(b.clients===1?'':'s');
-    const subParts = [];
-    if(sortKey!=='revenue') subParts.push(baFormatMoney(b.revenue));
-    if(sortKey!=='rating') subParts.push(b.ratingCount ? `<span class="stars">${b.rating.toFixed(1)} ★</span>` : 'sem aval.');
-    if(sortKey!=='clients') subParts.push(b.clients+' cli.');
+    const mainVal = sortKey==='attendances'
+      ? b.attendances+' atend.'
+      : (b.ratingCount ? b.rating.toFixed(1)+' ★' : '—');
+    const subLine = sortKey==='attendances'
+      ? `<span class="stars">${b.ratingCount ? b.rating.toFixed(1)+' ★' : 'sem aval.'}</span> · ${b.resumo}`
+      : `${b.attendances} atend. · ${b.resumo}`;
     return `<div class="rank-row${i===0&&b[sortKey]>0?' top':''}">
       <div class="rank-num">${i+1}</div>
       <div class="rank-av">${b.name.charAt(0)}</div>
       <div class="rank-mid">
         <div class="rank-name">${b.name}</div>
         <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div>
+        <div class="rank-resumo">${subLine}</div>
       </div>
       <div class="rank-stats">
         <div class="rank-value">${mainVal}</div>
-        <div class="rank-sub">${subParts.join(' · ')}</div>
       </div>
     </div>`;
   }).join('') : '<p style="color:var(--prata-dim);padding:.6rem 0">Nenhum barbeiro na equipe ainda.</p>';
