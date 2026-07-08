@@ -2028,6 +2028,54 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .gift-item .gi-name{font-size:.82rem;color:var(--prata)}
 #barberApp .gift-item .gi-remove{font-size:.72rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .5rem;border-radius:3px;transition:all .15s}
 #barberApp .gift-item .gi-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
+
+/* ── dashboard financeiro ── */
+#barberApp .meta-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:10px;padding:1rem 1.1rem}
+#barberApp .meta-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.6rem}
+#barberApp .meta-label{font-size:.78rem;color:var(--prata-dim)}
+#barberApp .meta-pct{font-family:var(--font-display);font-size:1.1rem;color:var(--dourado-claro)}
+#barberApp .meta-track{height:10px;background:rgba(198,167,94,.1);border-radius:99px;overflow:hidden;margin-bottom:.5rem}
+#barberApp .meta-fill{height:100%;background:var(--dourado);border-radius:99px;transition:width .5s ease}
+#barberApp .meta-nums{display:flex;justify-content:space-between;font-size:.72rem;color:var(--prata-dim)}
+#barberApp .meta-nums b{color:var(--prata);font-weight:500}
+#barberApp .meta-empty{color:var(--prata-dim);font-size:.82rem;padding:.2rem 0}
+
+#barberApp .stat-row{display:flex;gap:.7rem}
+#barberApp .stat-tile{flex:1;background:var(--grafite-card);border:1px solid rgba(198,167,94,.12);border-radius:10px;padding:.9rem 1rem}
+#barberApp .stat-tile .st-label{font-size:.68rem;color:var(--prata-dim);margin-bottom:.4rem}
+#barberApp .stat-tile .st-value{font-size:1.4rem;font-weight:600;color:var(--prata)}
+#barberApp .stat-tile .st-delta{font-size:.72rem;margin-top:.3rem}
+#barberApp .st-delta.up{color:var(--verde-neon)}
+#barberApp .st-delta.down{color:#E0665C}
+
+#barberApp .chart-card{background:var(--grafite-card);border:1px solid rgba(198,167,94,.12);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1.2rem}
+#barberApp .chart-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.15rem;gap:.6rem}
+#barberApp .chart-title{font-size:.78rem;color:var(--prata);font-weight:500}
+#barberApp .chart-sub{font-size:.68rem;color:var(--prata-dim);margin-bottom:1rem}
+#barberApp .period-chips{display:flex;gap:.3rem;flex:none}
+#barberApp .period-chip{font-size:.62rem;letter-spacing:.03em;color:var(--prata-dim);background:transparent;border:1px solid rgba(198,167,94,.16);border-radius:99px;padding:.25rem .55rem;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:var(--font-body)}
+#barberApp .period-chip:hover{border-color:var(--dourado-dim);color:var(--prata)}
+#barberApp .period-chip.active{background:var(--dourado);border-color:var(--dourado);color:#1a1506;font-weight:600}
+
+#barberApp .bars{display:flex;align-items:flex-end;gap:.35rem;height:110px;margin-bottom:.5rem}
+#barberApp .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;cursor:pointer;min-width:0}
+#barberApp .bar-fill{width:100%;max-width:22px;background:var(--dourado);border-radius:3px 3px 0 0;transition:opacity .15s;position:relative}
+#barberApp .bar-fill:hover{opacity:.8}
+#barberApp .bar-fill.today{background:var(--dourado-claro)}
+#barberApp .bar-tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--verde-noite);border:1px solid var(--dourado-dim);color:var(--prata);font-size:.65rem;padding:.3rem .5rem;border-radius:4px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;font-variant-numeric:tabular-nums;z-index:2}
+#barberApp .bar-col:hover .bar-tip{opacity:1}
+#barberApp .bar-labels{display:flex;gap:.35rem}
+#barberApp .bar-labels span{flex:1;text-align:center;font-size:.58rem;color:var(--prata-dim);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#barberApp .bar-day-wrap{flex:1;display:flex;justify-content:center;width:100%;align-items:flex-end}
+
+#barberApp .line-wrap{position:relative}
+#barberApp .line-svg{width:100%;height:120px;display:block;overflow:visible}
+#barberApp .line-path{fill:none;stroke:var(--dourado);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#barberApp .line-area{fill:var(--dourado);opacity:.08}
+#barberApp .line-dot{fill:var(--dourado);stroke:var(--grafite-card);stroke-width:2}
+#barberApp .line-months{display:flex;justify-content:space-between;margin-top:.4rem}
+#barberApp .line-months span{font-size:.62rem;color:var(--prata-dim)}
+#barberApp .line-endlabel{font-size:.68rem;fill:var(--dourado-claro);font-weight:600}
 #barberApp .ba-enc-results{max-height:120px;overflow-y:auto;margin-bottom:.6rem}
 #barberApp .ba-enc-result{padding:.5rem .6rem;cursor:pointer;font-size:.85rem;color:var(--prata);border-bottom:1px solid rgba(198,167,94,.1)}
 #barberApp .ba-enc-result:hover{background:rgba(198,167,94,.1)}
@@ -2067,6 +2115,7 @@ addEventListener('resize', caApplyMode, {passive:true});
       <div class="ba-links">
         <button class="active" data-tab="agenda" onclick="baTab('agenda')">Agenda</button>
         <button data-tab="vendas" onclick="baTab('vendas')">Minhas vendas</button>
+        <button data-tab="dashboard" onclick="baTab('dashboard')">Dashboard</button>
         <button data-tab="clientes" onclick="baTab('clientes')">Clientes</button>
         <button data-tab="perfil" onclick="baTab('perfil')">Perfil</button>
       </div>
@@ -2130,6 +2179,49 @@ addEventListener('resize', caApplyMode, {passive:true});
         <div id="ba-reviews-list"></div>
         <div class="ba-slabel">Histórico de vendas</div>
         <div id="ba-vendas-list"></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="screen" id="ba-screen-dashboard">
+      <div class="ba-head"><div><div class="hi">Seu painel</div><div class="name">Dashboard</div></div></div>
+      <div class="ba-body">
+        <div class="ba-slabel" style="margin-top:0">Meta do mês</div>
+        <div id="ba-dash-meta"></div>
+
+        <div class="ba-slabel">Comparativo</div>
+        <div id="ba-dash-comp"></div>
+
+        <div class="ba-slabel">Faturamento por dia</div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <div class="chart-title">Total no período: <span id="ba-dash-bar-total">R$ 0</span></div>
+            <div class="period-chips" id="ba-dash-bar-chips">
+              <button class="period-chip active" data-days="7">7d</button>
+              <button class="period-chip" data-days="14">14d</button>
+              <button class="period-chip" data-days="30">30d</button>
+            </div>
+          </div>
+          <div class="chart-sub" id="ba-dash-bar-sub"></div>
+          <div class="bars" id="ba-dash-bars"></div>
+          <div class="bar-labels" id="ba-dash-bar-labels"></div>
+        </div>
+
+        <div class="ba-slabel">Evolução mensal</div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <div class="chart-title">Tendência de faturamento</div>
+            <div class="period-chips" id="ba-dash-line-chips">
+              <button class="period-chip" data-months="3">3m</button>
+              <button class="period-chip active" data-months="6">6m</button>
+              <button class="period-chip" data-months="12">12m</button>
+            </div>
+          </div>
+          <div class="line-wrap">
+            <svg class="line-svg" viewBox="0 0 400 120" preserveAspectRatio="none" id="ba-dash-line"></svg>
+          </div>
+          <div class="line-months" id="ba-dash-line-months"></div>
+        </div>
       </div>
     </div>
 
@@ -2217,6 +2309,7 @@ addEventListener('resize', caApplyMode, {passive:true});
     <nav class="ba-tabbar" id="ba-tabbar">
       <button class="ba-tab active" data-tab="agenda" onclick="baTab('agenda')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>Agenda</span></button>
       <button class="ba-tab" data-tab="vendas" onclick="baTab('vendas')"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9"/></svg><span>Vendas</span></button>
+      <button class="ba-tab" data-tab="dashboard" onclick="baTab('dashboard')"><svg viewBox="0 0 24 24"><path d="M4 20V10M12 20V4M20 20v-7"/></svg><span>Painel</span></button>
       <button class="ba-tab" data-tab="clientes" onclick="baTab('clientes')"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 13.2c2.7.3 5 1.7 5 4.3v1.5"/></svg><span>Clientes</span></button>
       <button class="ba-tab" data-tab="perfil" onclick="baTab('perfil')"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0114 0v1"/></svg><span>Perfil</span></button>
     </nav>
@@ -2304,13 +2397,14 @@ function baOpen(){document.getElementById('barberApp').classList.add('open');doc
 function baClose(){document.getElementById('barberApp').classList.remove('open');document.body.style.overflow=''}
 
 function baTab(tab){
-  const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil'};
+  const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil',dashboard:'ba-screen-dashboard'};
   baShow(m[tab]);
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   if(tab==='vendas') baRenderVendas();
   if(tab==='clientes') baRenderClientes();
   if(tab==='agenda') baRenderAgenda();
   if(tab==='perfil') baRenderPerfil();
+  if(tab==='dashboard') baRenderDashboard();
 }
 
 function baMyCommissionPct(){
@@ -2412,6 +2506,158 @@ function baRenderReviews(){
       `<div class="ba-item"><div class="info"><div class="n" style="color:var(--dourado)">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div><div class="d">${a.name||'Cliente'}${isAdmin?' · '+(a.barber||''):''} · ${a.dayLabel||''}${a.ratingComment?'<br>“'+a.ratingComment+'”':''}</div></div></div>`
     ).join('');
 }
+
+// ══ Dashboard financeiro (Fase 4) ══
+const BA_DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+const BA_MONTHS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+let baDashBarDays = 7, baDashLineMonths = 6;
+
+function baDailySalesMap(){
+  const map = {};
+  baMySales().forEach(s=>{ map[s.date] = (map[s.date]||0) + s.value; });
+  return map;
+}
+function baMonthlyTotal(year, month){
+  const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
+  const d = new Date(year, month+1, 0);
+  const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return baMySales().filter(s=>s.date>=from && s.date<=to).reduce((s,x)=>s+x.value,0);
+}
+function baMyGoal(){
+  const me = baGetRoster().find(b=>b.email===localStorage.getItem(BARBER_KEYS.loggedInEmail));
+  return me && typeof me.monthlyGoal==='number' && me.monthlyGoal>0 ? me.monthlyGoal : null;
+}
+
+function baRenderDashboard(){
+  baRenderDashMeta();
+  baRenderDashComparativo();
+  baRenderDashBars(baDashBarDays);
+  baRenderDashLine(baDashLineMonths);
+}
+
+function baRenderDashMeta(){
+  const el = document.getElementById('ba-dash-meta');
+  const goal = baMyGoal();
+  const today = new Date();
+  const total = baMonthlyTotal(today.getFullYear(), today.getMonth());
+  if(!goal){
+    el.innerHTML = `<div class="meta-card"><p class="meta-empty">Peça ao admin pra definir sua meta mensal.</p></div>`;
+    return;
+  }
+  const pct = Math.min(100, Math.round((total/goal)*100));
+  const monthName = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][today.getMonth()];
+  el.innerHTML = `
+    <div class="meta-card">
+      <div class="meta-top"><span class="meta-label">Faturamento de ${monthName.toLowerCase()}</span><span class="meta-pct">${pct}%</span></div>
+      <div class="meta-track"><div class="meta-fill" style="width:${pct}%"></div></div>
+      <div class="meta-nums"><span><b>${baFormatMoney(total)}</b> faturados</span><span>meta: ${baFormatMoney(goal)}</span></div>
+    </div>`;
+}
+
+function baRenderDashComparativo(){
+  const el = document.getElementById('ba-dash-comp');
+  const today = new Date();
+  const thisMonth = baMonthlyTotal(today.getFullYear(), today.getMonth());
+  const prevDate = new Date(today.getFullYear(), today.getMonth()-1, 1);
+  const lastMonth = baMonthlyTotal(prevDate.getFullYear(), prevDate.getMonth());
+  let deltaHtml;
+  if(lastMonth > 0){
+    const pctChange = Math.round(((thisMonth-lastMonth)/lastMonth)*100);
+    const up = pctChange >= 0;
+    deltaHtml = `<div class="st-delta ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(pctChange)}% vs mês passado</div>`;
+  } else {
+    deltaHtml = `<div class="st-delta" style="color:var(--prata-dim)">Sem dados do mês passado</div>`;
+  }
+  const prevMonthName = BA_MONTHS[prevDate.getMonth()];
+  el.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="st-label">Este mês</div>
+        <div class="st-value">${baFormatMoney(thisMonth)}</div>
+        ${deltaHtml}
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">${prevMonthName.charAt(0).toUpperCase()+prevMonthName.slice(1)}</div>
+        <div class="st-value">${baFormatMoney(lastMonth)}</div>
+        <div class="st-delta" style="color:var(--prata-dim)">Mês fechado</div>
+      </div>
+    </div>`;
+}
+
+function baRenderDashBars(days){
+  const daily = baDailySalesMap();
+  const today = new Date();
+  const data = [];
+  for(let i=days-1;i>=0;i--){
+    const d = new Date(today); d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    data.push({date:d, val:daily[key]||0, isToday:i===0});
+  }
+  const total = data.reduce((s,d)=>s+d.val,0);
+  const max = Math.max(...data.map(d=>d.val), 1);
+  document.getElementById('ba-dash-bar-total').textContent = baFormatMoney(total);
+  document.getElementById('ba-dash-bar-sub').textContent = days<=14 ? 'Um ponto por dia' : 'Últimos 30 dias';
+  document.getElementById('ba-dash-bars').innerHTML = data.map(d=>{
+    const h = Math.max((d.val/max)*100, d.val>0?5:0);
+    return `<div class="bar-col"><div class="bar-day-wrap"><div class="bar-fill${d.isToday?' today':''}" style="height:${h}%"><div class="bar-tip">${baFormatMoney(d.val)}</div></div></div></div>`;
+  }).join('');
+  const labelEvery = days<=14 ? 1 : 5;
+  document.getElementById('ba-dash-bar-labels').innerHTML = data.map((d,i)=>{
+    const show = days<=14 || i%labelEvery===0 || i===data.length-1;
+    const txt = days<=14 ? BA_DOW[d.date.getDay()] : String(d.date.getDate());
+    return `<span>${show?txt:''}</span>`;
+  }).join('');
+}
+
+function baRenderDashLine(months){
+  const today = new Date();
+  const data = [];
+  for(let i=months-1;i>=0;i--){
+    const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+    data.push({month:d, val: baMonthlyTotal(d.getFullYear(), d.getMonth())});
+  }
+  const vals = data.map(d=>d.val);
+  const maxM = Math.max(...vals), minM = Math.min(...vals);
+  const pad = 10, w = 400, h = 100;
+  const pts = data.map((d,i)=>{
+    const x = pad + (i/(data.length-1||1)) * (w-pad*2);
+    const y = h - ((d.val-minM)/((maxM-minM)||1)) * (h-20) - 5;
+    return [x,y];
+  });
+  const pathD = pts.map((p,i)=> (i===0?'M':'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areaD = pathD + ` L${pts[pts.length-1][0]},${h} L${pts[0][0]},${h} Z`;
+  document.getElementById('ba-dash-line').innerHTML = `
+    <path class="line-area" d="${areaD}"></path>
+    <path class="line-path" d="${pathD}"></path>
+    ${pts.map((p,i)=> i===pts.length-1 ? '' : `<circle class="line-dot" cx="${p[0]}" cy="${p[1]}" r="3.5"></circle>`).join('')}
+    <circle class="line-dot" cx="${pts[pts.length-1][0]}" cy="${pts[pts.length-1][1]}" r="5" fill="var(--dourado-claro)"></circle>
+    <text class="line-endlabel" x="${pts[pts.length-1][0]-4}" y="${pts[pts.length-1][1]-12}" text-anchor="end">${baFormatMoney(data[data.length-1].val)}</text>
+  `;
+  const labelEvery = months<=6 ? 1 : 2;
+  document.getElementById('ba-dash-line-months').innerHTML = data.map((d,i)=>{
+    const show = i%labelEvery===0 || i===data.length-1;
+    return `<span>${show ? BA_MONTHS[d.month.getMonth()] : ''}</span>`;
+  }).join('');
+}
+
+const baDashBarChipsEl = document.getElementById('ba-dash-bar-chips');
+if(baDashBarChipsEl) baDashBarChipsEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.period-chip');
+  if(!btn) return;
+  baDashBarChipsEl.querySelectorAll('.period-chip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  baDashBarDays = parseInt(btn.dataset.days);
+  baRenderDashBars(baDashBarDays);
+});
+const baDashLineChipsEl = document.getElementById('ba-dash-line-chips');
+if(baDashLineChipsEl) baDashLineChipsEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.period-chip');
+  if(!btn) return;
+  baDashLineChipsEl.querySelectorAll('.period-chip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  baDashLineMonths = parseInt(btn.dataset.months);
+  baRenderDashLine(baDashLineMonths);
+});
 
 function baRenderClientes(){
   const sales = baMySales();
@@ -2993,6 +3239,7 @@ function baBuildEditForm(b, i){
       Atende clientes como barbeiro
     </label>
     <div class="ba-field"><label>Comissão (%)</label><input type="number" id="ba-edit-comm-${i}" min="0" max="100" value="${pct}"></div>
+    <div class="ba-field"><label>Meta mensal (R$)</label><input type="number" id="ba-edit-goal-${i}" min="0" step="50" placeholder="Ex: 6000" value="${b.monthlyGoal||''}"></div>
     <div class="ba-slabel" style="margin-top:0">Escala semanal</div>
     ${scheduleRows}
     <p class="ba-err" id="ba-edit-err-${i}" style="display:none;margin-top:.4rem"></p>
@@ -3012,6 +3259,8 @@ function baSaveEditBarber(i){
   const newRole = document.getElementById('ba-edit-role-'+i).value;
   const newIsBarber = document.getElementById('ba-edit-isbarber-'+i).checked;
   const newCommPct = Number(document.getElementById('ba-edit-comm-'+i).value);
+  const goalRaw = document.getElementById('ba-edit-goal-'+i).value.trim();
+  const newGoal = goalRaw === '' ? undefined : Number(goalRaw);
 
   function fail(msg){ errEl.textContent = msg; errEl.style.display='block'; }
 
@@ -3019,6 +3268,7 @@ function baSaveEditBarber(i){
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail)) return fail('E-mail inválido.');
   if(newPass && newPass.length<6) return fail('A nova senha precisa ter ao menos 6 caracteres.');
   if(isNaN(newCommPct) || newCommPct<0 || newCommPct>100) return fail('Comissão inválida.');
+  if(newGoal!==undefined && (isNaN(newGoal) || newGoal<0)) return fail('Meta mensal inválida.');
   if(roster.some((x,xi)=> xi!==i && x.email.toLowerCase()===newEmail)) return fail('Já existe outro barbeiro com esse e-mail.');
   const otherAdmins = roster.filter((x,xi)=> xi!==i && x.role==='admin');
   if(b.role==='admin' && newRole!=='admin' && otherAdmins.length===0) return fail('Não é possível remover o último admin da equipe.');
@@ -3045,6 +3295,7 @@ function baSaveEditBarber(i){
     ...b,
     name:newName, email:newEmail, role:newRole, isBarber:newIsBarber,
     commissionPct: newCommPct/100,
+    monthlyGoal: newGoal,
     hours: Object.keys(hours).length ? hours : undefined,
     ...(newPass ? {pass:newPass} : {})
   };

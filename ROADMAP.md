@@ -75,10 +75,10 @@
 ## 💈 Fase 4 — Área do Barbeiro (Dashboard)
 
 ### Financeiro Visual
-- [ ] Gráfico de barras — faturamento semanal
-- [ ] Gráfico de linha — evolução mensal
-- [ ] Meta mensal com barra de progresso "R$ X de R$ Y"
-- [ ] Comparativo com mês anterior (% crescimento)
+- [x] Gráfico de barras — faturamento por dia (7/14/30 dias, seletor de período)
+- [x] Gráfico de linha — evolução mensal (3/6/12 meses, seletor de período)
+- [x] Meta mensal com barra de progresso "R$ X de R$ Y" (definida pelo admin por barbeiro)
+- [x] Comparativo com mês anterior (% crescimento)
 
 ### Gestão Inteligente
 - [ ] Ranking entre barbeiros (faturamento, avaliação, clientes atendidos)
