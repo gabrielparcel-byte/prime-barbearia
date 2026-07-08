@@ -121,6 +121,7 @@
 - [x] Comissão configurável por barbeiro
 - [x] Horário de trabalho/folga por barbeiro por dia da semana
 - [x] CRUD de barbeiros (editar/remover com cascata de rename)
+- [x] Aba "Atendimento" — registra venda avulsa de balcão (cliente novo ou existente, serviço, valor, horário de término)
 - [x] Auto-push horário para GitHub
 - [x] Booking wizard respeita horários individuais dos barbeiros
 

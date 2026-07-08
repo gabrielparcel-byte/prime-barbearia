@@ -2010,6 +2010,14 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-svc-chip-price{font-size:.68rem;opacity:.5;margin-left:.15rem}
 #barberApp .ba-svc-chip.selected .ba-svc-chip-label{background:#C6A75E;color:#0b140d;border-color:#C6A75E;font-weight:600}
 #barberApp .ba-svc-chip.selected .ba-svc-chip-price{opacity:.7;color:#0b140d}
+#barberApp .seg{display:flex;background:var(--grafite-card);border-radius:8px;padding:.25rem;gap:.25rem;margin-bottom:.9rem;max-width:400px}
+#barberApp .seg-btn{flex:1;text-align:center;padding:.5rem;font-size:.75rem;border-radius:6px;cursor:pointer;color:var(--prata-dim);transition:all .15s}
+#barberApp .seg-btn.active{background:var(--dourado);color:#1a1506;font-weight:600}
+#barberApp .at-total-row{display:flex;justify-content:space-between;align-items:center;background:var(--grafite-card);border-radius:8px;padding:.7rem .9rem;margin-bottom:.9rem;max-width:400px}
+#barberApp .at-total-row .lbl{font-size:.72rem;color:var(--prata-dim)}
+#barberApp .at-total-row input{width:110px;text-align:right;background:transparent;border:none;color:var(--dourado-claro);font-family:var(--font-display);font-size:1.15rem;font-weight:600}
+#barberApp .at-total-row input:focus{outline:none}
+#barberApp .at-success{color:var(--verde-neon);font-size:.82rem;margin-bottom:.8rem}
 #barberApp .gift-dot{width:7px;height:7px;border-radius:50%;background:var(--dourado);box-shadow:0 0 5px rgba(198,167,94,.6);flex:none;animation:giftPulse 2.2s ease-in-out infinite}
 @keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
@@ -2131,6 +2139,7 @@ addEventListener('resize', caApplyMode, {passive:true});
       <div class="ba-brand" onclick="baTab('agenda')">PRIME <span style="color:var(--prata-dim);font-family:var(--font-body);letter-spacing:.1em;font-size:.72rem;text-transform:uppercase">staff</span></div>
       <div class="ba-links">
         <button class="active" data-tab="agenda" onclick="baTab('agenda')">Agenda</button>
+        <button data-tab="atendimento" onclick="baTab('atendimento')">Atendimento</button>
         <button data-tab="vendas" onclick="baTab('vendas')">Minhas vendas</button>
         <button data-tab="dashboard" onclick="baTab('dashboard')">Dashboard</button>
         <button data-tab="clientes" onclick="baTab('clientes')">Clientes</button>
@@ -2173,6 +2182,49 @@ addEventListener('resize', caApplyMode, {passive:true});
         </div>
         <div id="ba-encaixe-form" style="display:none"></div>
         <div id="ba-agenda-timeline"></div>
+      </div>
+    </div>
+
+    <!-- ATENDIMENTO (venda avulsa / balcão) -->
+    <div class="screen" id="ba-screen-atendimento">
+      <div class="ba-head"><div><div class="hi">Registrar</div><div class="name">Atendimento</div></div></div>
+      <div class="ba-body">
+        <div class="ba-slabel" style="margin-top:0">Cliente</div>
+        <div class="seg" id="at-client-seg">
+          <div class="seg-btn active" data-mode="buscar">Buscar existente</div>
+          <div class="seg-btn" data-mode="novo">+ Novo cliente</div>
+        </div>
+
+        <div id="at-buscar-block">
+          <div class="ba-field" style="max-width:100%"><input type="text" id="at-search" placeholder="Buscar por nome ou @..." oninput="baAtSearchClient()" autocomplete="off"></div>
+          <div class="ba-enc-results" id="at-search-results"></div>
+          <div id="at-selected-client" style="display:none;margin-bottom:.6rem"></div>
+        </div>
+
+        <div id="at-novo-block" style="display:none">
+          <div style="display:flex;gap:.6rem">
+            <div class="ba-field" style="flex:1"><label>Nome</label><input type="text" id="at-new-name" placeholder="Nome completo"></div>
+            <div class="ba-field" style="flex:1"><label>Telefone</label><input type="text" id="at-new-phone" placeholder="(44) 90000-0000"></div>
+          </div>
+        </div>
+
+        <div class="ba-slabel">Serviço</div>
+        <div class="ba-svc-grid" id="at-svc-grid"></div>
+
+        <div class="at-total-row">
+          <span class="lbl">Valor total</span>
+          <input type="text" id="at-total-value" inputmode="decimal">
+        </div>
+
+        <div class="ba-slabel">Quando</div>
+        <div style="display:flex;gap:.6rem">
+          <div class="ba-field" style="flex:1"><label>Data</label><input type="date" id="at-date"></div>
+          <div class="ba-field" style="flex:1"><label>Horário que terminou</label><input type="time" id="at-time"></div>
+        </div>
+
+        <p class="ba-err" id="at-err" style="display:none;margin-bottom:.6rem"></p>
+        <p class="at-success" id="at-success" style="display:none">Atendimento registrado ✓</p>
+        <button class="ba-btn" style="max-width:100%" onclick="baAtRegistrar()">Registrar atendimento</button>
       </div>
     </div>
 
@@ -2336,6 +2388,7 @@ addEventListener('resize', caApplyMode, {passive:true});
     <!-- TABBAR (mobile) -->
     <nav class="ba-tabbar" id="ba-tabbar">
       <button class="ba-tab active" data-tab="agenda" onclick="baTab('agenda')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>Agenda</span></button>
+      <button class="ba-tab" data-tab="atendimento" onclick="baTab('atendimento')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Atender</span></button>
       <button class="ba-tab" data-tab="vendas" onclick="baTab('vendas')"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9"/></svg><span>Vendas</span></button>
       <button class="ba-tab" data-tab="dashboard" onclick="baTab('dashboard')"><svg viewBox="0 0 24 24"><path d="M4 20V10M12 20V4M20 20v-7"/></svg><span>Painel</span></button>
       <button class="ba-tab" data-tab="clientes" onclick="baTab('clientes')"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 13.2c2.7.3 5 1.7 5 4.3v1.5"/></svg><span>Clientes</span></button>
@@ -2425,7 +2478,7 @@ function baOpen(){document.getElementById('barberApp').classList.add('open');doc
 function baClose(){document.getElementById('barberApp').classList.remove('open');document.body.style.overflow=''}
 
 function baTab(tab){
-  const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil',dashboard:'ba-screen-dashboard'};
+  const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil',dashboard:'ba-screen-dashboard',atendimento:'ba-screen-atendimento'};
   baShow(m[tab]);
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   if(tab==='vendas') baRenderVendas();
@@ -2433,6 +2486,7 @@ function baTab(tab){
   if(tab==='agenda') baRenderAgenda();
   if(tab==='perfil') baRenderPerfil();
   if(tab==='dashboard') baRenderDashboard();
+  if(tab==='atendimento') baRenderAtendimento();
 }
 
 function baMyCommissionPct(){
@@ -3214,6 +3268,140 @@ function baSaveEncaixe(){
   baRenderAgenda();
   if(typeof caRenderNextAppointment==='function') caRenderNextAppointment();
   if(typeof renderMyAppointments==='function') renderMyAppointments();
+}
+
+// ══ Atendimento (venda avulsa / balcão) ══
+let baAtSelectedClient = null;
+let baAtMode = 'buscar';
+
+function baAtResetFields(){
+  baAtSelectedClient = null;
+  baAtMode = 'buscar';
+  document.querySelectorAll('#at-client-seg .seg-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='buscar'));
+  document.getElementById('at-buscar-block').style.display = 'block';
+  document.getElementById('at-novo-block').style.display = 'none';
+  document.getElementById('at-search').value = '';
+  document.getElementById('at-search-results').innerHTML = '';
+  document.getElementById('at-selected-client').style.display = 'none';
+  document.getElementById('at-selected-client').innerHTML = '';
+  document.getElementById('at-new-name').value = '';
+  document.getElementById('at-new-phone').value = '';
+  document.getElementById('at-err').style.display = 'none';
+
+  const svcsHtml = Object.keys(SVC_PRICES).map((name,i)=>
+    `<div class="ba-svc-chip${i===0?' selected':''}" onclick="this.classList.toggle('selected');this.querySelector('input').checked=this.classList.contains('selected');baAtUpdateTotal()">
+      <input type="checkbox" class="at-svc" value="${name}" ${i===0?'checked':''}>
+      <span class="ba-svc-chip-label">${name}<span class="ba-svc-chip-price">R$ ${SVC_PRICES[name]}</span></span>
+    </div>`).join('');
+  document.getElementById('at-svc-grid').innerHTML = svcsHtml;
+  baAtUpdateTotal();
+
+  const now = new Date();
+  document.getElementById('at-date').value = now.toISOString().slice(0,10);
+  document.getElementById('at-time').value = now.toTimeString().slice(0,5);
+}
+function baRenderAtendimento(){
+  baAtResetFields();
+  document.getElementById('at-success').style.display = 'none';
+}
+
+const baAtClientSegEl = document.getElementById('at-client-seg');
+if(baAtClientSegEl) baAtClientSegEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.seg-btn');
+  if(!btn) return;
+  baAtMode = btn.dataset.mode;
+  document.querySelectorAll('#at-client-seg .seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  document.getElementById('at-buscar-block').style.display = baAtMode==='buscar' ? 'block' : 'none';
+  document.getElementById('at-novo-block').style.display = baAtMode==='novo' ? 'block' : 'none';
+});
+
+function baAtSearchClient(){
+  const q = document.getElementById('at-search').value.trim().toLowerCase();
+  const box = document.getElementById('at-search-results');
+  if(!q || q.length < 2){ box.innerHTML=''; return; }
+  const matches = baGetClients().filter(c=>
+    c.name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q)
+  ).slice(0,5);
+  box.innerHTML = matches.length ? matches.map(c=>
+    `<div class="ba-enc-result" onclick="baAtSelectClient('${c.name.replace(/'/g,"\\'")}')">
+      ${c.name} <span class="enc-sub">${c.instagram||''} · ${c.email||''}</span>
+    </div>`
+  ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
+}
+function baAtSelectClient(name){
+  const client = baGetClients().find(c=>c.name===name);
+  if(!client) return;
+  baAtSelectedClient = client;
+  document.getElementById('at-search').value = '';
+  document.getElementById('at-search-results').innerHTML = '';
+  document.getElementById('at-selected-client').style.display = 'block';
+  document.getElementById('at-selected-client').innerHTML =
+    `<div class="ba-card" style="padding:.6rem .8rem;margin:0;display:flex;align-items:center;justify-content:space-between">
+      <div><strong style="color:var(--prata)">${client.name}</strong> <span style="font-size:.78rem;color:var(--prata-dim)">${client.instagram||''}</span></div>
+      <button style="background:none;border:none;color:#E5574B;cursor:pointer;font-size:.85rem" onclick="baAtClearClient()">✕</button>
+    </div>`;
+}
+function baAtClearClient(){
+  baAtSelectedClient = null;
+  document.getElementById('at-selected-client').style.display = 'none';
+  document.getElementById('at-selected-client').innerHTML = '';
+}
+
+function baAtUpdateTotal(){
+  const checked = [...document.querySelectorAll('.at-svc:checked')].map(x=>x.value);
+  const total = checked.reduce((s,name)=>s+(SVC_PRICES[name]||0),0);
+  document.getElementById('at-total-value').value = baFormatMoney(total);
+}
+function baAtParseMoney(str){
+  const cleaned = (str||'').replace(/[^\d,]/g,'').replace(',','.');
+  return parseFloat(cleaned) || 0;
+}
+function baAtNormalizePhone(raw){
+  let d = (raw||'').replace(/\D/g,'');
+  if(d.length===10 || d.length===11) d = '55'+d;
+  return d;
+}
+
+function baAtRegistrar(){
+  const errEl = document.getElementById('at-err');
+  const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; document.getElementById('at-success').style.display='none'; };
+  errEl.style.display='none';
+
+  let clientName, clientEmail = null;
+  if(baAtMode==='buscar'){
+    if(!baAtSelectedClient) return fail('Selecione um cliente.');
+    clientName = baAtSelectedClient.name;
+    clientEmail = baAtSelectedClient.email || null;
+  } else {
+    const name = document.getElementById('at-new-name').value.trim();
+    const phoneRaw = document.getElementById('at-new-phone').value.trim();
+    if(!name) return fail('Digite o nome do cliente.');
+    if(phoneRaw.replace(/\D/g,'').length<10) return fail('Digite um telefone válido.');
+    const phone = baAtNormalizePhone(phoneRaw);
+    const clients = baGetClients();
+    if(clients.some(c=>c.name.toLowerCase()===name.toLowerCase() && c.barber===baCurrentBarber)) return fail('Já existe um cliente com esse nome na sua carteira.');
+    clients.push({name, phone, barber:baCurrentBarber});
+    localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(clients));
+    clientName = name;
+  }
+
+  const svcs = [...document.querySelectorAll('.at-svc:checked')].map(x=>x.value);
+  if(!svcs.length) return fail('Selecione pelo menos um serviço.');
+  const value = baAtParseMoney(document.getElementById('at-total-value').value);
+  if(!value || value<=0) return fail('Informe um valor válido.');
+  const date = document.getElementById('at-date').value;
+  if(!date) return fail('Informe a data.');
+  const time = document.getElementById('at-time').value;
+  if(!time) return fail('Informe o horário.');
+
+  const sales = baGetSales();
+  sales.unshift({client:clientName, service:svcs.join(' + '), value, date, time, barber:baCurrentBarber});
+  localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
+
+  baAtResetFields();
+  const successEl = document.getElementById('at-success');
+  successEl.style.display = 'block';
+  setTimeout(()=>{ successEl.style.display='none'; }, 3000);
 }
 
 function baEnter(barber){
