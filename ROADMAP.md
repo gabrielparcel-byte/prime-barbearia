@@ -11,16 +11,16 @@
 - [x] Sistema base de conquistas (modelo de dados, storage, lógica de desbloqueio)
 - [x] Vitrine de stickers no perfil do cliente (grid visual com stickers bloqueados/desbloqueados) *(beta)*
 - [x] Animação de desbloqueio (confetti/brilho ao conquistar)
-- [ ] Conquistas implementadas:
-  - [ ] "Primeiro Corte" — primeiro agendamento realizado
-  - [ ] "Fiel" — 5 cortes seguidos
-  - [ ] "Madrugador" — agendou no primeiro horário do dia
-  - [ ] "Combo Master" — fez Corte + Barba + Barbaterapia na mesma visita
-  - [ ] "Veterano" — 1 ano de cliente
-  - [ ] "Embaixador" — indicou um amigo (código de indicação)
-  - [ ] "Nota 10" — deixou 5 avaliações
-  - [ ] "VIP" — atingiu nível Ouro
-- [ ] Sistema de níveis: Bronze → Prata → Ouro → Diamante
+- [x] Conquistas implementadas:
+  - [x] "Primeiro Corte" — primeiro agendamento realizado
+  - [x] "Fiel" — 5 cortes concluídos *(critério ajustado: total, não "seguidos" — ver nota)*
+  - [x] "Madrugador" — agendou no primeiro horário do dia
+  - [x] "Combo Master" — fez Corte + Barba + Barbaterapia na mesma visita
+  - [x] "Veterano" — 1 ano de cliente
+  - [ ] "Embaixador" — indicou um amigo *(dorme até o sistema de indicação, Fase 3)*
+  - [x] "Nota 10" — deixou 5 avaliações
+  - [x] "VIP" — atingiu nível Ouro
+- [x] Sistema de níveis: Bronze → Prata → Ouro → Diamante
 - [ ] Benefícios por nível (desconto %, prioridade de horário, brinde)
 
 ### Cartão de Fidelidade Digital
