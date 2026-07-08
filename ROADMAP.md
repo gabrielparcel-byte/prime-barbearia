@@ -21,7 +21,8 @@
   - [x] "Nota 10" — deixou 5 avaliações
   - [x] "VIP" — atingiu nível Ouro
 - [x] Sistema de níveis: Bronze → Prata → Ouro → Diamante
-- [ ] Benefícios por nível (desconto %, prioridade de horário, brinde)
+- [x] Brinde por fidelidade (a cada 5 cortes, barbeiro decide o mimo)
+- [ ] Benefícios por nível (desconto %, prioridade de horário)
 
 ### Cartão de Fidelidade Digital
 - [ ] Barra de progresso "X de 10 cortes → próximo grátis"

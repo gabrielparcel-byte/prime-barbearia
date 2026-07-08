@@ -813,6 +813,11 @@ render();
 #clientApp .club-stk.locked .club-medal>svg{filter:grayscale(1) brightness(.55);opacity:.5}
 #clientApp .club-stk.locked .cn{color:var(--prata-dim)}
 #clientApp .club-lock{position:absolute;bottom:0;right:0;width:22px;height:22px;border-radius:50%;background:var(--grafite-card);border:1px solid var(--dourado-dim);display:flex;align-items:center;justify-content:center}
+#clientApp .brinde-teaser{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.8rem .9rem;display:flex;gap:.7rem;align-items:center;margin-bottom:.9rem}
+#clientApp .brinde-teaser .bt-emoji{font-size:1.3rem;flex:none;line-height:1}
+#clientApp .brinde-teaser .bt-title{font-size:.82rem;color:var(--prata);line-height:1.45}
+#clientApp .brinde-teaser .bt-title b{color:var(--dourado-claro)}
+#clientApp .brinde-teaser .bt-hint{font-size:.65rem;color:var(--prata-dim);margin-top:.2rem}
 #clientApp .ca-plan{background:var(--grafite-card);border:1px solid var(--dourado);padding:1.3rem 1.4rem;position:relative;overflow:hidden}
 #clientApp .ca-plan .ptop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
 #clientApp .ca-plan .pname{font-family:var(--font-display);font-size:1.15rem;letter-spacing:.04em}
@@ -1040,6 +1045,7 @@ render();
         <!-- PRIME CLUB -->
         <div class="ca-slabel" style="margin-top:0">Prime Club <span class="club-beta">beta</span></div>
         <div class="club-card" id="ca-club-level"></div>
+        <div id="ca-club-brinde"></div>
         <div class="club-grid" id="ca-club-grid"></div>
 
         <div class="ca-slabel" style="margin-top:2.2rem">Seus dados</div>
@@ -1267,6 +1273,31 @@ function primeTakePendingAchs(email){
   st.pending = [];
   primeSaveAchAll(all);
   return out;
+}
+const BRINDE_EVERY = 5;
+function primeGetBrindeAll(){ try{ return JSON.parse(localStorage.getItem('primeBrindeGifts')||'{}'); }catch(e){ return {}; } }
+function primeSaveBrindeAll(d){ localStorage.setItem('primeBrindeGifts', JSON.stringify(d)); }
+function primeIsBrindeEligible(email){
+  if(!email) return false;
+  const cuts = primeClientCuts(email).length;
+  if(cuts < BRINDE_EVERY) return false;
+  const all = primeGetBrindeAll();
+  const last = (all[email] && all[email].lastGiftAt) || 0;
+  return cuts >= last + BRINDE_EVERY;
+}
+function primeMarkBrindeGiven(email){
+  if(!email) return;
+  const cuts = primeClientCuts(email).length;
+  const all = primeGetBrindeAll();
+  all[email] = { lastGiftAt: Math.floor(cuts / BRINDE_EVERY) * BRINDE_EVERY, givenOn: new Date().toISOString().slice(0,10) };
+  primeSaveBrindeAll(all);
+}
+function primeBrindeCutsInfo(email){
+  const cuts = primeClientCuts(email).length;
+  const all = primeGetBrindeAll();
+  const last = (all[email] && all[email].lastGiftAt) || 0;
+  const nextAt = last + BRINDE_EVERY;
+  return { cuts, lastGiftAt: last, nextAt, eligible: cuts >= nextAt };
 }
 // só retorna quem atende clientes de fato (barbeiros + admins vinculados como barbeiro, ex-dono/gerente fica de fora)
 function primeGetBarberRoster(){
@@ -1637,6 +1668,12 @@ function caRenderClub(){
     <div class="cl-row"><span class="cl-nivel">Nível ${level.nome}</span><span class="cl-cuts">${cuts} corte${cuts===1?'':'s'} · ${unlockedCount}/${ACH_CATALOG.length} conquistas</span></div>
     <div class="cl-bar"><div class="cl-fill" style="width:${pct}%"></div></div>
     <div class="cl-next">${next ? `Faltam ${next.min - cuts} corte${next.min-cuts===1?'':'s'} pro nível ${next.nome}` : 'Nível máximo — lenda da Prime 💎'}</div>`;
+  const brindeEl = document.getElementById('ca-club-brinde');
+  if(brindeEl){
+    brindeEl.innerHTML = primeIsBrindeEligible(email)
+      ? `<div class="brinde-teaser"><span class="bt-emoji">🎁</span><div><div class="bt-title">Tem uma <b>surpresa</b> te esperando na próxima visita</div><div class="bt-hint">Combine com seu barbeiro</div></div></div>`
+      : '';
+  }
   grid.innerHTML = ACH_CATALOG.map(a=>{
     const un = st.unlocked[a.id];
     const lock = un ? '' : `<div class="club-lock"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#C6A75E" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11 V8 a4 4 0 0 1 8 0 v3"/></svg></div>`;
@@ -1921,6 +1958,19 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-svc-chip-price{font-size:.68rem;opacity:.5;margin-left:.15rem}
 #barberApp .ba-svc-chip.selected .ba-svc-chip-label{background:#C6A75E;color:#0b140d;border-color:#C6A75E;font-weight:600}
 #barberApp .ba-svc-chip.selected .ba-svc-chip-price{opacity:.7;color:#0b140d}
+#barberApp .gift-dot{width:7px;height:7px;border-radius:50%;background:var(--dourado);box-shadow:0 0 5px rgba(198,167,94,.6);flex:none;animation:giftPulse 2.2s ease-in-out infinite}
+@keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
+#barberApp .brinde-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
+#barberApp .brinde-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dourado);border-radius:8px 0 0 8px}
+#barberApp .brinde-card .bc-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
+#barberApp .brinde-card .bc-title{font-size:.82rem;color:var(--dourado-claro);font-weight:500}
+#barberApp .brinde-card .bc-desc{font-size:.76rem;color:var(--prata-dim);line-height:1.5;margin-bottom:.85rem}
+#barberApp .brinde-card .bc-desc b{color:var(--prata);font-weight:500}
+#barberApp .brinde-card .bc-actions{display:flex;gap:.5rem}
+#barberApp .brinde-card .bc-btn{border:none;font-family:var(--font-body);font-weight:500;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:.55rem .85rem;cursor:pointer;border-radius:4px;flex:1;text-align:center}
+#barberApp .brinde-card .bc-btn.primary{background:var(--dourado);color:#1a1506}
+#barberApp .brinde-card .bc-btn.ghost{background:transparent;border:1px solid rgba(198,167,94,.16);color:var(--prata-dim)}
 #barberApp .ba-enc-results{max-height:120px;overflow-y:auto;margin-bottom:.6rem}
 #barberApp .ba-enc-result{padding:.5rem .6rem;cursor:pointer;font-size:.85rem;color:var(--prata);border-bottom:1px solid rgba(198,167,94,.1)}
 #barberApp .ba-enc-result:hover{background:rgba(198,167,94,.1)}
@@ -2052,6 +2102,7 @@ addEventListener('resize', caApplyMode, {passive:true});
           <div class="ba-cli-row"><span class="lbl">Próxima visita estimada</span><span class="val" id="ba-cli-proxima">—</span></div>
           <div class="ba-cli-row"><span class="lbl">Avaliação média</span><span class="val" id="ba-cli-rating">—</span></div>
         </div>
+        <div id="ba-cli-brinde"></div>
         <div class="ba-slabel" style="margin-top:0">Plano de assinatura</div>
         <div class="ba-card" id="ba-cli-plan-card"></div>
         <button class="ba-btn" id="ba-cli-msg-btn" style="max-width:100%">Mandar mensagem no WhatsApp</button>
@@ -2315,9 +2366,11 @@ function baRenderClientes(){
     });
   }
   names.sort((a,b)=> last[b].date.localeCompare(last[a].date));
-  document.getElementById('ba-clientes-list').innerHTML = names.length ? names.map(name=>
-    `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`
-  ).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.'}</p>`;
+  document.getElementById('ba-clientes-list').innerHTML = names.length ? names.map(name=>{
+    const c = clients.find(x=>x.name===name) || {};
+    const dot = c.email && primeIsBrindeEligible(c.email) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
+    return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${dot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
+  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.'}</p>`;
 }
 
 function baOpenClientDetail(name){
@@ -2345,10 +2398,33 @@ function baOpenClientDetail(name){
     const msg = `Olá ${client.name}! Aqui é o ${baCurrentBarber} da Prime Barbearia. Faz um tempinho que não te vejo por aqui — bora marcar um novo horário?`;
     window.open(`https://wa.me/${client.phone}?text=${encodeURIComponent(msg)}`,'_blank');
   };
+  baRenderBrinde(client);
   baRenderClientPlan(client);
   baShow('ba-screen-cliente');
 }
 
+function baRenderBrinde(client){
+  const el = document.getElementById('ba-cli-brinde');
+  if(!el) return;
+  if(!client.email || !primeIsBrindeEligible(client.email)){ el.innerHTML = ''; return; }
+  const info = primeBrindeCutsInfo(client.email);
+  el.innerHTML = `
+    <div class="brinde-card">
+      <div class="bc-row"><span style="font-size:1.1rem;line-height:1">🎁</span><span class="bc-title">Elegível a um mimo</span></div>
+      <p class="bc-desc">${client.name.split(' ')[0]} bateu <b>${info.cuts} cortes</b>. Bom momento pra surpreender — a escolha é sua.</p>
+      <div class="bc-actions">
+        <button class="bc-btn ghost" onclick="this.closest('.brinde-card').remove()">Lembrar depois</button>
+        <button class="bc-btn primary" onclick="baMarkBrindeGiven('${client.name.replace(/'/g,"\\'")}')">Marcar como dado</button>
+      </div>
+    </div>`;
+}
+function baMarkBrindeGiven(clientName){
+  const client = baMyClients().find(c=>c.name===clientName);
+  if(!client || !client.email) return;
+  primeMarkBrindeGiven(client.email);
+  baRenderBrinde(client);
+  baRenderClientes();
+}
 // mesmos planos oferecidos no site pro cliente (definidos no script do app do cliente)
 function baPlanTiers(){ return typeof PLAN_TIERS!=='undefined' ? PLAN_TIERS : []; }
 function baRenderClientPlan(client){
