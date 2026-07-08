@@ -109,6 +109,29 @@
 
 ---
 
+## 🗄️ Fase 6 — Backend Real & Conformidade LGPD
+
+> Contexto: hoje TUDO (roster de barbeiros, clientes, vendas, agendamentos, achievements, brindes) vive no `localStorage` do navegador. Isso significa que cada barbeiro só enxerga os próprios dados no próprio aparelho — não há sincronização entre dispositivos nem backup real. Essa fase é a maior mudança estrutural do projeto: não é um "adicional", é trocar a fundação de armazenamento.
+
+### Migração de dados
+- [ ] Escolher backend (recomendado: Supabase — Postgres gerenciado, tier grátis, SDK JS simples de plugar aos poucos, row-level security ajuda no controle de acesso por barbeiro/LGPD; alternativa: Firebase/Firestore, mas o formato dos dados aqui é mais relacional)
+- [ ] Modelar tabelas: barbeiros, clientes, vendas, agendamentos, achievements, brindes (hoje já são objetos JS parecidos com linhas de tabela — migração é direta)
+- [ ] Trocar todo `localStorage.getItem/setItem` por chamadas ao backend (maior esforço técnico da fase — toca praticamente todo o arquivo)
+- [ ] Sincronização entre dispositivos (2 barbeiros em 2 celulares vendo os mesmos dados em tempo real)
+- [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
+- [ ] Backup automático / histórico não se perde ao limpar o navegador
+
+### LGPD e segurança
+- [ ] Política de privacidade (o que é coletado, por quê, por quanto tempo)
+- [ ] Consentimento explícito no cadastro do cliente (checkbox de aceite)
+- [ ] Minimização de dados — hoje já coletamos só o essencial (nome, telefone, e opcionalmente idade/e-mail/Instagram); manter esse princípio no banco
+- [ ] Direito do cliente a solicitar exportação e exclusão dos próprios dados
+- [ ] Controle de acesso — cada barbeiro só acessa a própria carteira de clientes (hoje já é assim client-side; no banco precisa virar regra de verdade, não só filtro visual)
+- [ ] Criptografia em trânsito e em repouso (gerenciado automaticamente por Supabase/Firebase, mas confirmar configuração)
+- [ ] Plano básico de resposta a incidente (o que fazer se vazar dado)
+
+---
+
 ## ✅ Já Feito
 
 - [x] Landing page responsiva com seções (proposta, serviços, equipe, contato)
@@ -127,4 +150,4 @@
 
 ---
 
-*Última atualização: 2026-07-07*
+*Última atualização: 2026-07-08*
