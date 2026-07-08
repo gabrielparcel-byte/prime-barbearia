@@ -1277,25 +1277,22 @@ function primeTakePendingAchs(email){
 const BRINDE_EVERY = 5;
 function primeGetBrindeAll(){ try{ return JSON.parse(localStorage.getItem('primeBrindeGifts')||'{}'); }catch(e){ return {}; } }
 function primeSaveBrindeAll(d){ localStorage.setItem('primeBrindeGifts', JSON.stringify(d)); }
-function primeIsBrindeEligible(email){
-  if(!email) return false;
-  const cuts = primeClientCuts(email).length;
-  if(cuts < BRINDE_EVERY) return false;
+function primeIsBrindeEligible(key, cutCount){
+  if(!key || !cutCount || cutCount < BRINDE_EVERY) return false;
   const all = primeGetBrindeAll();
-  const last = (all[email] && all[email].lastGiftAt) || 0;
-  return cuts >= last + BRINDE_EVERY;
+  const last = (all[key] && all[key].lastGiftAt) || 0;
+  return cutCount >= last + BRINDE_EVERY;
 }
-function primeMarkBrindeGiven(email){
-  if(!email) return;
-  const cuts = primeClientCuts(email).length;
+function primeMarkBrindeGiven(key, cutCount){
+  if(!key) return;
   const all = primeGetBrindeAll();
-  all[email] = { lastGiftAt: Math.floor(cuts / BRINDE_EVERY) * BRINDE_EVERY, givenOn: new Date().toISOString().slice(0,10) };
+  all[key] = { lastGiftAt: Math.floor(cutCount / BRINDE_EVERY) * BRINDE_EVERY, givenOn: new Date().toISOString().slice(0,10) };
   primeSaveBrindeAll(all);
 }
-function primeBrindeCutsInfo(email){
-  const cuts = primeClientCuts(email).length;
+function primeBrindeCutsInfo(key, cutCount){
+  const cuts = cutCount || 0;
   const all = primeGetBrindeAll();
-  const last = (all[email] && all[email].lastGiftAt) || 0;
+  const last = (all[key] && all[key].lastGiftAt) || 0;
   const nextAt = last + BRINDE_EVERY;
   return { cuts, lastGiftAt: last, nextAt, eligible: cuts >= nextAt };
 }
@@ -1670,7 +1667,7 @@ function caRenderClub(){
     <div class="cl-next">${next ? `Faltam ${next.min - cuts} corte${next.min-cuts===1?'':'s'} pro nível ${next.nome}` : 'Nível máximo — lenda da Prime 💎'}</div>`;
   const brindeEl = document.getElementById('ca-club-brinde');
   if(brindeEl){
-    brindeEl.innerHTML = primeIsBrindeEligible(email)
+    brindeEl.innerHTML = primeIsBrindeEligible(email, cuts)
       ? `<div class="brinde-teaser"><span class="bt-emoji">🎁</span><div><div class="bt-title">Tem uma <b>surpresa</b> te esperando na próxima visita</div><div class="bt-hint">Combine com seu barbeiro</div></div></div>`
       : '';
   }
@@ -2368,7 +2365,7 @@ function baRenderClientes(){
   names.sort((a,b)=> last[b].date.localeCompare(last[a].date));
   document.getElementById('ba-clientes-list').innerHTML = names.length ? names.map(name=>{
     const c = clients.find(x=>x.name===name) || {};
-    const dot = c.email && primeIsBrindeEligible(c.email) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
+    const dot = primeIsBrindeEligible(name, count[name]) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
     return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${dot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
   }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.'}</p>`;
 }
@@ -2406,8 +2403,9 @@ function baOpenClientDetail(name){
 function baRenderBrinde(client){
   const el = document.getElementById('ba-cli-brinde');
   if(!el) return;
-  if(!client.email || !primeIsBrindeEligible(client.email)){ el.innerHTML = ''; return; }
-  const info = primeBrindeCutsInfo(client.email);
+  const bSales = baMySales().filter(s=>s.client===client.name).length;
+  if(!bSales || !primeIsBrindeEligible(client.name, bSales)){ el.innerHTML = ''; return; }
+  const info = primeBrindeCutsInfo(client.name, bSales);
   el.innerHTML = `
     <div class="brinde-card">
       <div class="bc-row"><span style="font-size:1.1rem;line-height:1">🎁</span><span class="bc-title">Elegível a um mimo</span></div>
@@ -2420,8 +2418,10 @@ function baRenderBrinde(client){
 }
 function baMarkBrindeGiven(clientName){
   const client = baMyClients().find(c=>c.name===clientName);
-  if(!client || !client.email) return;
-  primeMarkBrindeGiven(client.email);
+  if(!client) return;
+  const salesCount = baMySales().filter(s=>s.client===clientName).length;
+  primeMarkBrindeGiven(clientName, salesCount);
+  if(client.email) primeMarkBrindeGiven(client.email, salesCount);
   baRenderBrinde(client);
   baRenderClientes();
 }
