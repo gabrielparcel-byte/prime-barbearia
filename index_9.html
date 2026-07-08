@@ -813,11 +813,25 @@ render();
 #clientApp .club-stk.locked .club-medal>svg{filter:grayscale(1) brightness(.55);opacity:.5}
 #clientApp .club-stk.locked .cn{color:var(--prata-dim)}
 #clientApp .club-lock{position:absolute;bottom:0;right:0;width:22px;height:22px;border-radius:50%;background:var(--grafite-card);border:1px solid var(--dourado-dim);display:flex;align-items:center;justify-content:center}
-#clientApp .brinde-teaser{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.8rem .9rem;display:flex;gap:.7rem;align-items:center;margin-bottom:.9rem}
-#clientApp .brinde-teaser .bt-emoji{font-size:1.3rem;flex:none;line-height:1}
-#clientApp .brinde-teaser .bt-title{font-size:.82rem;color:var(--prata);line-height:1.45}
-#clientApp .brinde-teaser .bt-title b{color:var(--dourado-claro)}
-#clientApp .brinde-teaser .bt-hint{font-size:.65rem;color:var(--prata-dim);margin-top:.2rem}
+#clientApp .cut-counter{display:flex;align-items:baseline;gap:.4rem;margin-bottom:.55rem}
+#clientApp .cut-counter .big{font-family:var(--font-display);font-size:2.2rem;color:var(--prata);line-height:1}
+#clientApp .cut-counter .label{font-size:.72rem;color:var(--prata-dim)}
+#clientApp .brinde-section{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.9rem 1rem;margin-bottom:.9rem}
+#clientApp .brinde-section .bs-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.15rem}
+#clientApp .brinde-section .bs-header .emoji{font-size:1.1rem;line-height:1}
+#clientApp .brinde-section .bs-header .title{font-size:.85rem;color:var(--dourado-claro);font-weight:500}
+#clientApp .brinde-section .bs-sub{font-size:.72rem;color:var(--prata-dim);margin-bottom:.75rem;line-height:1.45}
+#clientApp .brinde-opt{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid rgba(198,167,94,.12);border-radius:6px;cursor:pointer;transition:all .18s;margin-bottom:.4rem}
+#clientApp .brinde-opt:last-of-type{margin-bottom:0}
+#clientApp .brinde-opt:hover{border-color:var(--dourado-dim);background:rgba(198,167,94,.04)}
+#clientApp .brinde-opt.selected{border-color:var(--dourado);background:rgba(198,167,94,.1)}
+#clientApp .brinde-opt .radio{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--prata-dim);flex:none;display:flex;align-items:center;justify-content:center;transition:all .18s}
+#clientApp .brinde-opt.selected .radio{border-color:var(--dourado);background:var(--dourado)}
+#clientApp .brinde-opt.selected .radio::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--verde-noite)}
+#clientApp .brinde-opt .opt-name{font-size:.8rem;color:var(--prata)}
+#clientApp .brinde-opt.selected .opt-name{color:var(--dourado-claro)}
+#clientApp .brinde-confirm{margin-top:.7rem;width:100%;border:none;background:var(--dourado);color:#1a1506;font-family:var(--font-body);font-weight:600;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:.65rem;border-radius:4px;cursor:pointer;opacity:.4;pointer-events:none;transition:all .2s}
+#clientApp .brinde-confirm.enabled{opacity:1;pointer-events:auto}
 #clientApp .ca-plan{background:var(--grafite-card);border:1px solid var(--dourado);padding:1.3rem 1.4rem;position:relative;overflow:hidden}
 #clientApp .ca-plan .ptop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
 #clientApp .ca-plan .pname{font-family:var(--font-display);font-size:1.15rem;letter-spacing:.04em}
@@ -1296,6 +1310,23 @@ function primeBrindeCutsInfo(key, cutCount){
   const nextAt = last + BRINDE_EVERY;
   return { cuts, lastGiftAt: last, nextAt, eligible: cuts >= nextAt };
 }
+const BRINDE_DEFAULT_OPTS = ['Sobrancelha','Limpeza de pele','Hidratação capilar','Massagem relaxante'];
+function primeGetBrindeOpts(){ try{ const v=JSON.parse(localStorage.getItem('primeBrindeOpts')||'null'); return v && v.length ? v : BRINDE_DEFAULT_OPTS; }catch(e){ return BRINDE_DEFAULT_OPTS; } }
+function primeSaveBrindeOpts(list){ localStorage.setItem('primeBrindeOpts', JSON.stringify(list)); }
+function primeGetBrindeChoice(email){ if(!email) return null; const all=primeGetBrindeAll(); return (all[email] && all[email].choice) || null; }
+function primeSetBrindeChoice(email, choice){
+  if(!email) return;
+  const all = primeGetBrindeAll();
+  if(!all[email]) all[email] = {};
+  all[email].choice = choice;
+  primeSaveBrindeAll(all);
+}
+function primeClearBrindeChoice(email){
+  if(!email) return;
+  const all = primeGetBrindeAll();
+  if(all[email]) delete all[email].choice;
+  primeSaveBrindeAll(all);
+}
 // só retorna quem atende clientes de fato (barbeiros + admins vinculados como barbeiro, ex-dono/gerente fica de fora)
 function primeGetBarberRoster(){
   try{
@@ -1662,14 +1693,22 @@ function caRenderClub(){
   const pct = next ? Math.min(100, Math.round(((cuts - level.min) / (next.min - level.min)) * 100)) : 100;
   const unlockedCount = Object.keys(st.unlocked).length;
   lvlBox.innerHTML = `
-    <div class="cl-row"><span class="cl-nivel">Nível ${level.nome}</span><span class="cl-cuts">${cuts} corte${cuts===1?'':'s'} · ${unlockedCount}/${ACH_CATALOG.length} conquistas</span></div>
+    <div class="cut-counter"><span class="big">${cuts}</span><span class="label">corte${cuts===1?'':'s'} na Prime</span></div>
+    <div class="cl-row"><span class="cl-nivel">Nível ${level.nome}</span><span class="cl-cuts">${unlockedCount}/${ACH_CATALOG.length} conquistas</span></div>
     <div class="cl-bar"><div class="cl-fill" style="width:${pct}%"></div></div>
     <div class="cl-next">${next ? `Faltam ${next.min - cuts} corte${next.min-cuts===1?'':'s'} pro nível ${next.nome}` : 'Nível máximo — lenda da Prime 💎'}</div>`;
   const brindeEl = document.getElementById('ca-club-brinde');
   if(brindeEl){
-    brindeEl.innerHTML = primeIsBrindeEligible(email, cuts)
-      ? `<div class="brinde-teaser"><span class="bt-emoji">🎁</span><div><div class="bt-title">Tem uma <b>surpresa</b> te esperando na próxima visita</div><div class="bt-hint">Combine com seu barbeiro</div></div></div>`
-      : '';
+    if(!primeIsBrindeEligible(email, cuts)){ brindeEl.innerHTML = ''; }
+    else {
+      const giftOpts = primeGetBrindeOpts();
+      const chosen = primeGetBrindeChoice(email);
+      if(chosen){
+        brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji">🎁</span><span class="title">Brinde escolhido</span></div><div class="bs-sub" style="margin-bottom:0">Você escolheu <b style="color:var(--dourado-claro)">${chosen}</b>. Avise seu barbeiro na próxima visita!</div></div>`;
+      } else {
+        brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji">🎁</span><span class="title">Você ganhou um mimo!</span></div><div class="bs-sub">Seus ${cuts} cortes te deram direito a um brinde. Escolha o seu:</div><div class="brinde-opts">${giftOpts.map((g,i)=>`<div class="brinde-opt" onclick="caSelectBrinde(${i})"><div class="radio"></div><span class="opt-name">${g}</span></div>`).join('')}</div><button class="brinde-confirm" id="ca-brinde-btn" onclick="caConfirmBrinde()">Confirmar escolha</button></div>`;
+      }
+    }
   }
   grid.innerHTML = ACH_CATALOG.map(a=>{
     const un = st.unlocked[a.id];
@@ -1679,6 +1718,22 @@ function caRenderClub(){
       <div class="cn">${a.nome}</div>
     </div>`;
   }).join('');
+}
+let caBrindeSelected = null;
+function caSelectBrinde(i){
+  caBrindeSelected = i;
+  document.querySelectorAll('#ca-club-brinde .brinde-opt').forEach((el,j)=>el.classList.toggle('selected', j===i));
+  const btn = document.getElementById('ca-brinde-btn');
+  if(btn) btn.classList.add('enabled');
+}
+function caConfirmBrinde(){
+  if(caBrindeSelected===null) return;
+  const acc = primeGetAccount();
+  if(!acc || !acc.email) return;
+  const opts = primeGetBrindeOpts();
+  primeSetBrindeChoice(acc.email, opts[caBrindeSelected]);
+  caBrindeSelected = null;
+  caRenderClub();
 }
 function caOpenSticker(id){
   const a = ACH_CATALOG.find(x=>x.id===id);
@@ -1968,6 +2023,11 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .brinde-card .bc-btn{border:none;font-family:var(--font-body);font-weight:500;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:.55rem .85rem;cursor:pointer;border-radius:4px;flex:1;text-align:center}
 #barberApp .brinde-card .bc-btn.primary{background:var(--dourado);color:#1a1506}
 #barberApp .brinde-card .bc-btn.ghost{background:transparent;border:1px solid rgba(198,167,94,.16);color:var(--prata-dim)}
+#barberApp .gift-item{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--hair)}
+#barberApp .gift-item:last-child{border-bottom:none}
+#barberApp .gift-item .gi-name{font-size:.82rem;color:var(--prata)}
+#barberApp .gift-item .gi-remove{font-size:.72rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .5rem;border-radius:3px;transition:all .15s}
+#barberApp .gift-item .gi-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
 #barberApp .ba-enc-results{max-height:120px;overflow-y:auto;margin-bottom:.6rem}
 #barberApp .ba-enc-result{padding:.5rem .6rem;cursor:pointer;font-size:.85rem;color:var(--prata);border-bottom:1px solid rgba(198,167,94,.1)}
 #barberApp .ba-enc-result:hover{background:rgba(198,167,94,.1)}
@@ -2138,6 +2198,15 @@ addEventListener('resize', caApplyMode, {passive:true});
           <p class="ba-err" id="ba-nb-err">Já existe um barbeiro cadastrado com esse e-mail.</p>
           <div class="ba-slabel">Equipe atual</div>
           <div id="ba-roster-list"></div>
+        </div>
+
+        <div class="ba-card" id="ba-brinde-config" style="display:none">
+          <div class="ba-slabel" style="margin-top:0">Opções de brinde (Prime Club)</div>
+          <div id="ba-brinde-list"></div>
+          <div style="display:flex;gap:.4rem;margin-top:.6rem">
+            <input type="text" id="ba-brinde-new" class="ba-field" placeholder="Nome do novo brinde..." style="flex:1;margin:0;padding:.5rem .7rem;font-size:.78rem">
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddBrindeOpt()">Adicionar</button>
+          </div>
         </div>
 
         <button class="ba-btn ghost" style="max-width:100%" onclick="baLogout()">Sair</button>
@@ -2406,10 +2475,15 @@ function baRenderBrinde(client){
   const bSales = baMySales().filter(s=>s.client===client.name).length;
   if(!bSales || !primeIsBrindeEligible(client.name, bSales)){ el.innerHTML = ''; return; }
   const info = primeBrindeCutsInfo(client.name, bSales);
+  const choice = client.email ? primeGetBrindeChoice(client.email) : null;
+  const choiceHtml = choice
+    ? `<div style="font-size:.75rem;color:var(--dourado);margin-bottom:.7rem;display:flex;align-items:center;gap:.3rem">✦ Cliente escolheu: <b style="margin-left:.2rem">${choice}</b></div>`
+    : `<p style="font-size:.72rem;color:var(--prata-dim);margin-bottom:.7rem;font-style:italic;opacity:.7">Cliente ainda não escolheu o brinde.</p>`;
   el.innerHTML = `
     <div class="brinde-card">
       <div class="bc-row"><span style="font-size:1.1rem;line-height:1">🎁</span><span class="bc-title">Elegível a um mimo</span></div>
-      <p class="bc-desc">${client.name.split(' ')[0]} bateu <b>${info.cuts} cortes</b>. Bom momento pra surpreender — a escolha é sua.</p>
+      <p class="bc-desc">${client.name.split(' ')[0]} bateu <b>${info.cuts} cortes</b>. Bom momento pra surpreender.</p>
+      ${choiceHtml}
       <div class="bc-actions">
         <button class="bc-btn ghost" onclick="this.closest('.brinde-card').remove()">Lembrar depois</button>
         <button class="bc-btn primary" onclick="baMarkBrindeGiven('${client.name.replace(/'/g,"\\'")}')">Marcar como dado</button>
@@ -2421,9 +2495,35 @@ function baMarkBrindeGiven(clientName){
   if(!client) return;
   const salesCount = baMySales().filter(s=>s.client===clientName).length;
   primeMarkBrindeGiven(clientName, salesCount);
-  if(client.email) primeMarkBrindeGiven(client.email, salesCount);
+  if(client.email){
+    primeMarkBrindeGiven(client.email, salesCount);
+    primeClearBrindeChoice(client.email);
+  }
   baRenderBrinde(client);
   baRenderClientes();
+}
+function baRenderBrindeConfig(){
+  const opts = primeGetBrindeOpts();
+  document.getElementById('ba-brinde-list').innerHTML = opts.map((g,i)=>
+    `<div class="gift-item"><span class="gi-name">${g}</span><span class="gi-remove" onclick="baRemoveBrindeOpt(${i})">remover</span></div>`
+  ).join('') || '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum brinde cadastrado.</p>';
+}
+function baRemoveBrindeOpt(i){
+  const opts = primeGetBrindeOpts();
+  opts.splice(i,1);
+  primeSaveBrindeOpts(opts);
+  baRenderBrindeConfig();
+}
+function baAddBrindeOpt(){
+  const input = document.getElementById('ba-brinde-new');
+  const val = input.value.trim();
+  if(!val) return;
+  const opts = primeGetBrindeOpts();
+  if(opts.some(g=>g.toLowerCase()===val.toLowerCase())) return;
+  opts.push(val);
+  primeSaveBrindeOpts(opts);
+  input.value = '';
+  baRenderBrindeConfig();
 }
 // mesmos planos oferecidos no site pro cliente (definidos no script do app do cliente)
 function baPlanTiers(){ return typeof PLAN_TIERS!=='undefined' ? PLAN_TIERS : []; }
@@ -2807,7 +2907,8 @@ function baRenderPerfil(){
   document.getElementById('ba-perfil-comm-salao').textContent = 100-Math.round(pct*100);
   const isAdmin = baCurrentRole==='admin';
   document.getElementById('ba-admin-panel').style.display = isAdmin ? 'block' : 'none';
-  if(isAdmin) baRenderRoster();
+  document.getElementById('ba-brinde-config').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin){ baRenderRoster(); baRenderBrindeConfig(); }
 }
 function baRenderRoster(){
   const roster = baGetRoster();
