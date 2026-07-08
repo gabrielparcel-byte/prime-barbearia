@@ -81,7 +81,7 @@
 - [x] Comparativo com mês anterior (% crescimento)
 
 ### Gestão Inteligente
-- [ ] Ranking entre barbeiros (faturamento, avaliação, clientes atendidos)
+- [x] Ranking entre barbeiros (faturamento, avaliação, clientes atendidos — só admin, ordenável)
 - [ ] Alerta "cliente sumiu" — não vem há 30+ dias, sugerir contato
 - [ ] Relatório mensal exportável (PDF ou compartilhar via WhatsApp)
 - [ ] Agenda com cores por tipo de serviço

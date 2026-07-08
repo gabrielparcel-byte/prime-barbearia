@@ -2076,6 +2076,23 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .line-months{display:flex;justify-content:space-between;margin-top:.4rem}
 #barberApp .line-months span{font-size:.62rem;color:var(--prata-dim)}
 #barberApp .line-endlabel{font-size:.68rem;fill:var(--dourado-claro);font-weight:600}
+
+/* ── ranking da equipe (admin) ── */
+#barberApp .rank-list{display:flex;flex-direction:column;gap:.5rem}
+#barberApp .rank-row{background:var(--grafite-card);border:1px solid rgba(198,167,94,.12);border-radius:10px;padding:.8rem .9rem;display:flex;align-items:center;gap:.7rem;position:relative;overflow:hidden}
+#barberApp .rank-row.top{border-color:var(--dourado-dim)}
+#barberApp .rank-row.top::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dourado)}
+#barberApp .rank-num{width:22px;text-align:center;font-family:var(--font-display);font-size:1rem;color:var(--prata-dim);flex:none}
+#barberApp .rank-row.top .rank-num{color:var(--dourado-claro)}
+#barberApp .rank-av{width:34px;height:34px;border-radius:50%;background:rgba(198,167,94,.1);color:var(--dourado);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:.9rem;flex:none}
+#barberApp .rank-mid{flex:1;min-width:0}
+#barberApp .rank-name{font-size:.85rem;color:var(--prata);font-weight:500}
+#barberApp .rank-bar-track{height:4px;background:rgba(198,167,94,.1);border-radius:99px;margin-top:.35rem;overflow:hidden}
+#barberApp .rank-bar-fill{height:100%;background:var(--dourado);border-radius:99px}
+#barberApp .rank-stats{text-align:right;flex:none}
+#barberApp .rank-value{font-size:.88rem;color:var(--prata);font-weight:600;font-variant-numeric:tabular-nums}
+#barberApp .rank-sub{font-size:.65rem;color:var(--prata-dim);margin-top:.15rem}
+#barberApp .rank-sub .stars{color:var(--dourado)}
 #barberApp .ba-enc-results{max-height:120px;overflow-y:auto;margin-bottom:.6rem}
 #barberApp .ba-enc-result{padding:.5rem .6rem;cursor:pointer;font-size:.85rem;color:var(--prata);border-bottom:1px solid rgba(198,167,94,.1)}
 #barberApp .ba-enc-result:hover{background:rgba(198,167,94,.1)}
@@ -2221,6 +2238,18 @@ addEventListener('resize', caApplyMode, {passive:true});
             <svg class="line-svg" viewBox="0 0 400 120" preserveAspectRatio="none" id="ba-dash-line"></svg>
           </div>
           <div class="line-months" id="ba-dash-line-months"></div>
+        </div>
+
+        <div id="ba-dash-ranking-wrap" style="display:none">
+          <div class="ba-slabel" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Ranking da equipe · este mês</span>
+            <div class="period-chips" id="ba-dash-rank-sort">
+              <button class="period-chip active" data-sort="revenue">R$</button>
+              <button class="period-chip" data-sort="rating">★</button>
+              <button class="period-chip" data-sort="clients">clientes</button>
+            </div>
+          </div>
+          <div class="rank-list" id="ba-dash-ranking"></div>
         </div>
       </div>
     </div>
@@ -2528,11 +2557,15 @@ function baMyGoal(){
   return me && typeof me.monthlyGoal==='number' && me.monthlyGoal>0 ? me.monthlyGoal : null;
 }
 
+let baDashRankSort = 'revenue';
 function baRenderDashboard(){
   baRenderDashMeta();
   baRenderDashComparativo();
   baRenderDashBars(baDashBarDays);
   baRenderDashLine(baDashLineMonths);
+  const isAdmin = baCurrentRole==='admin';
+  document.getElementById('ba-dash-ranking-wrap').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin) baRenderRanking(baDashRankSort);
 }
 
 function baRenderDashMeta(){
@@ -2639,6 +2672,61 @@ function baRenderDashLine(months){
     return `<span>${show ? BA_MONTHS[d.month.getMonth()] : ''}</span>`;
   }).join('');
 }
+
+function baTeamRankingData(){
+  const today = new Date();
+  const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const to = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  const monthSales = baGetSales().filter(s=>s.date>=from && s.date<=to);
+  const monthAppts = (typeof primeGetAppointments==='function'?primeGetAppointments():[]).filter(a=>a.day>=from && a.day<=to);
+  const roster = (typeof primeGetBarberRoster==='function'?primeGetBarberRoster():[]);
+  return roster.map(b=>{
+    const mySales = monthSales.filter(s=>s.barber===b.name);
+    const revenue = mySales.reduce((s,x)=>s+x.value,0);
+    const clients = new Set(mySales.map(s=>s.client)).size;
+    const myRatings = monthAppts.filter(a=>a.barber===b.name && a.rating);
+    const rating = myRatings.length ? myRatings.reduce((s,a)=>s+a.rating,0)/myRatings.length : 0;
+    return {name:b.name, revenue, clients, rating, ratingCount:myRatings.length};
+  });
+}
+
+function baRenderRanking(sortKey){
+  baDashRankSort = sortKey;
+  document.querySelectorAll('#ba-dash-rank-sort .period-chip').forEach(c=>c.classList.toggle('active', c.dataset.sort===sortKey));
+  const data = baTeamRankingData();
+  const sorted = [...data].sort((a,b)=>b[sortKey]-a[sortKey]);
+  const max = Math.max(...sorted.map(b=>b[sortKey]), 1);
+  document.getElementById('ba-dash-ranking').innerHTML = sorted.length ? sorted.map((b,i)=>{
+    const pct = Math.max((b[sortKey]/max)*100, b[sortKey]>0?4:0);
+    const mainVal = sortKey==='revenue' ? baFormatMoney(b.revenue)
+      : sortKey==='rating' ? (b.ratingCount ? b.rating.toFixed(1)+' ★' : '—')
+      : b.clients+' cliente'+(b.clients===1?'':'s');
+    const subParts = [];
+    if(sortKey!=='revenue') subParts.push(baFormatMoney(b.revenue));
+    if(sortKey!=='rating') subParts.push(b.ratingCount ? `<span class="stars">${b.rating.toFixed(1)} ★</span>` : 'sem aval.');
+    if(sortKey!=='clients') subParts.push(b.clients+' cli.');
+    return `<div class="rank-row${i===0&&b[sortKey]>0?' top':''}">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-av">${b.name.charAt(0)}</div>
+      <div class="rank-mid">
+        <div class="rank-name">${b.name}</div>
+        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="rank-stats">
+        <div class="rank-value">${mainVal}</div>
+        <div class="rank-sub">${subParts.join(' · ')}</div>
+      </div>
+    </div>`;
+  }).join('') : '<p style="color:var(--prata-dim);padding:.6rem 0">Nenhum barbeiro na equipe ainda.</p>';
+}
+
+const baDashRankSortEl = document.getElementById('ba-dash-rank-sort');
+if(baDashRankSortEl) baDashRankSortEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.period-chip');
+  if(!btn) return;
+  baRenderRanking(btn.dataset.sort);
+});
 
 const baDashBarChipsEl = document.getElementById('ba-dash-bar-chips');
 if(baDashBarChipsEl) baDashBarChipsEl.addEventListener('click', e=>{
