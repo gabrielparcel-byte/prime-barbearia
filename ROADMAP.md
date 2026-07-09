@@ -130,6 +130,13 @@
 - [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
 - [ ] Backup automático / histórico não se perde ao limpar o navegador
 
+### Hospedagem & Custos *(discutido 2026-07-08 — plano, nada contratado ainda)*
+- [ ] Banco de dados: **Supabase** (grátis pra começar — 500MB cobre bem o volume de uma barbearia; se crescer muito, plano pago é ~US$25/mês). Zero administração de servidor — Supabase cuida de backup, segurança e atualização.
+- [ ] Site: manter no **GitHub Pages** (já funciona, grátis) ou migrar pra **Vercel/Netlify** (também grátis, com a vantagem de deploy automático a cada `git push` + domínio próprio mais fácil de configurar). Não é obrigatório trocar.
+- [ ] Domínio próprio (opcional): tipo `primebarbearia.com.br` via registro.br, ~R$40-60/ano — só estética/profissionalismo, não é necessário pro sistema funcionar.
+- [ ] **Decisão explícita: NÃO comprar servidor próprio (VPS/dedicado).** Exigiria administrar sistema operacional, banco de dados, backup e segurança manualmente — trabalho de sysadmin em tempo integral, isso é overkill total pro tamanho do negócio. Um serviço gerenciado (Supabase) resolve tudo isso por uma fração do custo/risco.
+- Custo total estimado: **R$0 pra começar** (Supabase free + Pages/Vercel/Netlify free), só o domínio opcional (~R$40-60/ano) se quiser; escalar pra ~R$125/mês (Supabase Pro) só quando o negócio já estiver crescendo o suficiente pra bancar fácil.
+
 ### LGPD e segurança
 - [ ] Política de privacidade (o que é coletado, por quê, por quanto tempo)
 - [ ] Consentimento explícito no cadastro do cliente (checkbox de aceite)
