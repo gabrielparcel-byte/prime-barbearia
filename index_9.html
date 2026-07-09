@@ -2047,6 +2047,17 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .gift-item .gi-name{font-size:.82rem;color:var(--prata)}
 #barberApp .gift-item .gi-remove{font-size:.72rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .5rem;border-radius:3px;transition:all .15s}
 #barberApp .gift-item .gi-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
+#barberApp .add-input{background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;padding:.5rem .7rem;color:var(--prata);font-family:var(--font-body);font-size:.78rem;outline:none;min-width:0}
+#barberApp .add-input:focus{border-color:var(--dourado-dim)}
+#barberApp .add-input::placeholder{color:var(--prata-dim)}
+#barberApp .expense-row{display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid var(--hair)}
+#barberApp .expense-row:last-child{border-bottom:none}
+#barberApp .expense-row .exp-info{flex:1;min-width:0}
+#barberApp .expense-row .exp-name{font-size:.82rem;color:var(--prata)}
+#barberApp .expense-row .exp-date{font-size:.68rem;color:var(--prata-dim);margin-top:.1rem}
+#barberApp .expense-row .exp-value{font-size:.82rem;color:var(--prata);font-variant-numeric:tabular-nums;flex:none}
+#barberApp .expense-row .exp-remove{font-size:.72rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .5rem;border-radius:3px;transition:all .15s;background:none;border:none;flex:none}
+#barberApp .expense-row .exp-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
 
 /* ── dashboard financeiro ── */
 #barberApp .meta-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:10px;padding:1rem 1.1rem}
@@ -2173,7 +2184,7 @@ addEventListener('resize', caApplyMode, {passive:true});
         <div class="ba-field" id="ba-f-pass"><label>Senha</label><input type="password" id="ba-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <button class="ba-btn" onclick="baLogin()">Entrar</button>
         <p class="ba-err" id="ba-login-err">E-mail ou senha incorretos.</p>
-        <p class="ba-hint">Login de exemplo: nathan@prime.com / 123456</p>
+        <p class="ba-hint">Login de exemplo — admin: nathan@prime.com / 123456 · barbeiro: lucas@prime.com / 123456</p>
       </div>
     </div>
 
@@ -2313,6 +2324,20 @@ addEventListener('resize', caApplyMode, {passive:true});
           </div>
           <div class="rank-list" id="ba-dash-ranking"></div>
         </div>
+
+        <div id="ba-dash-despesas-wrap" style="display:none">
+          <div class="ba-slabel" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span>Despesas · este mês</span>
+            <span id="ba-dash-despesas-total" style="font-size:.78rem;color:var(--prata-dim);text-transform:none;letter-spacing:0">R$ 0,00</span>
+          </div>
+          <div id="ba-dash-despesas-list"></div>
+          <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+            <input type="text" id="ba-despesa-nome" class="add-input" placeholder="Nome da despesa..." style="flex:2;min-width:120px">
+            <input type="number" id="ba-despesa-valor" class="add-input" placeholder="R$" style="flex:1;min-width:70px">
+            <input type="date" id="ba-despesa-data" class="add-input" style="flex:1;min-width:130px">
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2426,7 +2451,8 @@ function baSetLoggedInEmail(email){ if(email) localStorage.setItem(BARBER_KEYS.l
 function baSeedRoster(){
   if(localStorage.getItem(BARBER_KEYS.roster)) return;
   localStorage.setItem(BARBER_KEYS.roster, JSON.stringify([
-    {name:'Nathan', email:'nathan@prime.com', pass:'123456', role:'admin', isBarber:true}
+    {name:'Nathan', email:'nathan@prime.com', pass:'123456', role:'admin', isBarber:true},
+    {name:'Lucas Ferreira', email:'lucas@prime.com', pass:'123456', role:'barbeiro', isBarber:true}
   ]));
 }
 // corrige cadastros salvos antes de existir o campo "isBarber" — por padrão todo mundo (inclusive admin) atende como barbeiro
@@ -2635,6 +2661,8 @@ function baRenderDashboard(){
   const isAdmin = baCurrentRole==='admin';
   document.getElementById('ba-dash-ranking-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderRanking(baDashRankSort);
+  document.getElementById('ba-dash-despesas-wrap').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin) baRenderDespesas();
 }
 
 function baRenderDashMeta(){
@@ -2803,6 +2831,49 @@ function baRenderRanking(sortKey){
       </div>
     </div>`;
   }).join('') : '<p style="color:var(--prata-dim);padding:.6rem 0">Nenhum barbeiro na equipe ainda.</p>';
+}
+
+// ══ Despesas (admin) ══
+function baGetExpenses(){ try{ return JSON.parse(localStorage.getItem('primeExpenses')||'[]'); }catch(e){ return []; } }
+function baSaveExpenses(list){ localStorage.setItem('primeExpenses', JSON.stringify(list)); }
+function baRenderDespesas(){
+  const listEl = document.getElementById('ba-dash-despesas-list');
+  const totalEl = document.getElementById('ba-dash-despesas-total');
+  if(!listEl) return;
+  const today = new Date();
+  const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const to = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  const all = baGetExpenses();
+  const month = all.filter(e=>e.date>=from && e.date<=to).sort((a,b)=>b.date.localeCompare(a.date));
+  const total = month.reduce((s,e)=>s+e.value,0);
+  totalEl.textContent = baFormatMoney(total);
+  listEl.innerHTML = month.length ? month.map(e=>
+    `<div class="expense-row">
+      <div class="exp-info"><div class="exp-name">${e.name}</div><div class="exp-date">${baFormatDate(e.date)}</div></div>
+      <div class="exp-value">${baFormatMoney(e.value)}</div>
+      <button class="exp-remove" onclick="baRemoveExpense(${e.id})">remover</button>
+    </div>`
+  ).join('') : '<p style="color:var(--prata-dim);font-size:.82rem;padding:.4rem 0">Nenhuma despesa registrada este mês.</p>';
+}
+function baAddExpense(){
+  const nameEl = document.getElementById('ba-despesa-nome');
+  const valorEl = document.getElementById('ba-despesa-valor');
+  const dataEl = document.getElementById('ba-despesa-data');
+  const name = nameEl.value.trim();
+  const value = parseFloat(valorEl.value);
+  const date = dataEl.value || new Date().toISOString().slice(0,10);
+  if(!name || !value || value<=0) return;
+  const all = baGetExpenses();
+  all.push({id:primeNextId(), name, value, date});
+  baSaveExpenses(all);
+  nameEl.value=''; valorEl.value=''; dataEl.value='';
+  baRenderDespesas();
+}
+function baRemoveExpense(id){
+  const all = baGetExpenses().filter(e=>e.id!==id);
+  baSaveExpenses(all);
+  baRenderDespesas();
 }
 
 const baDashRankSortEl = document.getElementById('ba-dash-rank-sort');

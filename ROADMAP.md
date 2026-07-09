@@ -88,7 +88,7 @@
 
 ### Admin / Barbearia
 - [ ] Dashboard geral da barbearia (todos os barbeiros consolidado)
-- [ ] Controle de despesas básico (aluguel, produtos, etc.)
+- [x] Controle de despesas básico (nome, valor, data — cadastro e remoção, só admin, no Dashboard)
 - [ ] Lucro líquido estimado (faturamento - despesas - comissões)
 - [ ] Catálogo de produtos com estoque (cerveja, cremes, gel, etc.) — venda combinada com serviço na mesma nota *(decisões já tomadas, protótipo aprovado — ver nota abaixo)*
 
