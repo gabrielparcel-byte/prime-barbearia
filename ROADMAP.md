@@ -87,7 +87,7 @@
 - [x] Agenda com cores por tipo de serviço (pontinho colorido por serviço na timeline + legenda)
 
 ### Admin / Barbearia
-- [ ] Dashboard geral da barbearia (todos os barbeiros consolidado)
+- [x] Dashboard geral da barbearia (toggle "Minha visão / Barbearia toda", só admin — consolida comparativo, barras e linha de todos os barbeiros)
 - [x] Controle de despesas básico (nome, valor, data — cadastro e remoção, só admin, no Dashboard)
 - [x] Lucro líquido estimado (faturamento de toda a equipe − comissões de cada barbeiro − despesas, só admin)
 - [ ] Catálogo de produtos com estoque (cerveja, cremes, gel, etc.) — venda combinada com serviço na mesma nota *(decisões já tomadas, protótipo aprovado — ver nota abaixo)*

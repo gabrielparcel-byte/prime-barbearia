@@ -2280,6 +2280,13 @@ addEventListener('resize', caApplyMode, {passive:true});
         <div class="ba-slabel" style="margin-top:0">Meta do mês</div>
         <div id="ba-dash-meta"></div>
 
+        <div id="ba-dash-scope-wrap" style="display:none">
+          <div class="seg" id="ba-dash-scope">
+            <div class="seg-btn active" data-scope="mine">Minha visão</div>
+            <div class="seg-btn" data-scope="shop">Barbearia toda</div>
+          </div>
+        </div>
+
         <div class="ba-slabel">Comparativo</div>
         <div id="ba-dash-comp"></div>
 
@@ -2646,6 +2653,11 @@ function baDailySalesMap(){
   baMySales().forEach(s=>{ map[s.date] = (map[s.date]||0) + s.value; });
   return map;
 }
+function baShopDailySalesMap(){
+  const map = {};
+  baGetSales().forEach(s=>{ map[s.date] = (map[s.date]||0) + s.value; });
+  return map;
+}
 function baMonthlyTotal(year, month){
   const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
   const d = new Date(year, month+1, 0);
@@ -2657,13 +2669,37 @@ function baMyGoal(){
   return me && typeof me.monthlyGoal==='number' && me.monthlyGoal>0 ? me.monthlyGoal : null;
 }
 
+// visão do dashboard: 'mine' (padrão) ou 'shop' (barbearia toda — só admin pode alternar)
+let baDashScope = 'mine';
+function baScopedMonthlyTotal(year, month){
+  return baDashScope==='shop' ? baShopFinancials(year, month).faturamento : baMonthlyTotal(year, month);
+}
+function baScopedDailySalesMap(){
+  return baDashScope==='shop' ? baShopDailySalesMap() : baDailySalesMap();
+}
+function baSetDashScope(scope){
+  baDashScope = scope;
+  document.querySelectorAll('#ba-dash-scope .seg-btn').forEach(b=>b.classList.toggle('active', b.dataset.scope===scope));
+  baRenderDashComparativo();
+  baRenderDashBars(baDashBarDays);
+  baRenderDashLine(baDashLineMonths);
+}
+const baDashScopeEl = document.getElementById('ba-dash-scope');
+if(baDashScopeEl) baDashScopeEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.seg-btn');
+  if(!btn) return;
+  baSetDashScope(btn.dataset.scope);
+});
+
 let baDashRankSort = 'attendances';
 function baRenderDashboard(){
+  const isAdmin = baCurrentRole==='admin';
+  if(!isAdmin) baDashScope = 'mine';
+  document.getElementById('ba-dash-scope-wrap').style.display = isAdmin ? 'block' : 'none';
   baRenderDashMeta();
   baRenderDashComparativo();
   baRenderDashBars(baDashBarDays);
   baRenderDashLine(baDashLineMonths);
-  const isAdmin = baCurrentRole==='admin';
   document.getElementById('ba-dash-ranking-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderRanking(baDashRankSort);
   document.getElementById('ba-dash-despesas-wrap').style.display = isAdmin ? 'block' : 'none';
@@ -2694,9 +2730,9 @@ function baRenderDashMeta(){
 function baRenderDashComparativo(){
   const el = document.getElementById('ba-dash-comp');
   const today = new Date();
-  const thisMonth = baMonthlyTotal(today.getFullYear(), today.getMonth());
+  const thisMonth = baScopedMonthlyTotal(today.getFullYear(), today.getMonth());
   const prevDate = new Date(today.getFullYear(), today.getMonth()-1, 1);
-  const lastMonth = baMonthlyTotal(prevDate.getFullYear(), prevDate.getMonth());
+  const lastMonth = baScopedMonthlyTotal(prevDate.getFullYear(), prevDate.getMonth());
   let deltaHtml;
   if(lastMonth > 0){
     const pctChange = Math.round(((thisMonth-lastMonth)/lastMonth)*100);
@@ -2722,7 +2758,7 @@ function baRenderDashComparativo(){
 }
 
 function baRenderDashBars(days){
-  const daily = baDailySalesMap();
+  const daily = baScopedDailySalesMap();
   const today = new Date();
   const data = [];
   for(let i=days-1;i>=0;i--){
@@ -2751,7 +2787,7 @@ function baRenderDashLine(months){
   const data = [];
   for(let i=months-1;i>=0;i--){
     const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
-    data.push({month:d, val: baMonthlyTotal(d.getFullYear(), d.getMonth())});
+    data.push({month:d, val: baScopedMonthlyTotal(d.getFullYear(), d.getMonth())});
   }
   const vals = data.map(d=>d.val);
   const maxM = Math.max(...vals), minM = Math.min(...vals);
