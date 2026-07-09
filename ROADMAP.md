@@ -83,7 +83,7 @@
 ### Gestão Inteligente
 - [x] Ranking entre barbeiros (atendimentos, feedbacks, resumo por serviço — só admin, ordenável, sem valores em R$)
 - [x] Alerta "cliente sumiu" — ponto âmbar na lista, filtro "Sumidos", banner no detalhe com atalho pro WhatsApp (30+ dias sem visita)
-- [ ] Relatório mensal exportável (PDF ou compartilhar via WhatsApp)
+- [x] Relatório mensal exportável — PDF (via impressão, com logo e cores da marca, detalhado item a item por barbeiro/cliente/despesa) + resumo compartilhável no WhatsApp *(exportação em XLSX ficou pra depois — só faz sentido se sentir falta de mexer nos números numa planilha; PDF/impressão não precisa de biblioteca externa, XLSX bonito precisaria)*
 - [x] Agenda com cores por tipo de serviço (pontinho colorido por serviço na timeline + legenda)
 
 ### Admin / Barbearia
