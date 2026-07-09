@@ -82,7 +82,7 @@
 
 ### Gestão Inteligente
 - [x] Ranking entre barbeiros (atendimentos, feedbacks, resumo por serviço — só admin, ordenável, sem valores em R$)
-- [ ] Alerta "cliente sumiu" — não vem há 30+ dias, sugerir contato
+- [x] Alerta "cliente sumiu" — ponto âmbar na lista, filtro "Sumidos", banner no detalhe com atalho pro WhatsApp (30+ dias sem visita)
 - [ ] Relatório mensal exportável (PDF ou compartilhar via WhatsApp)
 - [ ] Agenda com cores por tipo de serviço
 

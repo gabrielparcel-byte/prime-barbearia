@@ -2021,6 +2021,13 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .gift-dot{width:7px;height:7px;border-radius:50%;background:var(--dourado);box-shadow:0 0 5px rgba(198,167,94,.6);flex:none;animation:giftPulse 2.2s ease-in-out infinite}
 @keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
+#barberApp .sumiu-dot{width:7px;height:7px;border-radius:50%;background:#D9A441;box-shadow:0 0 5px rgba(217,164,65,.6);flex:none}
+#barberApp .sumiu-banner{background:var(--grafite-card);border:1px solid rgba(217,164,65,.4);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
+#barberApp .sumiu-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#D9A441;border-radius:8px 0 0 8px}
+#barberApp .sumiu-banner .sb-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
+#barberApp .sumiu-banner .sb-title{font-size:.82rem;color:#D9A441;font-weight:500}
+#barberApp .sumiu-banner .sb-desc{font-size:.76rem;color:var(--prata-dim);line-height:1.5;margin-bottom:.85rem}
+#barberApp .sumiu-banner .sb-desc b{color:var(--prata);font-weight:500}
 #barberApp .brinde-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
 #barberApp .brinde-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dourado);border-radius:8px 0 0 8px}
 #barberApp .brinde-card .bc-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
@@ -2310,7 +2317,11 @@ addEventListener('resize', caApplyMode, {passive:true});
       <div class="ba-head"><div><div class="hi">Sua carteira</div><div class="name">Clientes</div></div></div>
       <div class="ba-body">
         <div class="ba-field" style="max-width:100%;margin-bottom:.6rem"><input type="text" id="ba-cli-search" placeholder="🔍 Buscar cliente por nome, @ ou e-mail" oninput="baRenderClientes()"></div>
-        <div class="ba-slabel" style="margin-top:.6rem">Todos os clientes</div>
+        <div class="period-chips" id="ba-cli-filter" style="margin-bottom:.8rem">
+          <button class="period-chip active" data-filter="todos" onclick="baSetCliFilter('todos')">Todos</button>
+          <button class="period-chip" data-filter="sumidos" onclick="baSetCliFilter('sumidos')">Sumidos (<span id="ba-cli-sumidos-count">0</span>)</button>
+        </div>
+        <div class="ba-slabel" style="margin-top:.6rem" id="ba-cli-list-label">Todos os clientes</div>
         <div id="ba-clientes-list"></div>
       </div>
     </div>
@@ -2320,6 +2331,7 @@ addEventListener('resize', caApplyMode, {passive:true});
       <div class="ba-head"><div><div class="hi">Cliente</div><div class="name" id="ba-cli-nome">—</div></div></div>
       <div class="ba-body">
         <button class="ba-btn ghost" style="max-width:100%;margin-bottom:1.2rem" onclick="baTab('clientes')">← Voltar aos clientes</button>
+        <div id="ba-cli-sumiu"></div>
         <div class="ba-card">
           <div class="ba-cli-row"><span class="lbl">Idade</span><span class="val" id="ba-cli-idade">—</span></div>
           <div class="ba-cli-row"><span class="lbl">@ do Instagram</span><span class="val" id="ba-cli-insta">—</span></div>
@@ -2815,6 +2827,17 @@ if(baDashLineChipsEl) baDashLineChipsEl.addEventListener('click', e=>{
   baRenderDashLine(baDashLineMonths);
 });
 
+const CLIENTE_SUMIU_DAYS = 30;
+function baDaysSince(dateStr){
+  const d = new Date(dateStr+'T12:00:00');
+  return Math.floor((Date.now() - d.getTime()) / (1000*60*60*24));
+}
+let baCliFilter = 'todos';
+function baSetCliFilter(f){
+  baCliFilter = f;
+  document.querySelectorAll('#ba-cli-filter .period-chip').forEach(c=>c.classList.toggle('active', c.dataset.filter===f));
+  baRenderClientes();
+}
 function baRenderClientes(){
   const sales = baMySales();
   const last = {}, count = {};
@@ -2833,12 +2856,17 @@ function baRenderClientes(){
       return name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q);
     });
   }
+  const sumidosCount = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS).length;
+  document.getElementById('ba-cli-sumidos-count').textContent = sumidosCount;
+  if(baCliFilter==='sumidos') names = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS);
+  document.getElementById('ba-cli-list-label').textContent = baCliFilter==='sumidos' ? 'Clientes sumidos' : 'Todos os clientes';
   names.sort((a,b)=> last[b].date.localeCompare(last[a].date));
   document.getElementById('ba-clientes-list').innerHTML = names.length ? names.map(name=>{
     const c = clients.find(x=>x.name===name) || {};
-    const dot = primeIsBrindeEligible(name, count[name]) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
-    return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${dot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
-  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.'}</p>`;
+    const giftDot = primeIsBrindeEligible(name, count[name]) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
+    const sumiuDot = baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS ? ' <span class="sumiu-dot" title="Não vem há 30+ dias"></span>' : '';
+    return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${giftDot}${sumiuDot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
+  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.')}</p>`;
 }
 
 function baOpenClientDetail(name){
@@ -2866,9 +2894,23 @@ function baOpenClientDetail(name){
     const msg = `Olá ${client.name}! Aqui é o ${baCurrentBarber} da Prime Barbearia. Faz um tempinho que não te vejo por aqui — bora marcar um novo horário?`;
     window.open(`https://wa.me/${client.phone}?text=${encodeURIComponent(msg)}`,'_blank');
   };
+  baRenderSumiu(client, lastSale);
   baRenderBrinde(client);
   baRenderClientPlan(client);
   baShow('ba-screen-cliente');
+}
+function baRenderSumiu(client, lastSale){
+  const el = document.getElementById('ba-cli-sumiu');
+  if(!el) return;
+  if(!lastSale){ el.innerHTML = ''; return; }
+  const days = baDaysSince(lastSale.date);
+  if(days < CLIENTE_SUMIU_DAYS){ el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="sumiu-banner">
+      <div class="sb-row"><span style="font-size:1.1rem;line-height:1">👋</span><span class="sb-title">Não vem há ${days} dias</span></div>
+      <p class="sb-desc">${client.name.split(' ')[0]} sumiu — bom momento pra chamar de volta.</p>
+      <button class="ba-btn" style="max-width:100%;margin:0" onclick="document.getElementById('ba-cli-msg-btn').click()">Mandar mensagem no WhatsApp</button>
+    </div>`;
 }
 
 function baRenderBrinde(client){
