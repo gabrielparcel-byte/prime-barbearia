@@ -90,6 +90,15 @@
 - [ ] Dashboard geral da barbearia (todos os barbeiros consolidado)
 - [ ] Controle de despesas básico (aluguel, produtos, etc.)
 - [ ] Lucro líquido estimado (faturamento - despesas - comissões)
+- [ ] Catálogo de produtos com estoque (cerveja, cremes, gel, etc.) — venda combinada com serviço na mesma nota *(decisões já tomadas, protótipo aprovado — ver nota abaixo)*
+
+> **Nota — Produtos & Notas Combinadas** *(anotado 2026-07-08, aguardando sinal pra implementar)*
+> Decisões já validadas com o Gabriel:
+> - Produtos **têm controle de estoque** (quantidade abaixa a cada venda, avisa quando tá acabando)
+> - Serviço e produto **entram juntos na mesma nota** (ex: corte + gel, um recibo só)
+> - Cadastro/edição de produtos é **só admin** (mesmo padrão do brinde e da comissão)
+> Protótipo visual aprovado: produto esgotado (estoque 0) não aparece na busca do atendimento; quantidade no carrinho trava no máximo do estoque disponível.
+> Ideia de implementação (não codada ainda): criar catálogo `barberProducts` (admin-only, como o `primeBrindeOpts`), e reaproveitar o array de vendas existente adicionando `type:'servico'|'produto'`, `qty` e um `notaId` compartilhado entre os itens da mesma nota — assim Vendas/Dashboard/Ranking continuam funcionando sem mudança, pois já somam por `.value`/`.date`/`.barber` sem se importar com o tipo.
 
 ---
 
