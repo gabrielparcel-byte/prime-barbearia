@@ -2338,6 +2338,11 @@ addEventListener('resize', caApplyMode, {passive:true});
             <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
           </div>
         </div>
+
+        <div id="ba-dash-lucro-wrap" style="display:none">
+          <div class="ba-slabel">Lucro líquido estimado · este mês</div>
+          <div class="ba-comm" id="ba-dash-lucro"></div>
+        </div>
       </div>
     </div>
 
@@ -2663,6 +2668,8 @@ function baRenderDashboard(){
   if(isAdmin) baRenderRanking(baDashRankSort);
   document.getElementById('ba-dash-despesas-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderDespesas();
+  document.getElementById('ba-dash-lucro-wrap').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin) baRenderLucro();
 }
 
 function baRenderDashMeta(){
@@ -2874,6 +2881,34 @@ function baRemoveExpense(id){
   const all = baGetExpenses().filter(e=>e.id!==id);
   baSaveExpenses(all);
   baRenderDespesas();
+}
+
+// ══ Lucro líquido estimado (admin) — faturamento da barbearia toda - comissões - despesas ══
+function baShopFinancials(year, month){
+  const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
+  const d = new Date(year, month+1, 0);
+  const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const sales = baGetSales().filter(s=>s.date>=from && s.date<=to);
+  const roster = baGetRoster();
+  const faturamento = sales.reduce((s,x)=>s+x.value,0);
+  const comissoes = sales.reduce((s,x)=>{
+    const b = roster.find(r=>r.name===x.barber);
+    const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
+    return s + x.value*pct;
+  },0);
+  const despesas = baGetExpenses().filter(e=>e.date>=from && e.date<=to).reduce((s,e)=>s+e.value,0);
+  return { faturamento, comissoes, despesas, lucro: faturamento - comissoes - despesas };
+}
+function baRenderLucro(){
+  const el = document.getElementById('ba-dash-lucro');
+  if(!el) return;
+  const today = new Date();
+  const f = baShopFinancials(today.getFullYear(), today.getMonth());
+  el.innerHTML = `
+    <div class="row"><span class="lbl">Faturamento (equipe toda)</span><span class="val small">${baFormatMoney(f.faturamento)}</span></div>
+    <div class="row"><span class="lbl">Comissões repassadas</span><span class="val small">${baFormatMoney(f.comissoes)}</span></div>
+    <div class="row"><span class="lbl">Despesas</span><span class="val small">${baFormatMoney(f.despesas)}</span></div>
+    <div class="row"><span class="lbl">Lucro líquido</span><span class="val">${baFormatMoney(f.lucro)}</span></div>`;
 }
 
 const baDashRankSortEl = document.getElementById('ba-dash-rank-sort');
