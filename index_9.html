@@ -511,6 +511,7 @@ const HORARIOS = {
 };
 const SLOT_MIN = 45;
 const SVC_PRICES = {'Corte':45,'Barba':35,'Corte + Barba':70,'Barbaterapia':60,'Sobrancelha':15,'Pigmentação':40};
+const SVC_COLORS = {'Corte':'#C6A75E','Barba':'#6E8CA0','Corte + Barba':'#4E9B8F','Barbaterapia':'#9B7EDE','Sobrancelha':'#D98C7A','Pigmentação':'#8A8FA0'};
 
 // resolve o horário efetivo de um barbeiro num dia da semana, considerando folga/horário customizado dele
 // barber.hours: ausente = herda o horário da loja; null = folga nesse dia; [abre,fecha] = horário próprio
@@ -2001,6 +2002,9 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-tslot .ts-name{font-size:.88rem;color:var(--prata)}
 #barberApp .ba-tslot .ts-detail{font-size:.75rem;color:var(--prata-dim);margin-top:.1rem}
 #barberApp .ba-tslot .ts-empty{flex:1;padding:.5rem .8rem;margin-left:.8rem;color:rgba(198,167,94,.3);font-size:.75rem;font-style:italic}
+#barberApp .svc-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:.4rem;flex:none;vertical-align:middle}
+#barberApp .svc-legend{display:flex;flex-wrap:wrap;gap:.5rem .8rem;margin:0 0 .8rem;padding:.5rem .1rem}
+#barberApp .svc-legend-item{display:flex;align-items:center;font-size:.65rem;color:var(--prata-dim);white-space:nowrap}
 #barberApp .ba-encaixe{background:var(--grafite-card);border:1px solid var(--dourado);padding:1rem 1.2rem;margin:.6rem 0}
 #barberApp .ba-encaixe .ba-slabel:first-child{margin-top:0}
 #barberApp .ba-svc-grid{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:.6rem}
@@ -3160,8 +3164,10 @@ function baBuildAgendaTimes(){
       const st = a.status||'confirmado';
       const isEncaixe = a.isEncaixe;
       const cls = isEncaixe ? 'encaixe' : 'taken';
-      const svcName = a.services ? a.services.join(' + ') : (a.service||'');
+      const svcs = a.services || (a.service ? [a.service] : []);
+      const svcName = svcs.join(' + ');
       const dur = a.duration ? ` · ~${a.duration}min` : '';
+      const dots = svcs.map(s=>`<span class="svc-dot" style="background:${SVC_COLORS[s]||'var(--prata-dim)'}" title="${s}"></span>`).join('');
       const action = st==='pendente' ? `<button class="ba-btn" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baAcceptAppt(${a.id})">Aceitar</button>`
         : st==='confirmado' ? `<button class="ba-btn ghost" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baFinishAppt(${a.id})">Finalizar</button>`
         : '';
@@ -3169,7 +3175,7 @@ function baBuildAgendaTimes(){
         <div class="ts-time">${timeStr}</div>
         <div class="ts-card">
           <div class="ts-info">
-            <div class="ts-name">${a.name||'Cliente'}</div>
+            <div class="ts-name">${dots}${a.name||'Cliente'}</div>
             <div class="ts-detail">${svcName}${dur} · <span style="color:${statusColor[st]}">${statusLabel[st]||st}</span></div>
           </div>
           ${action}
@@ -3192,7 +3198,10 @@ function baBuildAgendaTimes(){
     <span><strong style="color:var(--prata)">${totalDay}</strong> agendamento${totalDay!==1?'s':''}</span>
     <span>≈ <strong style="color:var(--dourado)">${baFormatMoney(totalVal)}</strong></span>
   </div>`;
-  tlBox.innerHTML = summary + html;
+  const legend = `<div class="svc-legend">${Object.keys(SVC_COLORS).map(name=>
+    `<span class="svc-legend-item"><span class="svc-dot" style="background:${SVC_COLORS[name]}"></span>${name}</span>`
+  ).join('')}</div>`;
+  tlBox.innerHTML = summary + legend + html;
 }
 
 function baToggleEncaixe(){
