@@ -2220,6 +2220,12 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-comm .lbl{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--prata-dim)}
 #barberApp .ba-comm .val{font-family:var(--font-display);font-size:1.3rem;color:var(--dourado)}
 #barberApp .ba-comm .val.small{font-size:1rem;color:var(--prata);font-family:var(--font-body)}
+#barberApp .review-reply{background:rgba(198,167,94,.08);border-left:2px solid var(--dourado-dim);border-radius:4px;padding:.5rem .7rem;margin-top:.5rem;font-size:.8rem;color:var(--prata-dim);line-height:1.5}
+#barberApp .review-reply .rr-label{color:var(--dourado-claro);font-weight:500}
+#barberApp .review-reply-btn{background:none;border:none;color:var(--prata-dim);font-size:.72rem;cursor:pointer;padding:.3rem 0;margin-top:.3rem;text-decoration:underline;align-self:flex-start}
+#barberApp .review-reply-form{display:flex;gap:.5rem;margin-top:.5rem;width:100%}
+#barberApp .review-reply-form textarea{flex:1;background:var(--verde-noite);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.5rem .7rem;font-family:var(--font-body);font-size:.8rem;border-radius:4px;resize:vertical;min-height:44px}
+#barberApp .review-reply-form button{align-self:flex-end;background:var(--dourado);color:#1a1506;border:none;font-size:.68rem;font-weight:600;text-transform:uppercase;padding:.5rem .8rem;border-radius:4px;cursor:pointer;white-space:nowrap}
 #barberApp .ba-item{display:flex;align-items:center;gap:.9rem;padding:.9rem 0;border-bottom:1px solid rgba(198,167,94,.12)}
 #barberApp .ba-item:last-child{border-bottom:none}
 #barberApp .ba-roster-row{border-bottom:1px solid rgba(198,167,94,.12);padding-left:.2rem}
@@ -2787,9 +2793,35 @@ function baRenderReviews(){
   const avg = (reviews.reduce((s,a)=>s+a.rating,0)/reviews.length).toFixed(1);
   box.innerHTML =
     `<div class="ba-card" style="text-align:center;margin-bottom:.9rem"><div style="font-family:var(--font-display);font-size:1.8rem;color:var(--dourado)">${avg} <span style="font-size:1rem">★</span></div><div style="color:var(--prata-dim);font-size:.8rem">média de ${reviews.length} avaliaç${reviews.length>1?'ões':'ão'}</div></div>` +
-    reviews.map(a=>
-      `<div class="ba-item"><div class="info"><div class="n" style="color:var(--dourado)">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div><div class="d">${a.name||'Cliente'}${isAdmin?' · '+(a.barber||''):''} · ${a.dayLabel||''}${a.ratingComment?'<br>“'+a.ratingComment+'”':''}</div></div></div>`
-    ).join('');
+    reviews.map(a=>{
+      const replyHtml = a.barberReply ? `<div class="review-reply"><span class="rr-label">Sua resposta:</span> ${a.barberReply}</div>` : '';
+      return `<div class="ba-item" style="flex-direction:column;align-items:stretch">
+        <div class="info">
+          <div class="n" style="color:var(--dourado)">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div>
+          <div class="d">${a.name||'Cliente'}${isAdmin?' · '+(a.barber||''):''} · ${a.dayLabel||''}${a.ratingComment?'<br>“'+a.ratingComment+'”':''}</div>
+        </div>
+        ${replyHtml}
+        <button class="review-reply-btn" onclick="baToggleReplyForm(${a.id})">${a.barberReply?'Editar resposta':'Responder'}</button>
+        <div class="review-reply-form" id="ba-reply-form-${a.id}" style="display:none">
+          <textarea id="ba-reply-input-${a.id}" placeholder="Escreva sua resposta...">${a.barberReply||''}</textarea>
+          <button onclick="baSaveReply(${a.id})">Salvar</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+function baToggleReplyForm(apptId){
+  const form = document.getElementById('ba-reply-form-'+apptId);
+  if(form) form.style.display = form.style.display==='none' ? 'flex' : 'none';
+}
+function baSaveReply(apptId){
+  const input = document.getElementById('ba-reply-input-'+apptId);
+  const text = input.value.trim();
+  const ap = primeUpdateAppointment(apptId, {barberReply: text || undefined});
+  if(ap && ap.clientEmail && text){
+    primeAddNotif({forRole:'client', target:ap.clientEmail, type:'avaliacao', apptId:ap.id,
+      text:`${ap.barber} respondeu sua avaliação: "${text.slice(0,60)}${text.length>60?'…':''}"`});
+  }
+  baRenderReviews();
 }
 
 // ══ Dashboard financeiro (Fase 4) ══
@@ -4465,6 +4497,7 @@ function renderBarberPublicReviews(name){
         <span style="color:var(--dourado);font-size:.78rem">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></span>
       </div>
       ${a.ratingComment ? `<p style="color:var(--prata-dim);font-size:.82rem;margin-top:.3rem;line-height:1.5">“${a.ratingComment}”</p>` : ''}
+      ${a.barberReply ? `<div style="background:rgba(198,167,94,.08);border-left:2px solid var(--dourado-dim);border-radius:4px;padding:.5rem .7rem;margin-top:.5rem;font-size:.8rem;color:var(--prata-dim);line-height:1.5"><span style="color:var(--dourado-claro);font-weight:500">Resposta de ${name}:</span> ${a.barberReply}</div>` : ''}
     </div>`).join('');
   box.innerHTML = summary + `<div>${list}</div>`;
 }
