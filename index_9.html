@@ -3457,7 +3457,24 @@ function baCancelClientPlan(clientName){
 
 let baAgendaDay = null;
 
+const ATENDIMENTO_AUTO_START_MIN = 6;
+function baAutoStartDueAppointments(){
+  const appts = primeGetAppointments();
+  const now = Date.now();
+  let changed = false;
+  appts.forEach(a=>{
+    if(a.barber===baCurrentBarber && a.status==='confirmado' && !a.iniciadoEm){
+      const schedTime = new Date(a.day+'T'+a.time+':00').getTime();
+      if(now - schedTime >= ATENDIMENTO_AUTO_START_MIN*60*1000){
+        a.iniciadoEm = schedTime;
+        changed = true;
+      }
+    }
+  });
+  if(changed) primeSaveAppointments(appts);
+}
 function baRenderAgenda(){
+  baAutoStartDueAppointments();
   baBuildAgendaDays();
   baBuildAgendaTimes();
   baRenderPending();
@@ -3680,6 +3697,7 @@ function baBuildAgendaDays(){
 }
 
 function baBuildAgendaTimes(){
+  baAutoStartDueAppointments();
   const tlBox = document.getElementById('ba-agenda-timeline');
   if(!tlBox) return;
   tlBox.innerHTML = '';

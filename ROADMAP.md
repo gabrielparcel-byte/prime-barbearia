@@ -92,6 +92,7 @@
 - [x] Lucro líquido estimado (faturamento de toda a equipe − comissões de cada barbeiro − despesas, só admin)
 - [x] Catálogo de produtos com estoque (cerveja, cremes, gel, etc.) — só admin cadastra/edita/repõe, alerta de estoque baixo
 - [x] Carrinho ao vivo durante o atendimento — barbeiro clica "Iniciar" num agendamento confirmado, adiciona produtos à vontade enquanto atende, e "Finaliza" gerando uma nota única (serviço + produtos) com desconto automático de estoque
+- [x] Auto-início do atendimento — se o barbeiro esquecer de clicar "Iniciar", o sistema inicia sozinho 6 minutos após o horário agendado (registra o início no horário marcado, não no momento da detecção)
 - [x] Corrigido: agendamentos feitos pelo cliente no site agora **geram venda de verdade** ao serem finalizados (antes só a aba "Atendimento" avulsa registrava vendas — todo o histórico de agendamento "sumia" financeiramente)
 
 ---
