@@ -1595,8 +1595,8 @@ document.getElementById('feedbackSubmit').addEventListener('click', ()=>{
       primeAddNotif({forRole:'barber', target:ap.barber, type:'avaliacao', apptId:ap.id,
         text:`${ap.name||'Cliente'} avaliou o atendimento de ${ap.dayLabel}: ${feedbackStars}★`});
     } else if(feedbackWho==='barbeiro' && ap.clientEmail){
-      primeAddNotif({forRole:'client', target:ap.clientEmail, type:'avaliacao', apptId:ap.id,
-        text:`Seu atendimento de ${ap.dayLabel} foi finalizado. Obrigado pela preferência!`});
+      primeAddNotif({forRole:'client', target:ap.clientEmail, type:'pedido-avaliacao', apptId:ap.id,
+        text:`⭐ Como foi seu atendimento de ${ap.dayLabel}? Toque aqui pra avaliar.`});
     }
   }
   closeFeedback();
@@ -1674,9 +1674,11 @@ function caRenderNotifPanel(){
   const email = caClientTarget();
   const panel = document.getElementById('ca-notif-panel');
   const notifs = email ? primeNotifsFor('client', email) : [];
-  panel.innerHTML = notifs.length ? notifs.map(n=>
-    `<div class="ca-notif-item ${n.read?'read':'unread'}"><span class="dot"></span><div>${n.text}</div></div>`
-  ).join('') : '<div class="ca-notif-empty">Nenhuma notificação por aqui.</div>';
+  panel.innerHTML = notifs.length ? notifs.map(n=>{
+    const clickable = n.type==='pedido-avaliacao' && n.apptId;
+    const attrs = clickable ? `style="cursor:pointer" onclick="caHideNotifs();caFinishAppointment(${n.apptId})"` : '';
+    return `<div class="ca-notif-item ${n.read?'read':'unread'}" ${attrs}><span class="dot"></span><div>${n.text}</div></div>`;
+  }).join('') : '<div class="ca-notif-empty">Nenhuma notificação por aqui.</div>';
 }
 let caNotifTimer = null, caNotifFadeTimer = null;
 function caHideNotifs(){ const p=document.getElementById('ca-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(caNotifTimer); clearTimeout(caNotifFadeTimer); }
