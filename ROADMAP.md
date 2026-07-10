@@ -17,7 +17,7 @@
   - [x] "Madrugador" — agendou no primeiro horário do dia
   - [x] "Combo Master" — fez Corte + Barba + Barbaterapia na mesma visita
   - [x] "Veterano" — 1 ano de cliente
-  - [ ] "Embaixador" — indicou um amigo *(dorme até o sistema de indicação, Fase 3)*
+  - [x] "Embaixador" — indicou um amigo *(destravada pelo sistema de indicação da Fase 3)*
   - [x] "Nota 10" — deixou 5 avaliações
   - [x] "VIP" — atingiu nível Ouro
 - [x] Sistema de níveis: Bronze → Prata → Ouro → Diamante
@@ -67,9 +67,9 @@
 - [x] Resposta do barbeiro à avaliação — botão "Responder" nas Vendas → Avaliações, aparece pro cliente notificado e no perfil público do barbeiro ("Resposta de Nathan: ...")
 
 ### Indicação
-- [ ] Código de indicação único por cliente
-- [ ] Recompensa para quem indica e quem é indicado
-- [ ] Contador de indicações no perfil
+- [x] Código de indicação único por cliente — gerado no Perfil, com botão de compartilhar no WhatsApp; campo opcional pra inserir o código no cadastro
+- [x] Recompensa para quem indica e quem é indicado — mimo de indicação decidido pelo barbeiro (mesma lógica do brinde de fidelidade: ponto violeta na lista, card "Elegível a mimo de indicação", "Marcar como dado" independente pra cada lado). Barbeiro também pode vincular manualmente "indicado por" quando o código não foi usado no cadastro
+- [x] Contador de indicações no perfil — "Você já indicou N amigos" + desbloqueia a conquista "Embaixador" automaticamente
 
 ---
 

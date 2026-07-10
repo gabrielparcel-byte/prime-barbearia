@@ -981,6 +981,7 @@ render();
           <div class="ca-field" id="ca-f-su-age"><label>Idade</label><input type="number" id="ca-su-age" placeholder="18" min="1" max="120"><span class="err">Idade válida</span></div>
         </div>
         <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
+        <div class="ca-field"><label>Código de indicação (opcional)</label><input type="text" id="ca-su-ref" placeholder="Ex: JOA4F9K" style="text-transform:uppercase"></div>
         <button class="ca-btn" onclick="caSignup()">Criar conta</button>
         <p class="ca-signup">Já tem conta? <a href="#" onclick="caShowLogin();return false">Entrar</a></p>
       </div>
@@ -1067,6 +1068,9 @@ render();
         <div class="club-card" id="ca-club-level"></div>
         <div id="ca-club-brinde"></div>
         <div class="club-grid" id="ca-club-grid"></div>
+
+        <div class="ca-slabel" style="margin-top:2.2rem">Indique um amigo</div>
+        <div class="club-card" id="ca-referral-card"></div>
 
         <div class="ca-slabel" style="margin-top:2.2rem">Seus dados</div>
         <div class="ca-field"><label>Nome</label><input type="text" id="ca-pf-nome" placeholder="Seu nome"></div>
@@ -1194,6 +1198,29 @@ function primeUpdateAppointment(id, patch){
 function primeGetNotifs(){ try{ return JSON.parse(localStorage.getItem(PRIME_KEYS.notifs)||'[]'); }catch(e){ return []; } }
 function primeSaveNotifs(list){ localStorage.setItem(PRIME_KEYS.notifs, JSON.stringify(list)); }
 function primeAddNotif(n){ const list=primeGetNotifs(); n.id=primeNextId(); n.read=false; list.unshift(n); primeSaveNotifs(list); }
+
+// ══ Sistema de indicação ══
+function primeGetReferralCodes(){ try{ return JSON.parse(localStorage.getItem('primeReferralCodes')||'{}'); }catch(e){ return {}; } }
+function primeSaveReferralCodes(d){ localStorage.setItem('primeReferralCodes', JSON.stringify(d)); }
+function primeGetOrCreateReferralCode(acc){
+  if(acc.referralCode) return acc.referralCode;
+  const base = (acc.name||'PRIME').replace(/[^a-zA-Z]/g,'').toUpperCase().slice(0,4) || 'PRIME';
+  const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+  const code = base + rand;
+  acc.referralCode = code;
+  primeSaveAccount(acc);
+  const codes = primeGetReferralCodes();
+  codes[code] = {name:acc.name, email:acc.email};
+  primeSaveReferralCodes(codes);
+  return code;
+}
+function primeGetReferrals(){ try{ return JSON.parse(localStorage.getItem('primeReferrals')||'[]'); }catch(e){ return []; } }
+function primeSaveReferrals(list){ localStorage.setItem('primeReferrals', JSON.stringify(list)); }
+function primeCreateReferral(referrerName, referrerEmail, referredName, referredEmail){
+  const list = primeGetReferrals();
+  list.unshift({id:primeNextId(), referrerName, referrerEmail, referredName, referredEmail, date:primeLocalDate(), referrerGiftGiven:false, referredGiftGiven:false});
+  primeSaveReferrals(list);
+}
 function primeNotifsFor(role, target){ return primeGetNotifs().filter(n=>n.forRole===role && n.target===target); }
 function primeMarkAllNotifsRead(role, target){ const list=primeGetNotifs(); list.forEach(n=>{ if(n.forRole===role && n.target===target) n.read=true; }); primeSaveNotifs(list); }
 
@@ -1280,8 +1307,7 @@ function primeCheckAchievements(email, ctx){
   const rated = primeGetAppointments().filter(a=>a.clientEmail===email && a.ratingBy==='cliente').length;
   if(rated >= 5) un('nota-10');
   if(primeClientLevel(email).level.min >= 15) un('vip');
-  const acc = primeGetAccount();
-  if(acc && acc.email===email && (acc.referrals||0) >= 1) un('embaixador');
+  if(primeGetReferrals().some(r=>r.referrerEmail===email)) un('embaixador');
   return newly;
 }
 // consome a fila de conquistas ainda não vistas (a UI chama pra exibir a animação)
@@ -1727,6 +1753,28 @@ function caLogin(){
     caEnter();
   } else { err.style.display='block'; }
 }
+function caRenderReferralCard(){
+  const box = document.getElementById('ca-referral-card');
+  if(!box) return;
+  const acc = primeGetAccount();
+  if(!acc || !acc.email){ box.innerHTML = ''; return; }
+  const code = primeGetOrCreateReferralCode(acc);
+  const count = primeGetReferrals().filter(r=>r.referrerEmail===acc.email).length;
+  box.innerHTML = `
+    <div style="text-align:center;margin-bottom:.9rem">
+      <div style="font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--prata-dim);margin-bottom:.4rem">Seu código</div>
+      <div style="font-family:var(--font-display);font-size:1.6rem;letter-spacing:.12em;color:var(--dourado-claro)">${code}</div>
+    </div>
+    <button class="ca-btn" style="max-width:100%;margin-bottom:.6rem" onclick="caShareReferral()">Compartilhar no WhatsApp</button>
+    <p style="text-align:center;color:var(--prata-dim);font-size:.78rem">Você já indicou <b style="color:var(--prata)">${count}</b> amigo${count===1?'':'s'}</p>`;
+}
+function caShareReferral(){
+  const acc = primeGetAccount();
+  if(!acc) return;
+  const code = primeGetOrCreateReferralCode(acc);
+  const msg = `E aí! Bora cortar o cabelo na Prime Barbearia? Usa meu código *${code}* quando for criar sua conta lá no app 💈`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
 function caRenderClub(){
   const acc = primeGetAccount() || {};
   const email = acc.email || '';
@@ -1862,6 +1910,7 @@ function clubConfettiStop(){
 }
 function caRenderPerfil(){
   caRenderClub();
+  caRenderReferralCard();
   const acc = primeGetAccount() || {};
   const nome = acc.name || '';
   document.getElementById('ca-perfil-avatar').textContent = (nome || 'C').charAt(0).toUpperCase();
@@ -1909,7 +1958,17 @@ function caSignup(){
   if(!ageNum||ageNum<1||ageNum>120){fa.classList.add('invalid');ok=false}else fa.classList.remove('invalid');
   if(!ig.value.trim()){fi.classList.add('invalid');ok=false}else fi.classList.remove('invalid');
   if(!ok) return;
-  primeSaveAccount({name:nome.value.trim(), email:email.value.trim(), phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim()});
+  const newEmail = email.value.trim();
+  primeSaveAccount({name:nome.value.trim(), email:newEmail, phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim()});
+  const refInput = document.getElementById('ca-su-ref');
+  const refCode = refInput ? refInput.value.trim().toUpperCase() : '';
+  if(refCode){
+    const codes = primeGetReferralCodes();
+    const owner = codes[refCode];
+    if(owner && owner.email.toLowerCase()!==newEmail.toLowerCase()){
+      primeCreateReferral(owner.name, owner.email, nome.value.trim(), newEmail);
+    }
+  }
   caEnter();
 }
 if(primeIsLoggedIn()){ caEnter(); }
@@ -2104,12 +2163,20 @@ addEventListener('resize', caApplyMode, {passive:true});
 @keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
 #barberApp .sumiu-dot{width:7px;height:7px;border-radius:50%;background:#D9A441;box-shadow:0 0 5px rgba(217,164,65,.6);flex:none}
+#barberApp .referral-dot{width:7px;height:7px;border-radius:50%;background:#9B7EDE;box-shadow:0 0 5px rgba(155,126,222,.6);flex:none}
 #barberApp .sumiu-banner{background:var(--grafite-card);border:1px solid rgba(217,164,65,.4);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
 #barberApp .sumiu-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#D9A441;border-radius:8px 0 0 8px}
 #barberApp .sumiu-banner .sb-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
 #barberApp .sumiu-banner .sb-title{font-size:.82rem;color:#D9A441;font-weight:500}
 #barberApp .sumiu-banner .sb-desc{font-size:.76rem;color:var(--prata-dim);line-height:1.5;margin-bottom:.85rem}
 #barberApp .sumiu-banner .sb-desc b{color:var(--prata);font-weight:500}
+#barberApp .referral-card{background:var(--grafite-card);border:1px solid rgba(155,126,222,.4);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
+#barberApp .referral-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#9B7EDE;border-radius:8px 0 0 8px}
+#barberApp .referral-card .bc-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
+#barberApp .referral-card .bc-title{font-size:.82rem;color:#9B7EDE;font-weight:500}
+#barberApp .referral-card .bc-desc{font-size:.76rem;color:var(--prata-dim);line-height:1.5;margin-bottom:.85rem}
+#barberApp .referral-card .bc-desc b{color:var(--prata);font-weight:500}
+#barberApp .referral-card .bc-actions{display:flex;gap:.5rem}
 #barberApp .brinde-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
 #barberApp .brinde-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dourado);border-radius:8px 0 0 8px}
 #barberApp .brinde-card .bc-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
@@ -2531,6 +2598,7 @@ addEventListener('resize', caApplyMode, {passive:true});
           <div class="ba-cli-row"><span class="lbl">Avaliação média</span><span class="val" id="ba-cli-rating">—</span></div>
         </div>
         <div id="ba-cli-brinde"></div>
+        <div id="ba-cli-referral"></div>
         <div class="ba-slabel" style="margin-top:0">Plano de assinatura</div>
         <div class="ba-card" id="ba-cli-plan-card"></div>
         <button class="ba-btn" id="ba-cli-msg-btn" style="max-width:100%">Mandar mensagem no WhatsApp</button>
@@ -3316,7 +3384,10 @@ function baRenderClientes(){
     const c = clients.find(x=>x.name===name) || {};
     const giftDot = primeIsBrindeEligible(name, count[name]) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
     const sumiuDot = baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS ? ' <span class="sumiu-dot" title="Não vem há 30+ dias"></span>' : '';
-    return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${giftDot}${sumiuDot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
+    const {asReferred, asReferrer} = baFindReferralsFor(c);
+    const refPending = asReferrer.some(r=>!r.referrerGiftGiven) || (asReferred && !asReferred.referredGiftGiven);
+    const referralDot = refPending ? ' <span class="referral-dot" title="Elegível a mimo de indicação"></span>' : '';
+    return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${giftDot}${sumiuDot}${referralDot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
   }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.')}</p>`;
 }
 
@@ -3347,6 +3418,7 @@ function baOpenClientDetail(name){
   };
   baRenderSumiu(client, lastSale);
   baRenderBrinde(client);
+  baRenderReferralSection(client);
   baRenderClientPlan(client);
   baShow('ba-screen-cliente');
 }
@@ -3395,6 +3467,76 @@ function baMarkBrindeGiven(clientName){
     primeClearBrindeChoice(client.email);
   }
   baRenderBrinde(client);
+  baRenderClientes();
+}
+
+// ══ Indicação (barbeiro) ══
+function baFindReferralsFor(client){
+  const all = primeGetReferrals();
+  const emailMatch = (a,b) => a && b && a.toLowerCase()===b.toLowerCase();
+  const asReferred = all.find(r=>r.referredName===client.name || emailMatch(r.referredEmail, client.email));
+  const asReferrer = all.filter(r=>r.referrerName===client.name || emailMatch(r.referrerEmail, client.email));
+  return {asReferred, asReferrer};
+}
+function baRenderReferralSection(client){
+  const el = document.getElementById('ba-cli-referral');
+  if(!el) return;
+  const {asReferred, asReferrer} = baFindReferralsFor(client);
+  let html = '';
+  if(asReferred){
+    html += `<div class="ba-card" style="margin-bottom:.6rem"><div class="ba-cli-row"><span class="lbl">Indicado por</span><span class="val">${asReferred.referrerName}</span></div></div>`;
+  }
+  if(asReferrer.length){
+    html += `<div class="ba-card" style="margin-bottom:.6rem"><div class="ba-cli-row"><span class="lbl">Já indicou</span><span class="val">${asReferrer.map(r=>r.referredName).join(', ')}</span></div></div>`;
+  }
+  const pendingAsReferrer = asReferrer.find(r=>!r.referrerGiftGiven);
+  const pending = pendingAsReferrer || (asReferred && !asReferred.referredGiftGiven ? asReferred : null);
+  if(pending){
+    const isReferrer = pending===pendingAsReferrer;
+    const otherName = isReferrer ? pending.referredName : pending.referrerName;
+    html += `<div class="referral-card">
+      <div class="bc-row"><span style="font-size:1.1rem;line-height:1">🤝</span><span class="bc-title">Elegível a mimo de indicação</span></div>
+      <p class="bc-desc">${isReferrer ? `${client.name.split(' ')[0]} indicou ${otherName}` : `${client.name.split(' ')[0]} foi indicado por ${otherName}`}. Combine o mimo com ele.</p>
+      <div class="bc-actions">
+        <button class="bc-btn ghost" onclick="this.closest('.referral-card').remove()">Lembrar depois</button>
+        <button class="bc-btn primary" onclick="baMarkReferralGiftGiven(${pending.id},'${isReferrer?'referrer':'referred'}')">Marcar como dado</button>
+      </div>
+    </div>`;
+  }
+  if(!asReferred){
+    html += `
+      <div class="ba-slabel" style="margin-top:${html?'1rem':'0'}">Indicado por (opcional)</div>
+      <div class="ba-field" style="max-width:100%"><input type="text" id="ba-ref-search" placeholder="Buscar cliente que indicou..." oninput="baRefSearchClient('${client.name.replace(/'/g,"\\'")}')" autocomplete="off"></div>
+      <div class="ba-enc-results" id="ba-ref-results"></div>`;
+  }
+  el.innerHTML = html;
+}
+function baMarkReferralGiftGiven(referralId, side){
+  const list = primeGetReferrals();
+  const r = list.find(x=>x.id===referralId);
+  if(!r) return;
+  if(side==='referrer') r.referrerGiftGiven = true; else r.referredGiftGiven = true;
+  primeSaveReferrals(list);
+  const name = document.getElementById('ba-cli-nome').textContent;
+  const client = baMyClients().find(c=>c.name===name);
+  if(client) baRenderReferralSection(client);
+  baRenderClientes();
+}
+function baRefSearchClient(referredName){
+  const q = document.getElementById('ba-ref-search').value.trim().toLowerCase();
+  const box = document.getElementById('ba-ref-results');
+  if(!q || q.length<2){ box.innerHTML=''; return; }
+  const matches = baMyClients().filter(c=>c.name!==referredName && c.name.toLowerCase().includes(q)).slice(0,5);
+  box.innerHTML = matches.length ? matches.map(c=>
+    `<div class="ba-enc-result" onclick="baLinkReferral('${c.name.replace(/'/g,"\\'")}','${referredName.replace(/'/g,"\\'")}')">${c.name} <span class="enc-sub">${c.instagram||''}</span></div>`
+  ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
+}
+function baLinkReferral(referrerName, referredName){
+  const referrer = baMyClients().find(c=>c.name===referrerName);
+  const referred = baMyClients().find(c=>c.name===referredName);
+  if(!referrer || !referred) return;
+  primeCreateReferral(referrer.name, referrer.email||'', referred.name, referred.email||'');
+  baRenderReferralSection(referred);
   baRenderClientes();
 }
 function baRenderBrindeConfig(){
