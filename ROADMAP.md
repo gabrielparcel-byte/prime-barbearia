@@ -58,7 +58,7 @@
 ### Perfil e Histórico
 - [x] Timeline visual dos cortes anteriores (data, barbeiro, serviço, valor) — "Cortes recentes" na Home (3 últimos) + histórico completo na aba Histórico, com as estrelas da avaliação quando existir. A tela "Histórico" e a seção "Cortes recentes" já existiam na navegação mas mostravam dados fictícios fixos — agora usam o histórico real (`primeClientCuts`)
 - [ ] "Meu estilo" — cliente salva fotos de referência de corte
-- [ ] Barbeiro favorito com destaque no agendamento
+- [x] Barbeiro favorito com destaque no agendamento *(já estava implementado de uma sessão anterior, só não tinha sido marcado — estrela ★ no wizard de agendamento em ambos os modos, card "Seu barbeiro" na Home, troca manual no Perfil, e vira favorito automático no primeiro agendamento)*
 
 ### Avaliação e Feedback
 - [x] **Corrigido bug**: cliente nunca conseguia avaliar o barbeiro — o card "Finalizar" só aparecia em agendamentos ainda não concluídos, mas o barbeiro sempre marcava `concluido` primeiro (ao finalizar o carrinho), fazendo o agendamento sumir da tela do cliente antes dele poder avaliar. Agora existe um card separado "Avalie seu último corte" que aparece pra qualquer atendimento concluído ainda sem nota do cliente, independente do status. O cliente não marca mais o atendimento como concluído (só o barbeiro faz isso, evita bypassar o carrinho/estoque).
