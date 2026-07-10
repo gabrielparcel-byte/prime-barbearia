@@ -5,6 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Prime Barbearia — Maringá</title>
 <meta name="description" content="Um novo conceito de barbearia em Maringá. Cortes clássicos e modernos, barbaterapia relaxante e excelência em cada detalhe. Av. Pedro Taques, 2824.">
+<link rel="canonical" href="https://gabrielparcel-byte.github.io/prime-barbearia/">
+
+<!-- Open Graph / compartilhamento em redes sociais -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="Prime Barbearia — Maringá">
+<meta property="og:description" content="Um novo conceito de barbearia em Maringá. Cortes clássicos e modernos, barbaterapia relaxante e excelência em cada detalhe.">
+<meta property="og:url" content="https://gabrielparcel-byte.github.io/prime-barbearia/">
+<meta property="og:site_name" content="Prime Barbearia">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Prime Barbearia — Maringá">
+<meta name="twitter:description" content="Um novo conceito de barbearia em Maringá.">
+
+<!-- Dados estruturados pro Google (aparece no card local de busca) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HairSalon",
+  "name": "Prime Barbearia",
+  "image": "https://gabrielparcel-byte.github.io/prime-barbearia/",
+  "url": "https://gabrielparcel-byte.github.io/prime-barbearia/",
+  "telephone": "+5544900000000",
+  "priceRange": "R$15 - R$70",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Av. Pedro Taques, 2824",
+    "addressLocality": "Maringá",
+    "addressRegion": "PR",
+    "addressCountry": "BR"
+  },
+  "openingHoursSpecification": [
+    {"@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "09:00", "closes": "20:00"},
+    {"@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday", "opens": "09:00", "closes": "18:00"}
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -771,7 +808,7 @@ render();
 #clientApp .ca-login::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 50% 30%,rgba(53,197,88,.14),transparent 70%);pointer-events:none}
 #clientApp .ca-login-inner{margin:auto;width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;position:relative}
 #clientApp .ca-logo{width:90px;height:90px;position:relative;margin-bottom:1.5rem;filter:drop-shadow(0 0 16px rgba(53,197,88,.5))}
-#clientApp .ca-login h1{font-family:var(--font-display);font-size:1.4rem;letter-spacing:.3em;font-weight:500;margin-right:-.3em}
+#clientApp .ca-login .wordmark{font-family:var(--font-display);font-size:1.4rem;letter-spacing:.3em;font-weight:500;margin-right:-.3em;color:var(--prata)}
 #clientApp .ca-login .sub{font-family:var(--font-display);letter-spacing:.55em;font-size:.68rem;color:var(--prata-dim);margin:.3rem 0 2.2rem;margin-right:-.55em}
 #clientApp .ca-form-title{font-family:var(--font-display);font-size:1rem;letter-spacing:.1em;color:var(--dourado);margin-bottom:1.3rem;width:100%}
 #clientApp .ca-field{width:100%;max-width:320px;text-align:left;margin-bottom:1rem}
@@ -960,7 +997,7 @@ render();
       <button class="ca-btn ghost" style="max-width:320px;margin-bottom:1.2rem" onclick="caBackToStart()">← Voltar ao início</button>
       <div class="ca-login-inner">
       <img class="ca-logo" src="data:image/webp;base64,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" alt="Prime">
-      <h1>PRIME</h1><div class="sub">BARBEARIA</div>
+      <div class="wordmark">PRIME</div><div class="sub">BARBEARIA</div>
 
       <div id="ca-login-form">
         <div class="ca-form-title">Entrar na sua conta</div>

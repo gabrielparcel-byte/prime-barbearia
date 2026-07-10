@@ -111,7 +111,7 @@
 - [ ] Landing page com depoimentos reais
 - [ ] Seção "Galeria" com fotos de cortes realizados
 - [ ] Instagram feed integrado (embed posts)
-- [ ] SEO otimizado para "barbearia Maringá"
+- [x] SEO técnico otimizado — 1 `<h1>` só por página (antes tinha 2), dados estruturados Schema.org (`HairSalon`, endereço, horário, telefone — aparece no card local do Google), Open Graph + Twitter Card (link bonito ao compartilhar no WhatsApp/Instagram), `robots.txt` + `sitemap.xml`, link canônico *(o resto do SEO — Google Meu Negócio, depoimentos reais, conteúdo — depende de ação fora do código ou de material que ainda não temos)*
 
 ---
 
