@@ -1016,6 +1016,7 @@ render();
             </div>
           </div>
           <div class="ca-col-right">
+            <div id="ca-pending-rating"></div>
             <div class="ca-slabel">Seu próximo horário</div>
             <div id="ca-next-area"></div>
             <button class="ca-cta" onclick="caGoBook()">＋ Agendar novo horário</button>
@@ -1438,6 +1439,7 @@ function caRenderPlanCard(){
 // ══ Próximo horário (Home) ══
 const STATUS_LABEL = {pendente:'Aguardando barbeiro', confirmado:'Confirmado', concluido:'Concluído'};
 function caRenderNextAppointment(){
+  caRenderPendingRating();
   const area = document.getElementById('ca-next-area');
   if(!area) return;
   const now = new Date();
@@ -1452,7 +1454,6 @@ function caRenderNextAppointment(){
     return;
   }
   const status = next.status || 'confirmado';
-  const canFinish = status==='confirmado';
   area.innerHTML = `
     <div class="ca-next">
       <div class="tag">${STATUS_LABEL[status]||'Confirmado'}</div>
@@ -1460,9 +1461,28 @@ function caRenderNextAppointment(){
       <div class="with">com ${next.barber||'a equipe'}</div>
       <div class="when"><div><span class="lbl">Data</span>${next.dayLabel}</div><div><span class="lbl">Horário</span>${next.time}</div></div>
       <div class="ca-nextact">
-        ${canFinish?`<button onclick="caFinishAppointment(${next.id})">Finalizar</button>`:`<button onclick="caReagendar(${next.id})">Reagendar</button>`}
+        <button onclick="caReagendar(${next.id})">Reagendar</button>
         <button class="ghost" onclick="caAskCancel(${next.id})">Cancelar</button>
       </div>
+    </div>`;
+}
+// avaliação pendente: aparece depois que o BARBEIRO finaliza o atendimento (não mais o cliente que marca como concluído)
+function caRenderPendingRating(){
+  const area = document.getElementById('ca-pending-rating');
+  if(!area) return;
+  const acc = primeGetAccount();
+  const email = acc && acc.email;
+  if(!email){ area.innerHTML = ''; return; }
+  const pending = primeGetAppointments()
+    .filter(a=>a.clientEmail===email && a.status==='concluido' && !a.rating)
+    .sort((a,b)=> (b.day+b.time).localeCompare(a.day+a.time));
+  const next = pending[0];
+  if(!next){ area.innerHTML = ''; return; }
+  area.innerHTML = `
+    <div class="brinde-section">
+      <div class="bs-header"><span class="emoji">⭐</span><span class="title">Avalie seu último corte</span></div>
+      <div class="bs-sub">${(next.services||[]).join(' + ')} com ${next.barber||'a equipe'} · ${next.dayLabel||''}</div>
+      <button class="brinde-confirm enabled" onclick="caFinishAppointment(${next.id})">Avaliar agora</button>
     </div>`;
 }
 function caAskCancel(id){

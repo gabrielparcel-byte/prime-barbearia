@@ -61,6 +61,7 @@
 - [ ] Barbeiro favorito com destaque no agendamento
 
 ### Avaliação e Feedback
+- [x] **Corrigido bug**: cliente nunca conseguia avaliar o barbeiro — o card "Finalizar" só aparecia em agendamentos ainda não concluídos, mas o barbeiro sempre marcava `concluido` primeiro (ao finalizar o carrinho), fazendo o agendamento sumir da tela do cliente antes dele poder avaliar. Agora existe um card separado "Avalie seu último corte" que aparece pra qualquer atendimento concluído ainda sem nota do cliente, independente do status. O cliente não marca mais o atendimento como concluído (só o barbeiro faz isso, evita bypassar o carrinho/estoque).
 - [ ] Notificação pós-corte pedindo avaliação (estrelas + comentário)
 - [ ] Avaliações visíveis no perfil público do barbeiro
 - [ ] Resposta do barbeiro à avaliação
