@@ -2275,12 +2275,23 @@ addEventListener('resize', caApplyMode, {passive:true});
           </div>
         </div>
 
-        <div class="ba-slabel">Serviço</div>
+        <div class="ba-slabel">Serviço <span style="text-transform:none;letter-spacing:0;color:var(--prata-dim)">(opcional — pode ser só produto)</span></div>
         <div class="ba-svc-grid" id="at-svc-grid"></div>
 
         <div class="at-total-row">
-          <span class="lbl">Valor total</span>
-          <input type="text" id="at-total-value" inputmode="decimal">
+          <span class="lbl">Valor do serviço</span>
+          <input type="text" id="at-total-value" inputmode="decimal" oninput="baAtRenderCart()">
+        </div>
+
+        <div class="ba-slabel">Produtos</div>
+        <div class="ba-field" style="max-width:100%"><input type="text" id="at-prod-search" placeholder="Buscar produto..." oninput="baAtSearchProduct()" autocomplete="off"></div>
+        <div class="ba-enc-results" id="at-prod-results"></div>
+        <div id="at-prod-cart"></div>
+
+        <div class="total-summary">
+          <div class="ts-row"><span>Serviço</span><span id="at-sum-servico">R$ 0,00</span></div>
+          <div class="ts-row"><span>Produtos</span><span id="at-sum-produtos">R$ 0,00</span></div>
+          <div class="ts-row final"><span>Total da nota</span><span class="val" id="at-sum-total">R$ 0,00</span></div>
         </div>
 
         <div class="ba-slabel">Quando</div>
@@ -3895,9 +3906,11 @@ function baSaveEncaixe(){
 let baAtSelectedClient = null;
 let baAtMode = 'buscar';
 
+let baAtCart = [];
 function baAtResetFields(){
   baAtSelectedClient = null;
   baAtMode = 'buscar';
+  baAtCart = [];
   document.querySelectorAll('#at-client-seg .seg-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='buscar'));
   document.getElementById('at-buscar-block').style.display = 'block';
   document.getElementById('at-novo-block').style.display = 'none';
@@ -3908,14 +3921,17 @@ function baAtResetFields(){
   document.getElementById('at-new-name').value = '';
   document.getElementById('at-new-phone').value = '';
   document.getElementById('at-err').style.display = 'none';
+  document.getElementById('at-prod-search').value = '';
+  document.getElementById('at-prod-results').innerHTML = '';
 
-  const svcsHtml = Object.keys(SVC_PRICES).map((name,i)=>
-    `<div class="ba-svc-chip${i===0?' selected':''}" onclick="this.classList.toggle('selected');this.querySelector('input').checked=this.classList.contains('selected');baAtUpdateTotal()">
-      <input type="checkbox" class="at-svc" value="${name}" ${i===0?'checked':''}>
+  const svcsHtml = Object.keys(SVC_PRICES).map(name=>
+    `<div class="ba-svc-chip" onclick="this.classList.toggle('selected');this.querySelector('input').checked=this.classList.contains('selected');baAtUpdateTotal()">
+      <input type="checkbox" class="at-svc" value="${name}">
       <span class="ba-svc-chip-label">${name}<span class="ba-svc-chip-price">R$ ${SVC_PRICES[name]}</span></span>
     </div>`).join('');
   document.getElementById('at-svc-grid').innerHTML = svcsHtml;
   baAtUpdateTotal();
+  baAtRenderCart();
 
   const now = new Date();
   document.getElementById('at-date').value = now.toISOString().slice(0,10);
@@ -3972,6 +3988,7 @@ function baAtUpdateTotal(){
   const checked = [...document.querySelectorAll('.at-svc:checked')].map(x=>x.value);
   const total = checked.reduce((s,name)=>s+(SVC_PRICES[name]||0),0);
   document.getElementById('at-total-value').value = baFormatMoney(total);
+  baAtRenderCart();
 }
 function baAtParseMoney(str){
   const cleaned = (str||'').replace(/[^\d,]/g,'').replace(',','.');
@@ -3981,6 +3998,64 @@ function baAtNormalizePhone(raw){
   let d = (raw||'').replace(/\D/g,'');
   if(d.length===10 || d.length===11) d = '55'+d;
   return d;
+}
+
+function baAtSearchProduct(){
+  const q = document.getElementById('at-prod-search').value.trim().toLowerCase();
+  const box = document.getElementById('at-prod-results');
+  if(!q || q.length<2){ box.innerHTML=''; return; }
+  const matches = baGetProducts().filter(p=>p.stock>0 && p.name.toLowerCase().includes(q)).slice(0,6);
+  box.innerHTML = matches.length ? matches.map(p=>
+    `<div class="ba-enc-result" onclick="baAtAddProduct(${p.id})">${p.name} <span class="enc-sub">${baFormatMoney(p.price)} · ${p.stock} un.</span></div>`
+  ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum produto disponível</div>';
+}
+function baAtAddProduct(productId){
+  const product = baGetProducts().find(p=>p.id===productId);
+  if(!product) return;
+  const existing = baAtCart.find(i=>i.productId===productId);
+  const currentQty = existing ? existing.qty : 0;
+  if(currentQty+1 > product.stock) return;
+  if(existing) existing.qty++;
+  else baAtCart.push({productId, qty:1});
+  document.getElementById('at-prod-search').value = '';
+  document.getElementById('at-prod-results').innerHTML = '';
+  baAtRenderCart();
+}
+function baAtChangeQty(productId, delta){
+  const item = baAtCart.find(i=>i.productId===productId);
+  if(!item) return;
+  const product = baGetProducts().find(p=>p.id===productId);
+  const maxStock = product ? product.stock : item.qty;
+  item.qty = Math.max(1, Math.min(maxStock, item.qty+delta));
+  baAtRenderCart();
+}
+function baAtRemoveProduct(productId){
+  baAtCart = baAtCart.filter(i=>i.productId!==productId);
+  baAtRenderCart();
+}
+function baAtRenderCart(){
+  const products = baGetProducts();
+  const enriched = baAtCart.map(i=>{
+    const p = products.find(x=>x.id===i.productId);
+    return { productId:i.productId, qty:i.qty, name: p?p.name:'Produto removido', price: p?p.price:0 };
+  });
+  document.getElementById('at-prod-cart').innerHTML = enriched.length ? enriched.map(i=>`
+    <div class="cart-item-row">
+      <span class="cart-item-name">${i.name}</span>
+      <div class="cart-item-qty">
+        <button class="qty-btn" onclick="baAtChangeQty(${i.productId},-1)">−</button>
+        <span class="qty-val">${i.qty}</span>
+        <button class="qty-btn" onclick="baAtChangeQty(${i.productId},1)">+</button>
+      </div>
+      <span class="cart-item-subtotal">${baFormatMoney(i.price*i.qty)}</span>
+      <button class="cart-item-remove" onclick="baAtRemoveProduct(${i.productId})">✕</button>
+    </div>
+  `).join('') : '<div class="cart-empty">Nenhum produto adicionado</div>';
+  const servico = baAtParseMoney(document.getElementById('at-total-value').value);
+  const produtos = enriched.reduce((s,i)=>s+i.price*i.qty,0);
+  document.getElementById('at-sum-servico').textContent = baFormatMoney(servico);
+  document.getElementById('at-sum-produtos').textContent = baFormatMoney(produtos);
+  document.getElementById('at-sum-total').textContent = baFormatMoney(servico+produtos);
 }
 
 function baAtRegistrar(){
@@ -4007,17 +4082,28 @@ function baAtRegistrar(){
   }
 
   const svcs = [...document.querySelectorAll('.at-svc:checked')].map(x=>x.value);
-  if(!svcs.length) return fail('Selecione pelo menos um serviço.');
-  const value = baAtParseMoney(document.getElementById('at-total-value').value);
-  if(!value || value<=0) return fail('Informe um valor válido.');
+  const svcValue = baAtParseMoney(document.getElementById('at-total-value').value);
+  if(!svcs.length && !baAtCart.length) return fail('Selecione um serviço ou adicione um produto.');
+  if(svcs.length && (!svcValue || svcValue<=0)) return fail('Informe um valor válido pro serviço.');
   const date = document.getElementById('at-date').value;
   if(!date) return fail('Informe a data.');
   const time = document.getElementById('at-time').value;
   if(!time) return fail('Informe o horário.');
 
   const sales = baGetSales();
-  sales.unshift({client:clientName, service:svcs.join(' + '), value, date, time, barber:baCurrentBarber});
+  const products = baGetProducts();
+  const notaId = primeNextId();
+  if(svcs.length){
+    sales.unshift({client:clientName, service:svcs.join(' + '), value:svcValue, date, time, barber:baCurrentBarber, notaId});
+  }
+  baAtCart.forEach(item=>{
+    const p = products.find(x=>x.id===item.productId);
+    if(!p) return;
+    sales.unshift({client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, barber:baCurrentBarber, notaId, type:'produto'});
+    p.stock = Math.max(0, p.stock - item.qty);
+  });
   localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
+  baSaveProducts(products);
 
   baAtResetFields();
   const successEl = document.getElementById('at-success');
