@@ -56,7 +56,7 @@
 ## 👤 Fase 3 — Experiência do Cliente
 
 ### Perfil e Histórico
-- [ ] Timeline visual dos cortes anteriores (data, barbeiro, serviço, valor)
+- [x] Timeline visual dos cortes anteriores (data, barbeiro, serviço, valor) — "Cortes recentes" na Home (3 últimos) + histórico completo na aba Histórico, com as estrelas da avaliação quando existir. A tela "Histórico" e a seção "Cortes recentes" já existiam na navegação mas mostravam dados fictícios fixos — agora usam o histórico real (`primeClientCuts`)
 - [ ] "Meu estilo" — cliente salva fotos de referência de corte
 - [ ] Barbeiro favorito com destaque no agendamento
 

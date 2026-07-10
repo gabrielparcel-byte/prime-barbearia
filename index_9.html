@@ -1029,9 +1029,7 @@ render();
           </div>
           <div>
             <div class="ca-slabel">Cortes recentes</div>
-            <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Corte + Barba</div><div class="d">28/06/2026 · Nome do Barbeiro</div></div><div class="val">R$ 70</div></div>
-            <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Corte</div><div class="d">14/06/2026 · Nome do Barbeiro</div></div><div class="val">R$ 45</div></div>
-            <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Corte + Barba</div><div class="d">31/05/2026 · Nome do Barbeiro</div></div><div class="val">R$ 70</div></div>
+            <div id="ca-home-recentes"></div>
           </div>
         </div>
       </div>
@@ -1045,10 +1043,7 @@ render();
         <div class="ca-slabel" id="ca-myapts-label" style="display:none">Meus agendamentos</div>
         <div id="ca-myapts"></div>
         <div class="ca-slabel">Todos os atendimentos</div>
-        <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Corte + Barba</div><div class="d">28/06/2026 · Nome do Barbeiro</div></div><div class="val">R$ 70</div></div>
-        <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Corte</div><div class="d">14/06/2026 · Nome do Barbeiro</div></div><div class="val">R$ 45</div></div>
-        <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Corte + Barba</div><div class="d">31/05/2026 · Nome do Barbeiro</div></div><div class="val">R$ 70</div></div>
-        <div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">Barbaterapia</div><div class="d">17/05/2026 · Nome do Barbeiro</div></div><div class="val">R$ 60</div></div>
+        <div id="ca-hist-list"></div>
       </div>
     </div>
 
@@ -1381,6 +1376,23 @@ function renderMyAppointments(){
   box.innerHTML = list.map(a=>`<div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">${a.services.join(' + ')}</div><div class="d">${a.dayLabel} · ${a.time} · com ${a.barber||'a equipe'}</div></div><div class="val">Solicitado</div></div>`).join('');
 }
 
+// ══ Timeline de cortes anteriores (histórico real, não mais placeholder) ══
+function caHistItemHtml(a){
+  const svcName = (a.services||[]).join(' + ');
+  const value = (a.services||[]).reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  const stars = a.rating ? `<div class="d" style="color:var(--dourado);margin-top:.15rem">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div>` : '';
+  return `<div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">${svcName}</div><div class="d">${baFormatDate(a.day)} · ${a.barber||'a equipe'}</div>${stars}</div><div class="val">R$ ${value}</div></div>`;
+}
+function caRenderHist(){
+  const acc = primeGetAccount();
+  const email = acc && acc.email;
+  const cuts = email ? primeClientCuts(email).sort((a,b)=> (b.day+b.time).localeCompare(a.day+a.time)) : [];
+  const listEl = document.getElementById('ca-hist-list');
+  if(listEl) listEl.innerHTML = cuts.length ? cuts.map(caHistItemHtml).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Você ainda não tem nenhum corte registrado.</p>';
+  const recentEl = document.getElementById('ca-home-recentes');
+  if(recentEl) recentEl.innerHTML = cuts.length ? cuts.slice(0,3).map(caHistItemHtml).join('') : '<p style="color:var(--prata-dim);font-size:.85rem;padding:.5rem 0">Nenhum corte ainda.</p>';
+}
+
 // ══ Planos ══
 const PLAN_TIERS = [
   {name:'Plano Basic', cuts:2, value:89, price:'R$ 89/mês', desc:'2 cortes por mês — ideal pra manter o visual em dia.'},
@@ -1587,6 +1599,7 @@ document.getElementById('feedbackSubmit').addEventListener('click', ()=>{
   closeFeedback();
   if(typeof caRenderNextAppointment==='function') caRenderNextAppointment();
   if(typeof renderMyAppointments==='function') renderMyAppointments();
+  if(typeof caRenderHist==='function') caRenderHist();
   if(typeof caRenderNotifs==='function') caRenderNotifs();
   if(typeof baRenderAgenda==='function' && document.getElementById('barberApp').classList.contains('logged')) baRenderAgenda();
   if(typeof baRenderNotifs==='function') baRenderNotifs();
@@ -1691,9 +1704,9 @@ function caTab(tab){
   const m={home:'ca-screen-home',hist:'ca-screen-hist',perfil:'ca-screen-perfil'};
   caShow(m[tab]);
   document.querySelectorAll('#clientApp .ca-tab,#clientApp .tb-link').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  if(tab==='hist')renderMyAppointments();
+  if(tab==='hist'){ renderMyAppointments(); caRenderHist(); }
   if(tab==='perfil')caRenderPerfil();
-  if(tab==='home'){ caRenderHomeBarbeiro(); caRenderPlanCard(); caRenderNextAppointment(); caRenderNotifs(); }
+  if(tab==='home'){ caRenderHomeBarbeiro(); caRenderPlanCard(); caRenderNextAppointment(); caRenderHist(); caRenderNotifs(); }
 }
 function caGoBook(){ openModal(); }
 function caLogin(){
