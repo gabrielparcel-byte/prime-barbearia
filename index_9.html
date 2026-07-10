@@ -512,6 +512,12 @@ const HORARIOS = {
 const SLOT_MIN = 45;
 const SVC_PRICES = {'Corte':45,'Barba':35,'Corte + Barba':70,'Barbaterapia':60,'Sobrancelha':15,'Pigmentação':40};
 const SVC_COLORS = {'Corte':'#C6A75E','Barba':'#6E8CA0','Corte + Barba':'#4E9B8F','Barbaterapia':'#9B7EDE','Sobrancelha':'#D98C7A','Pigmentação':'#8A8FA0'};
+// data local no formato YYYY-MM-DD — NUNCA usar toISOString().slice(0,10) pra isso: converte pra UTC
+// e "quebra" o dia (fica um dia à frente) em fusos negativos como o do Brasil, entre ~21h e meia-noite.
+function primeLocalDate(d){
+  d = d || new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 
 // resolve o horário efetivo de um barbeiro num dia da semana, considerando folga/horário customizado dele
 // barber.hours: ausente = herda o horário da loja; null = folga nesse dia; [abre,fecha] = horário próprio
@@ -606,7 +612,7 @@ function buildDays(){
     if(!HORARIOS[d.getDay()]) continue;
     const label=`${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
     const btn=document.createElement('button');
-    btn.className='chip'; btn.dataset.iso=d.toISOString().slice(0,10); btn.dataset.label=label;
+    btn.className='chip'; btn.dataset.iso=primeLocalDate(d); btn.dataset.label=label;
     btn.innerHTML=`${DIAS[d.getDay()]}<small>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</small>`;
     if(state.day===btn.dataset.iso) btn.classList.add('active');
     box.appendChild(btn);
@@ -618,7 +624,7 @@ function buildTimes(){
   const d=new Date(state.day+'T12:00:00');
   const h=HORARIOS[d.getDay()]; if(!h) return;
   const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
-  const now=new Date(); const isToday = state.day===now.toISOString().slice(0,10);
+  const now=new Date(); const isToday = state.day===primeLocalDate(now);
   const dayAppts = (typeof primeGetAppointments==='function'?primeGetAppointments():[]).filter(a=>a.day===state.day);
   const weekday = d.getDay();
   const bookedCountByTime = {};
@@ -1247,7 +1253,7 @@ function primeUnlockAch(email, id){
   const all = primeGetAchAll();
   const st = all[email] || (all[email] = {unlocked:{}, pending:[]});
   if(st.unlocked[id]) return false;
-  st.unlocked[id] = new Date().toISOString().slice(0,10);
+  st.unlocked[id] = primeLocalDate();
   st.pending.push(id);
   primeSaveAchAll(all);
   const ach = ACH_CATALOG.find(a=>a.id===id);
@@ -1301,7 +1307,7 @@ function primeIsBrindeEligible(key, cutCount){
 function primeMarkBrindeGiven(key, cutCount){
   if(!key) return;
   const all = primeGetBrindeAll();
-  all[key] = { lastGiftAt: Math.floor(cutCount / BRINDE_EVERY) * BRINDE_EVERY, givenOn: new Date().toISOString().slice(0,10) };
+  all[key] = { lastGiftAt: Math.floor(cutCount / BRINDE_EVERY) * BRINDE_EVERY, givenOn: primeLocalDate() };
   primeSaveBrindeAll(all);
 }
 function primeBrindeCutsInfo(key, cutCount){
@@ -1347,7 +1353,7 @@ function primeSeedDemoAppointments(){
   }
   function mk(daysAhead, time, services, name){
     const d = nextOpenDay(daysAhead);
-    const iso = d.toISOString().slice(0,10);
+    const iso = primeLocalDate(d);
     const dayLabel = `${DIAS_PT[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
     return {id:primeNextId(), services, day:iso, dayLabel, time, name, barber:'Nathan', status:'confirmado'};
   }
@@ -1435,7 +1441,7 @@ function caRenderNextAppointment(){
   const area = document.getElementById('ca-next-area');
   if(!area) return;
   const now = new Date();
-  const todayIso = now.toISOString().slice(0,10);
+  const todayIso = primeLocalDate(now);
   const nowHM = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const upcoming = primeMyAppointments()
     .filter(a=> a.status!=='concluido' && (a.day > todayIso || (a.day===todayIso && a.time >= nowHM)))
@@ -2663,11 +2669,11 @@ function baSetVendasFilter(f){
 }
 function baGetFilterRange(){
   const now = new Date();
-  const todayStr = now.toISOString().slice(0,10);
+  const todayStr = primeLocalDate(now);
   if(baVendasFilter==='hoje') return [todayStr, todayStr];
   if(baVendasFilter==='semana'){
     const d = new Date(now); d.setDate(d.getDate()-d.getDay());
-    return [d.toISOString().slice(0,10), todayStr];
+    return [primeLocalDate(d), todayStr];
   }
   if(baVendasFilter==='mes'){
     return [todayStr.slice(0,8)+'01', todayStr];
@@ -2679,7 +2685,7 @@ function baGetFilterRange(){
 }
 function baRenderVendasHoje(){
   const box = document.getElementById('ba-vendas-hoje');
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = primeLocalDate();
   const sales = baMySales().filter(s=>s.date===todayStr);
   const realizado = sales.reduce((s,x)=>s+x.value,0);
   const realizadoCount = sales.length;
@@ -2870,7 +2876,7 @@ function baRenderDashBars(days){
   const data = [];
   for(let i=days-1;i>=0;i--){
     const d = new Date(today); d.setDate(d.getDate()-i);
-    const key = d.toISOString().slice(0,10);
+    const key = primeLocalDate(d);
     data.push({date:d, val:daily[key]||0, isToday:i===0});
   }
   const total = data.reduce((s,d)=>s+d.val,0);
@@ -3012,7 +3018,7 @@ function baAddExpense(){
   const dataEl = document.getElementById('ba-despesa-data');
   const name = nameEl.value.trim();
   const value = parseFloat(valorEl.value);
-  const date = dataEl.value || new Date().toISOString().slice(0,10);
+  const date = dataEl.value || primeLocalDate();
   if(!name || !value || value<=0) return;
   const all = baGetExpenses();
   all.push({id:primeNextId(), name, value, date});
@@ -3091,7 +3097,7 @@ function baReportLogoSrc(){
 function baRenderReportHTML(){
   const d = baBuildReportData();
   const logo = baReportLogoSrc();
-  const geradoEm = baFormatDate(new Date().toISOString().slice(0,10));
+  const geradoEm = baFormatDate(primeLocalDate());
   let body;
   if(d.isAdmin){
     const despesasRows = d.despesas.map(e=>`<tr><td>${e.name}</td><td class="muted">${baFormatDate(e.date)}</td><td class="num">${baFormatMoney(e.value)}</td></tr>`).join('');
@@ -3440,7 +3446,7 @@ function baAssignPlan(clientName, tierIndex){
   baSyncPlanToClientAccount(client);
   // atribuir plano gera uma venda pro barbeiro (comissão sobre o valor do plano)
   if(tier.value){
-    const today = new Date().toISOString().slice(0,10);
+    const today = primeLocalDate();
     const sales = baGetSales();
     sales.unshift({client:client.name, service:`Assinatura — ${tier.name}`, value:tier.value, date:today, barber:baCurrentBarber});
     localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
@@ -3632,7 +3638,7 @@ function baFinalizarCarrinho(){
   const items = carts[baCarrinhoApptId] || [];
   const products = baGetProducts();
   const notaId = primeNextId();
-  const today = new Date().toISOString().slice(0,10);
+  const today = primeLocalDate();
   const now = new Date().toTimeString().slice(0,5);
   const sales = baGetSales();
 
@@ -3697,7 +3703,7 @@ function baBuildAgendaDays(){
   for(let i=0;i<10;i++){
     const d = new Date(today); d.setDate(today.getDate()+i);
     if(!resolveBarberHours(me, d.getDay())) continue;
-    const iso = d.toISOString().slice(0,10);
+    const iso = primeLocalDate(d);
     if(!baAgendaDay) baAgendaDay = iso;
     const btn = document.createElement('button');
     btn.className = 'chip'+(iso===baAgendaDay?' active':'');
@@ -3934,7 +3940,7 @@ function baAtResetFields(){
   baAtRenderCart();
 
   const now = new Date();
-  document.getElementById('at-date').value = now.toISOString().slice(0,10);
+  document.getElementById('at-date').value = primeLocalDate(now);
   document.getElementById('at-time').value = now.toTimeString().slice(0,5);
 }
 function baRenderAtendimento(){

@@ -158,6 +158,7 @@
 - [x] Aba "Atendimento" — registra venda avulsa de balcão (cliente novo ou existente, serviço opcional, produtos opcionais, valor, horário de término — dá pra vender só produto, sem serviço nenhum)
 - [x] Auto-push horário para GitHub
 - [x] Booking wizard respeita horários individuais dos barbeiros
+- [x] **Corrigido bug de fuso horário**: o app usava `toISOString().slice(0,10)` (converte pra UTC) pra descobrir "que dia é hoje" em ~16 lugares — entre ~21h e meia-noite (GMT-3), o sistema achava que já era o dia seguinte (afetava agenda, vendas "de hoje", dashboard, conquistas, brindes, relatórios). Criada `primeLocalDate()` que usa hora local de verdade, substituída em todo o código.
 
 ---
 
