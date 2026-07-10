@@ -58,6 +58,7 @@
 ### Perfil e Histórico
 - [x] Timeline visual dos cortes anteriores (data, barbeiro, serviço, valor) — "Cortes recentes" na Home (3 últimos) + histórico completo na aba Histórico, com as estrelas da avaliação quando existir. A tela "Histórico" e a seção "Cortes recentes" já existiam na navegação mas mostravam dados fictícios fixos — agora usam o histórico real (`primeClientCuts`)
 - [ ] "Meu estilo" — cliente salva fotos de referência de corte *(pulado por enquanto — item mais especulativo da Fase 3, fica pra depois se fizer sentido)*
+  > **Regra obrigatória pra quando implementar** *(discutido 2026-07-10)*: toda foto tem que ser **comprimida/redimensionada no navegador antes de subir** (ex: máx. 800px de largura, JPEG ~80% de qualidade — derruba de 2-8MB pra 100-300KB sem perda visível) e a exibição em lista/galeria tem que usar **lazy loading** (só carrega as fotos visíveis na tela, não todas de uma vez). Sem isso, o Supabase Storage (cota grátis pequena) enche rápido e a galeria fica lenta. Essas duas práticas entram desde a primeira versão da feature, não como otimização posterior.
 - [x] Barbeiro favorito com destaque no agendamento *(já estava implementado de uma sessão anterior, só não tinha sido marcado — estrela ★ no wizard de agendamento em ambos os modos, card "Seu barbeiro" na Home, troca manual no Perfil, e vira favorito automático no primeiro agendamento)*
 
 ### Avaliação e Feedback
