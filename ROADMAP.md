@@ -102,7 +102,7 @@
 ## 🚀 Fase 5 — Diferenciação Competitiva
 
 ### vs AppBarber
-- [ ] QR Code no balcão → abre direto o app do cliente
+- [x] QR Code no balcão → botão "📱 QR Code pro balcão" no Perfil do barbeiro, gera uma página pra imprimir (logo, marca, QR) apontando pro link real do site (`location.origin`, funciona em qualquer domínio); usa a API gratuita do QR Server, sem precisar de biblioteca extra
 - [ ] Notificações push (via service worker)
 - [ ] Modo offline básico (ver agenda mesmo sem internet)
 - [ ] Compartilhar conquista nas redes sociais (story template)

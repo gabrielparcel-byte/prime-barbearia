@@ -2659,6 +2659,7 @@ addEventListener('resize', caApplyMode, {passive:true});
           </div>
         </div>
 
+        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem" onclick="baOpenQRPrint()">📱 QR Code pro balcão</button>
         <button class="ba-btn ghost" style="max-width:100%" onclick="baLogout()">Sair</button>
       </div>
     </div>
@@ -3298,6 +3299,20 @@ function baRenderReportHTML(){
 }
 function baExportReportPDF(){
   document.getElementById('ba-report-print').innerHTML = baRenderReportHTML();
+  window.print();
+}
+function baOpenQRPrint(){
+  const logo = baReportLogoSrc();
+  const siteUrl = location.origin + location.pathname;
+  const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=0&data=${encodeURIComponent(siteUrl)}`;
+  document.getElementById('ba-qr-print').innerHTML = `
+    <div class="qp-logo"><img src="${logo}"></div>
+    <div class="qp-brand">PRIME BARBEARIA</div>
+    <div class="qp-sub">balcão</div>
+    <div class="qp-title">Aponte a câmera do seu celular aqui</div>
+    <p class="qp-desc">Escaneie o código e agende seu horário<br>direto pelo app da Prime.</p>
+    <div class="qp-code"><img src="${qrImg}" alt="QR Code Prime Barbearia"></div>
+    <div class="qp-foot">${siteUrl.replace(/^https?:\/\//,'')}</div>`;
   window.print();
 }
 function baShareReportWhatsApp(){
@@ -4681,10 +4696,10 @@ if(baIsLoggedIn()){
 </script>
 
 <style>
-#ba-report-print{display:none}
+#ba-report-print, #ba-qr-print{display:none}
 @media print{
-  body > *:not(#ba-report-print){display:none!important}
-  #ba-report-print{display:block!important}
+  body > *:not(.prime-print-target){display:none!important}
+  .prime-print-target{display:block!important}
 }
 #ba-report-print{
   --rp-ink:#20241D; --rp-ink-dim:#6B6E63; --rp-paper:#FBF9F3; --rp-card:#F3EFE2;
@@ -4724,8 +4739,20 @@ if(baIsLoggedIn()){
 #ba-report-print .rp-resumo{font-size:.8rem;color:var(--rp-ink-dim);background:var(--rp-card);border-radius:6px;padding:.7rem .95rem}
 #ba-report-print .rp-resumo b{color:var(--rp-ink);font-weight:500}
 #ba-report-print .rp-foot{margin-top:1.8rem;padding-top:1rem;border-top:1px solid var(--rp-hair);font-size:.66rem;color:var(--rp-ink-dim);text-align:center;line-height:1.6}
+
+#ba-qr-print{background:#FBF9F3;color:#20241D;font-family:'Jost',sans-serif;text-align:center;padding:3rem 2rem;max-width:520px;margin:0 auto}
+#ba-qr-print .qp-logo{width:64px;height:64px;border-radius:50%;background:#0B140D;display:flex;align-items:center;justify-content:center;margin:0 auto 1.2rem}
+#ba-qr-print .qp-logo img{width:44px;height:44px}
+#ba-qr-print .qp-brand{font-family:'Cinzel',serif;font-size:1.4rem;letter-spacing:.1em;color:#20241D;margin-bottom:.2rem}
+#ba-qr-print .qp-sub{font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:#8C6F2E;margin-bottom:2rem}
+#ba-qr-print .qp-title{font-family:'Cinzel',serif;font-size:1.15rem;color:#20241D;margin-bottom:.5rem}
+#ba-qr-print .qp-desc{font-size:.85rem;color:#6B6E63;margin-bottom:1.8rem;line-height:1.6}
+#ba-qr-print .qp-code{border:2px solid #B08D3E;border-radius:12px;padding:1.2rem;display:inline-block;margin-bottom:1.8rem}
+#ba-qr-print .qp-code img{display:block;width:220px;height:220px}
+#ba-qr-print .qp-foot{font-size:.72rem;color:#8C6F2E;letter-spacing:.06em}
 </style>
-<div id="ba-report-print"></div>
+<div id="ba-report-print" class="prime-print-target"></div>
+<div id="ba-qr-print" class="prime-print-target"></div>
 
 </body>
 </html>
