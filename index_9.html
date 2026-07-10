@@ -2022,6 +2022,40 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .at-total-row input{width:110px;text-align:right;background:transparent;border:none;color:var(--dourado-claro);font-family:var(--font-display);font-size:1.15rem;font-weight:600}
 #barberApp .at-total-row input:focus{outline:none}
 #barberApp .at-success{color:var(--verde-neon);font-size:.82rem;margin-bottom:.8rem}
+
+/* ── carrinho ao vivo (atendimento em andamento) ── */
+#barberApp .cart-header{background:var(--grafite-card);border:1px solid #D9A441;border-radius:10px;padding:1rem 1.1rem;margin-bottom:1.2rem;position:relative;overflow:hidden}
+#barberApp .cart-header::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#D9A441}
+#barberApp .cart-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
+#barberApp .cart-client{font-family:var(--font-display);font-size:1.1rem;color:var(--prata)}
+#barberApp .cart-time{font-size:.7rem;color:#D9A441;display:flex;align-items:center;gap:.3rem}
+#barberApp .cart-time .dot{width:6px;height:6px;border-radius:50%;background:#D9A441;animation:giftPulse 1.6s ease-in-out infinite}
+#barberApp .cart-sub{font-size:.74rem;color:var(--prata-dim)}
+#barberApp .cart-svc-row{display:flex;align-items:center;justify-content:space-between;background:var(--grafite-card);border-radius:8px;padding:.7rem .9rem;margin-bottom:.8rem}
+#barberApp .cart-svc-row .lbl{font-size:.68rem;color:var(--prata-dim)}
+#barberApp .cart-svc-row .svcs{font-size:.85rem;color:var(--prata);margin-top:.15rem}
+#barberApp .cart-svc-row .val{font-family:var(--font-display);color:var(--dourado-claro);font-size:1.05rem}
+#barberApp .cart-item-row{display:flex;align-items:center;gap:.6rem;background:var(--grafite-card);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem}
+#barberApp .cart-item-name{flex:1;font-size:.82rem;color:var(--prata)}
+#barberApp .cart-item-qty{display:flex;align-items:center;gap:.4rem}
+#barberApp .qty-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--hair);background:transparent;color:var(--prata);cursor:pointer;font-size:.8rem;line-height:1;display:flex;align-items:center;justify-content:center}
+#barberApp .qty-val{font-size:.8rem;color:var(--prata);min-width:16px;text-align:center;font-variant-numeric:tabular-nums}
+#barberApp .cart-item-subtotal{font-size:.82rem;color:var(--dourado-claro);font-weight:600;min-width:60px;text-align:right;font-variant-numeric:tabular-nums}
+#barberApp .cart-item-remove{color:var(--prata-dim);cursor:pointer;background:none;border:none;font-size:.85rem}
+#barberApp .cart-item-remove:hover{color:#e85d5d}
+#barberApp .cart-empty{font-size:.78rem;color:var(--prata-dim);text-align:center;padding:1rem 0;font-style:italic}
+#barberApp .total-summary{background:var(--grafite-card);border-radius:8px;padding:.8rem .9rem;margin:1rem 0}
+#barberApp .ts-row{display:flex;justify-content:space-between;font-size:.76rem;color:var(--prata-dim);padding:.15rem 0}
+#barberApp .ts-row.final{border-top:1px solid var(--hair);margin-top:.4rem;padding-top:.5rem;font-size:.95rem;color:var(--prata);font-weight:600}
+#barberApp .ts-row.final .val{color:var(--dourado-claro);font-family:var(--font-display)}
+#barberApp .andamento-badge{font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:#D9A441;background:rgba(217,164,65,.15);padding:.15rem .45rem;border-radius:99px;display:inline-flex;align-items:center;gap:.25rem}
+#barberApp .andamento-badge .dot{width:5px;height:5px;border-radius:50%;background:#D9A441;animation:giftPulse 1.6s ease-in-out infinite}
+#barberApp .ba-tslot.andamento{border-left-color:#D9A441}
+#barberApp .ba-tslot.andamento .ts-time::after{background:#D9A441;border-color:#D9A441;animation:giftPulse 1.6s ease-in-out infinite}
+#barberApp .ba-tslot.andamento .ts-card{border-color:rgba(217,164,65,.5);background:rgba(217,164,65,.08)}
+#barberApp .ba-mini-btn{border:none;font-family:var(--font-body);font-weight:500;font-size:.65rem;letter-spacing:.04em;text-transform:uppercase;padding:.35rem .7rem;border-radius:4px;cursor:pointer;white-space:nowrap}
+#barberApp .ba-mini-btn.amber{background:#D9A441;color:#1a1506}
+#barberApp .ba-mini-btn.primary{background:var(--dourado);color:#1a1506}
 #barberApp .gift-dot{width:7px;height:7px;border-radius:50%;background:var(--dourado);box-shadow:0 0 5px rgba(198,167,94,.6);flex:none;animation:giftPulse 2.2s ease-in-out infinite}
 @keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
@@ -2047,6 +2081,17 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .gift-item .gi-name{font-size:.82rem;color:var(--prata)}
 #barberApp .gift-item .gi-remove{font-size:.72rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .5rem;border-radius:3px;transition:all .15s}
 #barberApp .gift-item .gi-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
+#barberApp .prod-row{display:flex;align-items:center;gap:.7rem;padding:.55rem 0;border-bottom:1px solid var(--hair)}
+#barberApp .prod-row:last-child{border-bottom:none}
+#barberApp .prod-info{flex:1;min-width:0}
+#barberApp .prod-name{font-size:.82rem;color:var(--prata)}
+#barberApp .prod-meta{font-size:.68rem;color:var(--prata-dim);margin-top:.1rem}
+#barberApp .prod-meta.low{color:#D9A441}
+#barberApp .prod-price{font-size:.8rem;color:var(--dourado-claro);font-weight:600;flex:none;font-variant-numeric:tabular-nums}
+#barberApp .prod-actions{display:flex;gap:.3rem;flex:none}
+#barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .45rem;border-radius:3px;transition:all .15s;background:none;border:none}
+#barberApp .prod-actions .prod-restock:hover{color:var(--verde-neon);background:rgba(53,197,88,.1)}
+#barberApp .prod-actions .prod-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
 #barberApp .add-input{background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;padding:.5rem .7rem;color:var(--prata);font-family:var(--font-body);font-size:.78rem;outline:none;min-width:0}
 #barberApp .add-input:focus{border-color:var(--dourado-dim)}
 #barberApp .add-input::placeholder{color:var(--prata-dim)}
@@ -2250,6 +2295,40 @@ addEventListener('resize', caApplyMode, {passive:true});
       </div>
     </div>
 
+    <!-- CARRINHO AO VIVO (atendimento em andamento) -->
+    <div class="screen" id="ba-screen-carrinho">
+      <div class="ba-head"><div><div class="hi">Em atendimento</div><div class="name">Carrinho</div></div></div>
+      <div class="ba-body">
+        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:1.2rem" onclick="baTab('agenda')">← Voltar (continua em andamento)</button>
+
+        <div class="cart-header">
+          <div class="cart-header-top">
+            <span class="cart-client" id="cart-client-name">—</span>
+            <span class="cart-time" id="cart-elapsed"><span class="dot"></span>0 min</span>
+          </div>
+          <div class="cart-sub" id="cart-started-at">—</div>
+        </div>
+
+        <div class="cart-svc-row">
+          <div><div class="lbl">Serviço agendado</div><div class="svcs" id="cart-svc-names">—</div></div>
+          <div class="val" id="cart-svc-value">R$ 0,00</div>
+        </div>
+
+        <div class="ba-slabel">Adicionar produto</div>
+        <div class="ba-field" style="max-width:100%"><input type="text" id="cart-prod-search" placeholder="Buscar produto..." oninput="baCartSearchProduct()" autocomplete="off"></div>
+        <div class="ba-enc-results" id="cart-prod-results"></div>
+        <div id="cart-items-list"></div>
+
+        <div class="total-summary">
+          <div class="ts-row"><span>Serviço</span><span id="cart-sum-servico">R$ 0,00</span></div>
+          <div class="ts-row"><span>Produtos</span><span id="cart-sum-produtos">R$ 0,00</span></div>
+          <div class="ts-row final"><span>Total da nota</span><span class="val" id="cart-sum-total">R$ 0,00</span></div>
+        </div>
+
+        <button class="ba-btn" style="max-width:100%" onclick="baFinalizarCarrinho()">✓ Finalizar atendimento</button>
+      </div>
+    </div>
+
     <!-- VENDAS -->
     <div class="screen" id="ba-screen-vendas">
       <div class="ba-head"><div><div class="hi">Suas vendas</div><div class="name">Vendas</div></div></div>
@@ -2437,6 +2516,17 @@ addEventListener('resize', caApplyMode, {passive:true});
           <div style="display:flex;gap:.4rem;margin-top:.6rem">
             <input type="text" id="ba-brinde-new" class="ba-field" placeholder="Nome do novo brinde..." style="flex:1;margin:0;padding:.5rem .7rem;font-size:.78rem">
             <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddBrindeOpt()">Adicionar</button>
+          </div>
+        </div>
+
+        <div class="ba-card" id="ba-produtos-config" style="display:none">
+          <div class="ba-slabel" style="margin-top:0">Catálogo de produtos</div>
+          <div id="ba-produtos-list"></div>
+          <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+            <input type="text" id="ba-prod-nome" class="add-input" placeholder="Nome do produto..." style="flex:2;min-width:110px">
+            <input type="number" id="ba-prod-preco" class="add-input" placeholder="R$" style="flex:1;min-width:60px">
+            <input type="number" id="ba-prod-estoque" class="add-input" placeholder="Qtd" style="flex:1;min-width:60px">
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddProduct()">Adicionar</button>
           </div>
         </div>
 
@@ -3243,6 +3333,57 @@ function baAddBrindeOpt(){
   input.value = '';
   baRenderBrindeConfig();
 }
+
+// ══ Catálogo de produtos (admin) — usado no carrinho ao vivo do atendimento ══
+const PROD_LOW_STOCK = 5;
+function baGetProducts(){ try{ return JSON.parse(localStorage.getItem('barberProducts')||'[]'); }catch(e){ return []; } }
+function baSaveProducts(list){ localStorage.setItem('barberProducts', JSON.stringify(list)); }
+function baRenderProdutosConfig(){
+  const products = baGetProducts();
+  document.getElementById('ba-produtos-list').innerHTML = products.length ? products.map(p=>{
+    const low = p.stock<=PROD_LOW_STOCK;
+    return `<div class="prod-row">
+      <div class="prod-info">
+        <div class="prod-name">${p.name}</div>
+        <div class="prod-meta${low?' low':''}">${p.stock} em estoque${p.stock===0?' · esgotado':(low?' · acabando':'')}</div>
+      </div>
+      <div class="prod-price">${baFormatMoney(p.price)}</div>
+      <div class="prod-actions">
+        <button class="prod-restock" onclick="baRestockProduct(${p.id})">repor</button>
+        <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
+      </div>
+    </div>`;
+  }).join('') : '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum produto cadastrado.</p>';
+}
+function baAddProduct(){
+  const nameEl = document.getElementById('ba-prod-nome');
+  const priceEl = document.getElementById('ba-prod-preco');
+  const stockEl = document.getElementById('ba-prod-estoque');
+  const name = nameEl.value.trim();
+  const price = parseFloat(priceEl.value);
+  const stock = parseInt(stockEl.value)||0;
+  if(!name || !price || price<=0) return;
+  const products = baGetProducts();
+  products.push({id:primeNextId(), name, price, stock});
+  baSaveProducts(products);
+  nameEl.value=''; priceEl.value=''; stockEl.value='';
+  baRenderProdutosConfig();
+}
+function baRemoveProduct(id){
+  baSaveProducts(baGetProducts().filter(p=>p.id!==id));
+  baRenderProdutosConfig();
+}
+function baRestockProduct(id){
+  const qtyStr = prompt('Quantas unidades entraram no estoque?');
+  const qty = parseInt(qtyStr);
+  if(!qty || qty<=0) return;
+  const products = baGetProducts();
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  p.stock += qty;
+  baSaveProducts(products);
+  baRenderProdutosConfig();
+}
 // mesmos planos oferecidos no site pro cliente (definidos no script do app do cliente)
 function baPlanTiers(){ return typeof PLAN_TIERS!=='undefined' ? PLAN_TIERS : []; }
 function baRenderClientPlan(client){
@@ -3352,6 +3493,141 @@ function baAcceptAppt(id){
 }
 function baFinishAppt(id){ openFeedback(id, 'barbeiro'); }
 
+// ══ Carrinho ao vivo — atendimento em andamento ══
+function baElapsedMin(ts){ return Math.max(0, Math.floor((Date.now()-ts)/60000)); }
+function baGetActiveCarts(){ try{ return JSON.parse(localStorage.getItem('primeActiveCarts')||'{}'); }catch(e){ return {}; } }
+function baSaveActiveCarts(c){ localStorage.setItem('primeActiveCarts', JSON.stringify(c)); }
+
+function baIniciarAtendimento(apptId){
+  primeUpdateAppointment(apptId, {iniciadoEm: Date.now()});
+  const carts = baGetActiveCarts();
+  if(!carts[apptId]) carts[apptId] = [];
+  baSaveActiveCarts(carts);
+  baOpenCarrinho(apptId);
+}
+
+let baCarrinhoApptId = null;
+function baOpenCarrinho(apptId){
+  const appt = primeGetAppointmentById(apptId);
+  if(!appt) return;
+  baCarrinhoApptId = apptId;
+  const svcs = appt.services || (appt.service ? [appt.service] : []);
+  const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  document.getElementById('cart-client-name').textContent = appt.name || 'Cliente';
+  document.getElementById('cart-elapsed').innerHTML = `<span class="dot"></span>${baElapsedMin(appt.iniciadoEm)} min`;
+  document.getElementById('cart-started-at').textContent = `Atendimento iniciado às ${new Date(appt.iniciadoEm).toTimeString().slice(0,5)}`;
+  document.getElementById('cart-svc-names').textContent = svcs.join(' + ') || '—';
+  document.getElementById('cart-svc-value').textContent = baFormatMoney(svcValue);
+  document.getElementById('cart-prod-search').value = '';
+  document.getElementById('cart-prod-results').innerHTML = '';
+  baRenderCartItems();
+  baShow('ba-screen-carrinho');
+}
+
+function baCartSearchProduct(){
+  const q = document.getElementById('cart-prod-search').value.trim().toLowerCase();
+  const box = document.getElementById('cart-prod-results');
+  if(!q || q.length<2){ box.innerHTML=''; return; }
+  const matches = baGetProducts().filter(p=>p.stock>0 && p.name.toLowerCase().includes(q)).slice(0,6);
+  box.innerHTML = matches.length ? matches.map(p=>
+    `<div class="ba-enc-result" onclick="baCartAddProduct(${p.id})">${p.name} <span class="enc-sub">${baFormatMoney(p.price)} · ${p.stock} un.</span></div>`
+  ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum produto disponível</div>';
+}
+function baCartAddProduct(productId){
+  const carts = baGetActiveCarts();
+  const items = carts[baCarrinhoApptId] || (carts[baCarrinhoApptId] = []);
+  const existing = items.find(i=>i.productId===productId);
+  const product = baGetProducts().find(p=>p.id===productId);
+  if(!product) return;
+  const currentQty = existing ? existing.qty : 0;
+  if(currentQty+1 > product.stock) return;
+  if(existing) existing.qty++;
+  else items.push({productId, qty:1});
+  baSaveActiveCarts(carts);
+  document.getElementById('cart-prod-search').value = '';
+  document.getElementById('cart-prod-results').innerHTML = '';
+  baRenderCartItems();
+}
+function baCartChangeQty(productId, delta){
+  const carts = baGetActiveCarts();
+  const items = carts[baCarrinhoApptId] || [];
+  const item = items.find(i=>i.productId===productId);
+  if(!item) return;
+  const product = baGetProducts().find(p=>p.id===productId);
+  const maxStock = product ? product.stock : item.qty;
+  item.qty = Math.max(1, Math.min(maxStock, item.qty+delta));
+  baSaveActiveCarts(carts);
+  baRenderCartItems();
+}
+function baCartRemoveItem(productId){
+  const carts = baGetActiveCarts();
+  carts[baCarrinhoApptId] = (carts[baCarrinhoApptId]||[]).filter(i=>i.productId!==productId);
+  baSaveActiveCarts(carts);
+  baRenderCartItems();
+}
+function baRenderCartItems(){
+  const appt = primeGetAppointmentById(baCarrinhoApptId);
+  if(!appt) return;
+  const svcs = appt.services || (appt.service ? [appt.service] : []);
+  const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  const carts = baGetActiveCarts();
+  const items = carts[baCarrinhoApptId] || [];
+  const products = baGetProducts();
+  const enriched = items.map(i=>{
+    const p = products.find(x=>x.id===i.productId);
+    return { productId:i.productId, qty:i.qty, name: p?p.name:'Produto removido', price: p?p.price:0 };
+  });
+  document.getElementById('cart-items-list').innerHTML = enriched.length ? enriched.map(i=>`
+    <div class="cart-item-row">
+      <span class="cart-item-name">${i.name}</span>
+      <div class="cart-item-qty">
+        <button class="qty-btn" onclick="baCartChangeQty(${i.productId},-1)">−</button>
+        <span class="qty-val">${i.qty}</span>
+        <button class="qty-btn" onclick="baCartChangeQty(${i.productId},1)">+</button>
+      </div>
+      <span class="cart-item-subtotal">${baFormatMoney(i.price*i.qty)}</span>
+      <button class="cart-item-remove" onclick="baCartRemoveItem(${i.productId})">✕</button>
+    </div>
+  `).join('') : '<div class="cart-empty">Nenhum produto adicionado ainda</div>';
+  const produtosTotal = enriched.reduce((s,i)=>s+i.price*i.qty,0);
+  document.getElementById('cart-sum-servico').textContent = baFormatMoney(svcValue);
+  document.getElementById('cart-sum-produtos').textContent = baFormatMoney(produtosTotal);
+  document.getElementById('cart-sum-total').textContent = baFormatMoney(svcValue+produtosTotal);
+}
+
+function baFinalizarCarrinho(){
+  const appt = primeGetAppointmentById(baCarrinhoApptId);
+  if(!appt) return;
+  const svcs = appt.services || (appt.service ? [appt.service] : []);
+  const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  const carts = baGetActiveCarts();
+  const items = carts[baCarrinhoApptId] || [];
+  const products = baGetProducts();
+  const notaId = primeNextId();
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date().toTimeString().slice(0,5);
+  const sales = baGetSales();
+
+  sales.unshift({client: appt.name||'Cliente', service: svcs.join(' + ')||'Serviço', value: svcValue, date: today, time: now, barber: baCurrentBarber, notaId});
+
+  items.forEach(item=>{
+    const p = products.find(x=>x.id===item.productId);
+    if(!p) return;
+    sales.unshift({client: appt.name||'Cliente', service: p.name, value: p.price*item.qty, qty: item.qty, date: today, time: now, barber: baCurrentBarber, notaId, type:'produto'});
+    p.stock = Math.max(0, p.stock - item.qty);
+  });
+
+  localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
+  baSaveProducts(products);
+  delete carts[baCarrinhoApptId];
+  baSaveActiveCarts(carts);
+
+  const finishedId = baCarrinhoApptId;
+  baCarrinhoApptId = null;
+  baTab('agenda');
+  openFeedback(finishedId, 'barbeiro');
+}
+
 // ── Sino de notificações do barbeiro ──
 function baRenderNotifs(){
   const notifs = primeNotifsFor('barber', baCurrentBarber);
@@ -3433,20 +3709,26 @@ function baBuildAgendaTimes(){
     if(a){
       const st = a.status||'confirmado';
       const isEncaixe = a.isEncaixe;
-      const cls = isEncaixe ? 'encaixe' : 'taken';
+      const emAndamento = st==='confirmado' && !!a.iniciadoEm;
+      const cls = emAndamento ? 'andamento' : (isEncaixe ? 'encaixe' : 'taken');
       const svcs = a.services || (a.service ? [a.service] : []);
       const svcName = svcs.join(' + ');
       const dur = a.duration ? ` · ~${a.duration}min` : '';
       const dots = svcs.map(s=>`<span class="svc-dot" style="background:${SVC_COLORS[s]||'var(--prata-dim)'}" title="${s}"></span>`).join('');
+      const badge = emAndamento ? `<span class="andamento-badge"><span class="dot"></span>Em atendimento</span>` : '';
+      const detailText = emAndamento
+        ? `${svcName} · iniciado há ${baElapsedMin(a.iniciadoEm)}min`
+        : `${svcName}${dur} · <span style="color:${statusColor[st]}">${statusLabel[st]||st}</span>`;
       const action = st==='pendente' ? `<button class="ba-btn" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baAcceptAppt(${a.id})">Aceitar</button>`
-        : st==='confirmado' ? `<button class="ba-btn ghost" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baFinishAppt(${a.id})">Finalizar</button>`
+        : emAndamento ? `<button class="ba-mini-btn amber" onclick="baOpenCarrinho(${a.id})">Abrir carrinho</button>`
+        : st==='confirmado' ? `<button class="ba-mini-btn primary" onclick="baIniciarAtendimento(${a.id})">Iniciar</button>`
         : '';
       html += `<div class="ba-tslot ${cls}">
         <div class="ts-time">${timeStr}</div>
         <div class="ts-card">
           <div class="ts-info">
-            <div class="ts-name">${dots}${a.name||'Cliente'}</div>
-            <div class="ts-detail">${svcName}${dur} · <span style="color:${statusColor[st]}">${statusLabel[st]||st}</span></div>
+            <div class="ts-name">${dots}${a.name||'Cliente'} ${badge}</div>
+            <div class="ts-detail">${detailText}</div>
           </div>
           ${action}
         </div>
@@ -3765,7 +4047,8 @@ function baRenderPerfil(){
   const isAdmin = baCurrentRole==='admin';
   document.getElementById('ba-admin-panel').style.display = isAdmin ? 'block' : 'none';
   document.getElementById('ba-brinde-config').style.display = isAdmin ? 'block' : 'none';
-  if(isAdmin){ baRenderRoster(); baRenderBrindeConfig(); }
+  document.getElementById('ba-produtos-config').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin){ baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig(); }
 }
 function baRenderRoster(){
   const roster = baGetRoster();
