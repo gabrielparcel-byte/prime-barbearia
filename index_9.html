@@ -366,6 +366,9 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
     </div>
     <p style="color:var(--prata-dim);font-size:.9rem;margin-bottom:1.4rem" id="bp-fun">—</p>
     <a class="ig" href="#" target="_blank" rel="noopener" id="bp-ig" style="color:var(--verde-neon);text-decoration:none;font-size:.9rem">◎ @instagram</a>
+    <div class="gold-rule" style="margin:1.2rem 0"></div>
+    <div class="eyebrow" style="font-size:.62rem;margin-bottom:.6rem">Avaliações de clientes</div>
+    <div id="bp-reviews"></div>
   </div>
 </div>
 
@@ -2783,7 +2786,7 @@ function baRenderReviews(){
   }
   const avg = (reviews.reduce((s,a)=>s+a.rating,0)/reviews.length).toFixed(1);
   box.innerHTML =
-    `<div class="ba-card" style="text-align:center;margin-bottom:.9rem"><div style="font-family:var(--font-display);font-size:1.8rem;color:var(--dourado)">${avg} <span style="font-size:1rem">★</span></div><div style="color:var(--prata-dim);font-size:.8rem">média de ${reviews.length} avaliação${reviews.length>1?'ões':''}</div></div>` +
+    `<div class="ba-card" style="text-align:center;margin-bottom:.9rem"><div style="font-family:var(--font-display);font-size:1.8rem;color:var(--dourado)">${avg} <span style="font-size:1rem">★</span></div><div style="color:var(--prata-dim);font-size:.8rem">média de ${reviews.length} avaliaç${reviews.length>1?'ões':'ão'}</div></div>` +
     reviews.map(a=>
       `<div class="ba-item"><div class="info"><div class="n" style="color:var(--dourado)">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div><div class="d">${a.name||'Cliente'}${isAdmin?' · '+(a.barber||''):''} · ${a.dayLabel||''}${a.ratingComment?'<br>“'+a.ratingComment+'”':''}</div></div></div>`
     ).join('');
@@ -4430,7 +4433,40 @@ function openBarberProfile(name){
   const igHandle = '@' + b.name.toLowerCase().replace(/[^a-z]/g,'') + '.barber';
   document.getElementById('bp-ig').textContent = '◎ ' + igHandle;
   document.getElementById('bp-ig').href = 'https://instagram.com/' + igHandle.slice(1);
+  renderBarberPublicReviews(name);
   document.getElementById('barberProfileModal').classList.add('open');
+}
+// primeiro nome + inicial do sobrenome, pra não expor o nome completo do cliente numa página pública
+function baPublicName(fullName){
+  const parts = (fullName||'Cliente').trim().split(/\s+/);
+  if(parts.length===1) return parts[0];
+  return `${parts[0]} ${parts[parts.length-1].charAt(0)}.`;
+}
+function renderBarberPublicReviews(name){
+  const box = document.getElementById('bp-reviews');
+  if(!box) return;
+  const reviews = primeGetAppointments()
+    .filter(a=>a.barber===name && a.rating)
+    .sort((a,b)=> (b.day+b.time).localeCompare(a.day+a.time));
+  if(!reviews.length){
+    box.innerHTML = '<p style="color:var(--prata-dim);font-size:.85rem">Ainda sem avaliações públicas.</p>';
+    return;
+  }
+  const avg = reviews.reduce((s,a)=>s+a.rating,0)/reviews.length;
+  const summary = `<div style="display:flex;align-items:baseline;gap:.6rem;margin-bottom:1rem">
+    <span style="font-family:var(--font-display);font-size:1.6rem;color:var(--dourado)">${avg.toFixed(1)}</span>
+    <span style="color:var(--dourado);font-size:.9rem">${'★'.repeat(Math.round(avg))}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-Math.round(avg))}</span></span>
+    <span style="color:var(--prata-dim);font-size:.8rem">${reviews.length} avaliaç${reviews.length===1?'ão':'ões'}</span>
+  </div>`;
+  const list = reviews.slice(0,6).map(a=>`
+    <div style="padding:.7rem 0;border-bottom:1px solid rgba(198,167,94,.15)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:.85rem;color:var(--prata)">${baPublicName(a.name)}</span>
+        <span style="color:var(--dourado);font-size:.78rem">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></span>
+      </div>
+      ${a.ratingComment ? `<p style="color:var(--prata-dim);font-size:.82rem;margin-top:.3rem;line-height:1.5">“${a.ratingComment}”</p>` : ''}
+    </div>`).join('');
+  box.innerHTML = summary + `<div>${list}</div>`;
 }
 function closeBarberProfile(){ document.getElementById('barberProfileModal').classList.remove('open'); }
 
