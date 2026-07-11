@@ -912,7 +912,7 @@ render();
 #clientApp .ca-login .wordmark{font-family:var(--font-display);font-size:1.4rem;letter-spacing:.3em;font-weight:500;margin-right:-.3em;color:var(--prata)}
 #clientApp .ca-login .sub{font-family:var(--font-display);letter-spacing:.55em;font-size:.68rem;color:var(--prata-dim);margin:.3rem 0 2.2rem;margin-right:-.55em}
 #clientApp .ca-form-title{font-family:var(--font-display);font-size:1rem;letter-spacing:.1em;color:var(--dourado);margin-bottom:1.3rem;width:100%}
-#clientApp .ca-field{width:100%;max-width:320px;text-align:left;margin-bottom:1rem}
+#clientApp .ca-field{width:100%;text-align:left;margin-bottom:1rem}
 #clientApp .ca-row{width:100%;max-width:320px;display:flex;gap:.8rem}
 #clientApp .ca-row .ca-field{max-width:none}
 @media(max-width:360px){#clientApp .ca-row{flex-direction:column;gap:0}}
@@ -923,7 +923,7 @@ render();
 #clientApp .ca-field .err{color:var(--erro);font-size:.72rem;margin-top:.35rem;display:none}
 #clientApp .ca-field.invalid .err{display:block}
 #clientApp .ca-field.invalid input{border-color:var(--erro)}
-#clientApp .ca-btn{width:100%;max-width:320px;border:none;font-family:var(--font-body);font-weight:500;font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;padding:1rem;cursor:pointer;background:var(--verde-prime);color:#fff;box-shadow:0 0 20px rgba(53,197,88,.22);margin-top:.5rem}
+#clientApp .ca-btn{width:100%;border:none;font-family:var(--font-body);font-weight:500;font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;padding:1rem;cursor:pointer;background:var(--verde-prime);color:#fff;box-shadow:0 0 20px rgba(53,197,88,.22);margin-top:.5rem}
 #clientApp .ca-btn:active{background:var(--verde-neon);color:var(--verde-noite)}
 #clientApp .ca-btn.ghost{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);box-shadow:none}
 #clientApp .ca-btn.ghost:active{background:rgba(198,167,94,.12);color:var(--prata)}
@@ -1257,19 +1257,19 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-slabel" style="margin-top:2.2rem">Seus dados</div>
         <div class="ca-field"><label>Nome</label><input type="text" id="ca-pf-nome" placeholder="Seu nome"></div>
         <div class="ca-field"><label>E-mail</label><input type="email" id="ca-pf-email" disabled style="opacity:.6;cursor:not-allowed"></div>
-        <div style="display:flex;gap:.8rem;max-width:320px">
+        <div style="display:flex;gap:.8rem">
           <div class="ca-field" style="flex:1"><label>Telefone</label><input type="tel" id="ca-pf-phone" placeholder="(44) 90000-0000"></div>
           <div class="ca-field" style="flex:1"><label>Idade</label><input type="number" id="ca-pf-age" placeholder="18" min="1" max="120"></div>
         </div>
         <div class="ca-field"><label>@ do Instagram</label><input type="text" id="ca-pf-ig" placeholder="@seuusuario"></div>
 
-        <button class="ca-btn" style="max-width:320px" onclick="caSavePerfil()">Salvar alterações</button>
+        <button class="ca-btn" onclick="caSavePerfil()">Salvar alterações</button>
         <p class="ca-signup" id="ca-perfil-saved" style="display:none;color:var(--verde-neon)">Perfil atualizado!</p>
 
         <div class="ca-slabel" style="margin-top:2.2rem">Barbeiro favorito</div>
-        <div class="chips" id="ca-pf-barbeiros" style="max-width:320px"></div>
+        <div class="chips" id="ca-pf-barbeiros"></div>
 
-        <button class="ca-btn ghost" style="max-width:320px;margin-top:1.4rem" onclick="caLogout()">Sair</button>
+        <button class="ca-btn ghost" style="margin-top:1.4rem" onclick="caLogout()">Sair</button>
       </div>
     </div>
 
