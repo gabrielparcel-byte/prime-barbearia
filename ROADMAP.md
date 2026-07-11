@@ -128,11 +128,21 @@
 - [x] Sessão persistente entre reloads (Supabase Auth), testado ponta a ponta: login/logout/signup/RLS negativo/regressão em agenda-vendas-clientes
 - Banco começou zerado (sem migrar dados de teste do localStorage); Nathan e Lucas recriados como usuários reais
 
-### Fase B/C/D — Próximos passos (ainda não iniciados)
-- [ ] Migrar agendamentos (`primeAppointments`) pra tabela própria com FK real pra `clients`/`barbers` (hoje ainda em localStorage, ligado por nome/email string)
+### Fase B — Agendamentos ✅ *(concluída 2026-07-11)*
+- [x] Tabela `appointments` no Postgres (id bigint, `client_id`/`barber_id` como FK reais, RLS por dono + admin)
+- [x] Wizard de agendamento migrado pro Supabase (`primeCreateAppointment`), thread do `barberId`/`clientId` desde a seleção
+- [x] Agenda do barbeiro (pendentes, aceitar, iniciar atendimento, carrinho, auto-start) migrada — cada barbeiro só vê os próprios agendamentos, agora sincronizado entre aparelhos
+- [x] Encaixe (walk-in) corrigido pra buscar na tabela real `clients` da Fase A (antes usava uma lista separada e desatualizada); novo caminho pra cliente sem cadastro
+- [x] Cancelamento/reagendamento do cliente vira soft-update (`status='cancelado'`) — histórico preservado, antes era apagado
+- [x] Avaliação (cliente↔barbeiro, resposta do barbeiro) migrada, mantendo as duas direções na mesma linha
+- [x] View pública `public_reviews` (SECURITY DEFINER, colunas curadas) pra avaliações aparecerem na landing page sem exigir login — RLS da tabela principal não permite leitura anônima
+- [x] Testado ponta a ponta: reserva completa, RLS negativo (barbeiro não vê agenda de outro, cliente não acessa agendamento alheio), fluxo aceitar→iniciar→concluir→avaliar, cancelamento preservando histórico, encaixe com e sem conta vinculada, renomear barbeiro sem precisar propagar em `appointments`
+- Banco começou zerado; sem policy de DELETE em `appointments`/`clients` (decisão deliberada — só dá pra apagar via SQL Editor/service_role, nunca pelo app)
+
+### Fase C/D — Próximos passos (ainda não iniciados)
 - [ ] Migrar vendas/financeiro (`barberSales`, despesas, produtos/estoque) — maior tabela, dados sensíveis de faturamento
-- [ ] Migrar achievements, indicações e brindes (gamificação da Fase 1/3)
-- [ ] Sincronização entre dispositivos (2 barbeiros em 2 celulares vendo os mesmos dados em tempo real) — consequência natural de tudo estar no banco
+- [ ] Migrar achievements, indicações e brindes (gamificação da Fase 1/3) — hoje ainda em localStorage, chaveado por e-mail
+- [ ] Migrar carteira de clientes do barbeiro (`barberClients`) e carrinho ativo (`primeActiveCarts`) pro banco
 - [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
 - [ ] Backup automático / histórico não se perde ao limpar o navegador
 
@@ -173,4 +183,4 @@
 
 ---
 
-*Última atualização: 2026-07-11 (Fase 6A concluída)*
+*Última atualização: 2026-07-11 (Fase 6B concluída)*
