@@ -117,6 +117,26 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .btn-primary:hover{background:var(--verde-neon);color:var(--verde-noite);box-shadow:0 0 34px rgba(53,197,88,.5)}
 .btn-ghost{background:transparent;color:var(--prata);border:1px solid rgba(237,237,232,.25)}
 .btn-ghost:hover{border-color:var(--verde-neon);color:var(--verde-neon)}
+
+/* ── Micro-animações de botões (Fase 2) ── */
+.btn,.ca-btn,.ba-btn,.ba-mini-btn,.inv-btn,.ca-cta,.wizard-nav .btn,.chip,.wbarber-card,
+#clientApp .ca-nextact button,#barberApp .ba-topbar .ba-links button,#barberApp .ba-vf{
+  transition:transform .15s cubic-bezier(.34,1.56,.64,1),background .25s,color .25s,box-shadow .25s,border-color .25s,opacity .2s;
+}
+.btn:hover:not(:disabled),.ca-btn:hover:not(:disabled),.ba-btn:hover:not(:disabled),.ca-cta:hover:not(:disabled){
+  transform:translateY(-2px);
+}
+.btn:active:not(:disabled),.ca-btn:active:not(:disabled),.ba-btn:active:not(:disabled),
+.ba-mini-btn:active:not(:disabled),.inv-btn:active:not(:disabled),.ca-cta:active:not(:disabled),
+.wizard-nav .btn:active:not(:disabled),.chip:active{
+  transform:scale(.95);
+}
+.btn:disabled,.ca-btn:disabled,.ba-btn:disabled{opacity:.55;cursor:not-allowed;transform:none!important}
+@keyframes btnSpin{to{transform:rotate(360deg)}}
+.btn-loading{color:transparent!important;pointer-events:none;position:relative}
+.btn-loading::after{content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:btnSpin .6s linear infinite}
+#barberApp .ba-btn.btn-loading::after{border-color:rgba(26,21,6,.3);border-top-color:#1a1506}
+#clientApp .ca-btn.ghost.btn-loading::after,#barberApp .ba-btn.ghost.btn-loading::after{border-color:rgba(237,237,232,.3);border-top-color:var(--prata)}
 .hero .local{position:absolute;bottom:2rem;font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;color:var(--prata-dim)}
 .hero .local b{color:var(--dourado);font-weight:500}
 
@@ -557,6 +577,14 @@ const SVC_COLORS = {'Corte':'#C6A75E','Barba':'#6E8CA0','Corte + Barba':'#4E9B8F
 function primeLocalDate(d){
   d = d || new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// mostra spinner + desabilita o botão por `ms`, feedback tátil em ações que salvam/recarregam dados
+function primeBtnLoading(btn, ms){
+  if(!btn) return;
+  btn.classList.add('btn-loading');
+  btn.disabled = true;
+  setTimeout(()=>{ btn.classList.remove('btn-loading'); btn.disabled = false; }, ms || 500);
 }
 
 // resolve o horário efetivo de um barbeiro num dia da semana, considerando folga/horário customizado dele
@@ -1003,7 +1031,7 @@ render();
         <div class="ca-form-title">Entrar na sua conta</div>
         <div class="ca-field" id="ca-f-email"><label>E-mail</label><input type="email" id="ca-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
         <div class="ca-field" id="ca-f-pass"><label>Senha</label><input type="password" id="ca-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
-        <button class="ca-btn" onclick="caLogin()">Entrar</button>
+        <button class="ca-btn" onclick="primeBtnLoading(this,400);caLogin()">Entrar</button>
         <p class="ca-login-err" id="ca-login-err" style="display:none;color:#E58A6B;font-size:.82rem;margin-top:.8rem">E-mail ou senha incorretos.</p>
         <p class="ca-signup" style="margin-top:.8rem;font-size:.72rem;opacity:.6">Login de exemplo: cliente@prime.com / 123456</p>
         <p class="ca-signup">Ainda não tem conta? <a href="#" onclick="caShowSignup();return false">Criar conta</a></p>
@@ -1019,7 +1047,7 @@ render();
         </div>
         <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
         <div class="ca-field"><label>Código de indicação (opcional)</label><input type="text" id="ca-su-ref" placeholder="Ex: JOA4F9K" style="text-transform:uppercase"></div>
-        <button class="ca-btn" onclick="caSignup()">Criar conta</button>
+        <button class="ca-btn" onclick="primeBtnLoading(this,400);caSignup()">Criar conta</button>
         <p class="ca-signup">Já tem conta? <a href="#" onclick="caShowLogin();return false">Entrar</a></p>
       </div>
       </div>
@@ -2381,7 +2409,7 @@ addEventListener('resize', caApplyMode, {passive:true});
         <div class="ba-form-title">Entrar</div>
         <div class="ba-field" id="ba-f-email"><label>E-mail</label><input type="email" id="ba-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
         <div class="ba-field" id="ba-f-pass"><label>Senha</label><input type="password" id="ba-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
-        <button class="ba-btn" onclick="baLogin()">Entrar</button>
+        <button class="ba-btn" onclick="primeBtnLoading(this,400);baLogin()">Entrar</button>
         <p class="ba-err" id="ba-login-err">E-mail ou senha incorretos.</p>
         <p class="ba-hint">Login de exemplo — admin: nathan@prime.com / 123456 · barbeiro: lucas@prime.com / 123456</p>
       </div>
@@ -2490,7 +2518,7 @@ addEventListener('resize', caApplyMode, {passive:true});
           <div class="ts-row final"><span>Total da nota</span><span class="val" id="cart-sum-total">R$ 0,00</span></div>
         </div>
 
-        <button class="ba-btn" style="max-width:100%" onclick="baFinalizarCarrinho()">✓ Finalizar atendimento</button>
+        <button class="ba-btn" style="max-width:100%" onclick="primeBtnLoading(this,500);baFinalizarCarrinho()">✓ Finalizar atendimento</button>
       </div>
     </div>
 
