@@ -3219,13 +3219,13 @@ function baToggleReplyForm(apptId){
   const form = document.getElementById('ba-reply-form-'+apptId);
   if(form) form.style.display = form.style.display==='none' ? 'flex' : 'none';
 }
-function baSaveReply(apptId){
+async function baSaveReply(apptId){
   const input = document.getElementById('ba-reply-input-'+apptId);
   const text = input.value.trim();
-  const ap = primeUpdateAppointment(apptId, {barberReply: text || undefined});
+  const ap = await primeUpdateAppointment(apptId, {barberReply: text || null});
   if(ap && ap.clientEmail && text){
     primeAddNotif({forRole:'client', target:ap.clientEmail, type:'avaliacao', apptId:ap.id,
-      text:`${ap.barber} respondeu sua avaliação: "${text.slice(0,60)}${text.length>60?'…':''}"`});
+      text:`${apBarberName(ap)} respondeu sua avaliação: "${text.slice(0,60)}${text.length>60?'…':''}"`});
   }
   baRenderReviews();
 }
@@ -3418,26 +3418,26 @@ function baServiceResumo(sales){
   return parts.join(' · ') || 'sem atendimentos';
 }
 
-function baTeamRankingData(){
+async function baTeamRankingData(){
   const today = new Date();
   const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
   const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
   const to = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
   const monthSales = baGetSales().filter(s=>s.date>=from && s.date<=to);
-  const monthAppts = (typeof primeGetAppointments==='function'?primeGetAppointments():[]).filter(a=>a.day>=from && a.day<=to);
+  const monthAppts = (await baFetchReviews()).filter(a=>a.day>=from && a.day<=to);
   const roster = (typeof primeGetBarberRoster==='function'?primeGetBarberRoster():[]);
   return roster.map(b=>{
     const mySales = monthSales.filter(s=>s.barber===b.name);
-    const myRatings = monthAppts.filter(a=>a.barber===b.name && a.rating);
+    const myRatings = monthAppts.filter(a=>a.barberId===b.id);
     const rating = myRatings.length ? myRatings.reduce((s,a)=>s+a.rating,0)/myRatings.length : 0;
     return {name:b.name, attendances:mySales.length, rating, ratingCount:myRatings.length, resumo:baServiceResumo(mySales)};
   });
 }
 
-function baRenderRanking(sortKey){
+async function baRenderRanking(sortKey){
   baDashRankSort = sortKey;
   document.querySelectorAll('#ba-dash-rank-sort .period-chip').forEach(c=>c.classList.toggle('active', c.dataset.sort===sortKey));
-  const data = baTeamRankingData();
+  const data = await baTeamRankingData();
   const sorted = [...data].sort((a,b)=>b[sortKey]-a[sortKey]);
   const max = Math.max(...sorted.map(b=>b[sortKey]), 1);
   document.getElementById('ba-dash-ranking').innerHTML = sorted.length ? sorted.map((b,i)=>{
@@ -3741,7 +3741,7 @@ function baRenderClientes(){
   }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.')}</p>`;
 }
 
-function baOpenClientDetail(name){
+async function baOpenClientDetail(name){
   const client = baMyClients().find(c=>c.name===name);
   if(!client) return; // proteção: barbeiro não pode abrir cliente que não é dele
   const sales = baMySales().filter(s=>s.client===name).sort((a,b)=> b.date.localeCompare(a.date));
@@ -3753,9 +3753,9 @@ function baOpenClientDetail(name){
   document.getElementById('ba-cli-tel').textContent = client.phone.replace(/^55(\d{2})(\d{5})(\d{4})$/,'($1) $2-$3');
   document.getElementById('ba-cli-ultimo').textContent = lastSale ? `${lastSale.service} · ${baFormatDate(lastSale.date)}` : '—';
   document.getElementById('ba-cli-proxima').textContent = lastSale ? `~ ${baAddDays(lastSale.date, BARBER_RETURN_DAYS)} (média de ${BARBER_RETURN_DAYS} dias)` : '—';
-  // média das avaliações desse cliente (dos agendamentos concluídos no site)
-  const rated = (typeof primeGetAppointments==='function'?primeGetAppointments():[])
-    .filter(a=>a.clientEmail && client.email && a.clientEmail.toLowerCase()===client.email.toLowerCase() && a.rating);
+  // média das avaliações desse cliente entre os MEUS atendimentos (dos agendamentos concluídos no site)
+  const rated = (await baFetchReviews())
+    .filter(a=>a.clientEmail && client.email && a.clientEmail.toLowerCase()===client.email.toLowerCase());
   document.getElementById('ba-cli-rating').textContent = rated.length
     ? `${'★'.repeat(Math.round(rated.reduce((s,a)=>s+a.rating,0)/rated.length))} (${(rated.reduce((s,a)=>s+a.rating,0)/rated.length).toFixed(1)})`
     : 'Sem avaliações';
@@ -4037,35 +4037,32 @@ function baCancelClientPlan(clientName){
 let baAgendaDay = null;
 
 const ATENDIMENTO_AUTO_START_MIN = 6;
-function baAutoStartDueAppointments(){
-  const appts = primeGetAppointments();
+async function baAutoStartDueAppointments(){
+  const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baCurrentBarberId).eq('status','confirmado').is('iniciado_em', null);
+  if(error){ console.error('baAutoStartDueAppointments', error); return; }
   const now = Date.now();
-  let changed = false;
-  appts.forEach(a=>{
-    if(a.barber===baCurrentBarber && a.status==='confirmado' && !a.iniciadoEm){
-      const schedTime = new Date(a.day+'T'+a.time+':00').getTime();
-      if(now - schedTime >= ATENDIMENTO_AUTO_START_MIN*60*1000){
-        a.iniciadoEm = schedTime;
-        changed = true;
-      }
-    }
+  const due = (data||[]).filter(a=>{
+    const schedTime = new Date(a.day+'T'+a.time+':00').getTime();
+    return now - schedTime >= ATENDIMENTO_AUTO_START_MIN*60*1000;
   });
-  if(changed) primeSaveAppointments(appts);
+  await Promise.all(due.map(a=>{
+    const schedTime = new Date(a.day+'T'+a.time+':00').getTime();
+    return sb.from('appointments').update({iniciado_em: new Date(schedTime).toISOString()}).eq('id', a.id);
+  }));
 }
-function baRenderAgenda(){
-  baAutoStartDueAppointments();
+async function baRenderAgenda(){
+  await baAutoStartDueAppointments();
   baBuildAgendaDays();
-  baBuildAgendaTimes();
-  baRenderPending();
+  await baBuildAgendaTimes();
+  await baRenderPending();
   baRenderNotifs();
 }
 
 // solicitações pendentes (aguardando o barbeiro aceitar)
-function baRenderPending(){
+async function baRenderPending(){
   const wrap = document.getElementById('ba-pending-wrap');
   if(!wrap) return;
-  const pending = (typeof primeGetAppointments==='function'?primeGetAppointments():[])
-    .filter(a=>a.barber===baCurrentBarber && a.status==='pendente')
+  const pending = (await baFetchPendingAppointments())
     .sort((a,b)=>(a.day+a.time).localeCompare(b.day+b.time));
   if(!pending.length){ wrap.innerHTML=''; return; }
   wrap.innerHTML = `<div class="ba-slabel" style="margin-top:.4rem;color:#E5574B">Solicitações pendentes (${pending.length})</div>` +
@@ -4077,11 +4074,11 @@ function baRenderPending(){
       </div>`).join('');
 }
 
-function baAcceptAppt(id){
-  const ap = primeUpdateAppointment(id, {status:'confirmado'});
+async function baAcceptAppt(id){
+  const ap = await primeUpdateAppointment(id, {status:'confirmado'});
   if(ap && ap.clientEmail){
     primeAddNotif({forRole:'client', target:ap.clientEmail, type:'confirmado', apptId:id,
-      text:`${ap.barber} confirmou seu horário de ${ap.dayLabel} às ${ap.time}. Te espero!`});
+      text:`${apBarberName(ap)} confirmou seu horário de ${ap.dayLabel} às ${ap.time}. Te espero!`});
   }
   baRenderAgenda();
   if(typeof caRenderNextAppointment==='function') caRenderNextAppointment();
@@ -4094,8 +4091,8 @@ function baElapsedMin(ts){ return Math.max(0, Math.floor((Date.now()-ts)/60000))
 function baGetActiveCarts(){ try{ return JSON.parse(localStorage.getItem('primeActiveCarts')||'{}'); }catch(e){ return {}; } }
 function baSaveActiveCarts(c){ localStorage.setItem('primeActiveCarts', JSON.stringify(c)); }
 
-function baIniciarAtendimento(apptId){
-  primeUpdateAppointment(apptId, {iniciadoEm: Date.now()});
+async function baIniciarAtendimento(apptId){
+  await primeUpdateAppointment(apptId, {iniciadoEm: Date.now()});
   const carts = baGetActiveCarts();
   if(!carts[apptId]) carts[apptId] = [];
   baSaveActiveCarts(carts);
@@ -4103,8 +4100,8 @@ function baIniciarAtendimento(apptId){
 }
 
 let baCarrinhoApptId = null;
-function baOpenCarrinho(apptId){
-  const appt = primeGetAppointmentById(apptId);
+async function baOpenCarrinho(apptId){
+  const appt = await primeFetchAppointmentById(apptId);
   if(!appt) return;
   baCarrinhoApptId = apptId;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
@@ -4161,8 +4158,8 @@ function baCartRemoveItem(productId){
   baSaveActiveCarts(carts);
   baRenderCartItems();
 }
-function baRenderCartItems(){
-  const appt = primeGetAppointmentById(baCarrinhoApptId);
+async function baRenderCartItems(){
+  const appt = await primeFetchAppointmentById(baCarrinhoApptId);
   if(!appt) return;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
   const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
@@ -4191,8 +4188,8 @@ function baRenderCartItems(){
   document.getElementById('cart-sum-total').textContent = baFormatMoney(svcValue+produtosTotal);
 }
 
-function baFinalizarCarrinho(){
-  const appt = primeGetAppointmentById(baCarrinhoApptId);
+async function baFinalizarCarrinho(){
+  const appt = await primeFetchAppointmentById(baCarrinhoApptId);
   if(!appt) return;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
   const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
@@ -4275,16 +4272,15 @@ function baBuildAgendaDays(){
   }
 }
 
-function baBuildAgendaTimes(){
-  baAutoStartDueAppointments();
+async function baBuildAgendaTimes(){
+  await baAutoStartDueAppointments();
   const tlBox = document.getElementById('ba-agenda-timeline');
   if(!tlBox) return;
   tlBox.innerHTML = '';
   if(!baAgendaDay) return;
   const d = new Date(baAgendaDay+'T12:00:00');
   const me = baGetRoster().find(b=>b.name===baCurrentBarber);
-  const appts = (typeof primeGetAppointments==='function' ? primeGetAppointments() : [])
-    .filter(a=>a.day===baAgendaDay && a.barber===baCurrentBarber && a.status!=='cancelado');
+  const appts = await baFetchAgendaAppointments(baAgendaDay);
   const h = resolveBarberHours(me, d.getDay());
   if(!h){
     tlBox.innerHTML = '<p style="color:var(--prata-dim);padding:.6rem 0">Você está de folga neste dia.</p>';
@@ -4397,30 +4393,42 @@ function baToggleEncaixe(){
 }
 
 let baEncSelectedClient = null;
-function baEncSearchClient(){
-  const q = document.getElementById('ba-enc-search').value.trim().toLowerCase();
+let baEncSearchResults = [];
+let baEncSearchToken = 0;
+async function baEncSearchClient(){
+  const q = document.getElementById('ba-enc-search').value.trim();
   const box = document.getElementById('ba-enc-results');
   if(!q || q.length < 2){ box.innerHTML=''; return; }
-  const clients = baGetClients();
-  const matches = clients.filter(c=>
-    c.name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q)
-  ).slice(0,5);
-  box.innerHTML = matches.length ? matches.map(c=>
-    `<div class="ba-enc-result" onclick="baEncSelectClient('${c.name.replace(/'/g,"\\'")}')">
+  const myToken = ++baEncSearchToken;
+  const { data, error } = await sb.from('clients').select('id,name,phone,email,instagram')
+    .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`).limit(5);
+  if(myToken !== baEncSearchToken) return; // resultado desatualizado, uma busca mais nova já está em andamento
+  baEncSearchResults = data || [];
+  box.innerHTML = baEncSearchResults.length ? baEncSearchResults.map(c=>
+    `<div class="ba-enc-result" onclick="baEncSelectClient('${c.id}')">
       ${c.name} <span class="enc-sub">${c.instagram||''} · ${c.email||''}</span>
     </div>`
-  ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
+  ).join('') + `<div class="ba-enc-result" style="color:var(--prata-dim)" onclick="baEncUseTypedName('${q.replace(/'/g,"\\'")}')">Nenhum desses — usar "${q}" sem cadastro</div>`
+    : `<div class="ba-enc-result" onclick="baEncUseTypedName('${q.replace(/'/g,"\\'")}')">Cliente sem cadastro: usar "${q}"</div>`;
 }
-function baEncSelectClient(name){
-  const client = baGetClients().find(c=>c.name===name);
+function baEncSelectClient(id){
+  const client = baEncSearchResults.find(c=>c.id===id);
   if(!client) return;
   baEncSelectedClient = client;
+  baEncRenderSelected();
+}
+function baEncUseTypedName(name){
+  baEncSelectedClient = { id:null, name, email:null, instagram:null };
+  baEncRenderSelected();
+}
+function baEncRenderSelected(){
+  const client = baEncSelectedClient;
   document.getElementById('ba-enc-search').value = '';
   document.getElementById('ba-enc-results').innerHTML = '';
   document.getElementById('ba-enc-selected').style.display = 'block';
   document.getElementById('ba-enc-selected').innerHTML =
     `<div class="ba-card" style="padding:.6rem .8rem;margin:0;display:flex;align-items:center;justify-content:space-between">
-      <div><strong style="color:var(--prata)">${client.name}</strong> <span style="font-size:.78rem;color:var(--prata-dim)">${client.instagram||''}</span></div>
+      <div><strong style="color:var(--prata)">${client.name}</strong> <span style="font-size:.78rem;color:var(--prata-dim)">${client.instagram||(client.id?'':'sem cadastro')}</span></div>
       <button style="background:none;border:none;color:#E5574B;cursor:pointer;font-size:.85rem" onclick="baEncClearClient()">✕</button>
     </div>`;
 }
@@ -4429,7 +4437,7 @@ function baEncClearClient(){
   document.getElementById('ba-enc-selected').style.display = 'none';
   document.getElementById('ba-enc-selected').innerHTML = '';
 }
-function baSaveEncaixe(){
+async function baSaveEncaixe(){
   const errEl = document.getElementById('ba-enc-err');
   const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; };
   errEl.style.display='none';
@@ -4442,22 +4450,12 @@ function baSaveEncaixe(){
   const notify = document.getElementById('ba-enc-notify').checked;
   const d = new Date(baAgendaDay+'T12:00:00');
   const dayLabel = `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-  const appt = {
-    services: svcs,
-    day: baAgendaDay,
-    dayLabel: dayLabel,
-    time: time,
-    duration: dur,
-    name: baEncSelectedClient.name,
-    clientEmail: baEncSelectedClient.email || null,
-    barber: baCurrentBarber,
-    status: 'confirmado',
-    isEncaixe: true,
-    id: primeNextId()
-  };
-  const list = primeGetAppointments();
-  list.unshift(appt);
-  primeSaveAppointments(list);
+  const appt = await primeCreateAppointment({
+    services: svcs, day: baAgendaDay, dayLabel: dayLabel, time: time, duration: dur,
+    name: baEncSelectedClient.name, clientId: baEncSelectedClient.id, clientEmail: baEncSelectedClient.email || null,
+    barberId: baCurrentBarberId, status: 'confirmado', isEncaixe: true
+  });
+  if(!appt){ fail('Não foi possível salvar o encaixe. Tente de novo.'); return; }
   if(notify && baEncSelectedClient.email){
     primeAddNotif({forRole:'client', target:baEncSelectedClient.email, type:'encaixe', apptId:appt.id,
       text:`${baCurrentBarber} encaixou você na agenda: ${svcs.join(' + ')} — ${dayLabel} às ${time}`});
@@ -4913,10 +4911,7 @@ async function baSaveEditBarber(i){
     localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
     const clients = baGetClients().map(c=> c.barber===oldName ? {...c, barber:newName} : c);
     localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(clients));
-    if(typeof primeGetAppointments==='function' && typeof primeSaveAppointments==='function'){
-      const appts = primeGetAppointments().map(a=> a.barber===oldName ? {...a, barber:newName} : a);
-      primeSaveAppointments(appts);
-    }
+    // agendamentos não precisam de propagação — a tabela guarda barber_id (FK), o nome é resolvido ao vivo via apBarberName()
   }
   if(isSelf){
     baCurrentBarber = newName;
@@ -5019,11 +5014,14 @@ function baPublicName(fullName){
   if(parts.length===1) return parts[0];
   return `${parts[0]} ${parts[parts.length-1].charAt(0)}.`;
 }
-function renderBarberPublicReviews(name){
+async function renderBarberPublicReviews(name){
   const box = document.getElementById('bp-reviews');
   if(!box) return;
-  const reviews = primeGetAppointments()
-    .filter(a=>a.barber===name && a.rating)
+  const barberEntry = baGetRoster().find(b=>b.name===name);
+  const { data, error } = await sb.from('public_reviews').select('*').eq('barber_id', barberEntry && barberEntry.id);
+  if(error) console.error('renderBarberPublicReviews', error);
+  const reviews = (data||[])
+    .map(r=>({ name:r.client_name, day:r.day, time:r.time, dayLabel:r.day_label, rating:r.rating, ratingComment:r.rating_comment }))
     .sort((a,b)=> (b.day+b.time).localeCompare(a.day+a.time));
   if(!reviews.length){
     box.innerHTML = '<p style="color:var(--prata-dim);font-size:.85rem">Ainda sem avaliações públicas.</p>';
