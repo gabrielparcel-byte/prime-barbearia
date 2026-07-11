@@ -154,12 +154,12 @@
 - Custo total estimado: **R$0 pra começar** (Supabase free + Pages/Vercel/Netlify free), só o domínio opcional (~R$40-60/ano) se quiser; escalar pra ~R$125/mês (Supabase Pro) só quando o negócio já estiver crescendo o suficiente pra bancar fácil.
 
 ### LGPD e segurança
-- [ ] Política de privacidade (o que é coletado, por quê, por quanto tempo)
-- [ ] Consentimento explícito no cadastro do cliente (checkbox de aceite)
-- [ ] Minimização de dados — hoje já coletamos só o essencial (nome, telefone, e opcionalmente idade/e-mail/Instagram); manter esse princípio no banco
-- [ ] Direito do cliente a solicitar exportação e exclusão dos próprios dados
-- [ ] Controle de acesso — cada barbeiro só acessa a própria carteira de clientes (hoje já é assim client-side; no banco precisa virar regra de verdade, não só filtro visual)
-- [ ] Criptografia em trânsito e em repouso (gerenciado automaticamente por Supabase/Firebase, mas confirmar configuração)
+- [x] Política de privacidade ✅ *(2026-07-11)* — modal acessível pelo rodapé, cobre dados coletados, finalidade/base legal (art. 7º), compartilhamento (Supabase como operadora), retenção, direitos do titular (art. 18) e canal de contato. Baseada em pesquisa da Lei 13.709/2018 e Resolução CD/ANPD nº 2/2022 (regras simplificadas pra pequeno porte) — **rascunho informado, não é parecer jurídico; recomendo revisão de um advogado antes de tratar como definitiva**, principalmente se o negócio crescer ou passar a processar pagamento no site
+- [x] Consentimento explícito no cadastro do cliente ✅ *(2026-07-11)* — checkbox próprio e destacado (não embutido em outro texto), obrigatório pra criar conta, conforme art. 9º
+- [x] Minimização de dados — já coletamos só o essencial (nome, telefone, e opcionalmente idade/e-mail/Instagram); sem CPF, endereço completo ou dado sensível
+- [ ] Direito do cliente a solicitar exportação e exclusão dos próprios dados — hoje só via canal de contato manual (WhatsApp/Instagram), não self-service no app
+- [x] Controle de acesso — RLS real no banco desde a Fase 6A/6B: cada barbeiro só lê/edita os próprios agendamentos; cliente só os próprios dados. *(nota: a policy `clients_readable_by_barbers` ainda deixa qualquer barbeiro logado ler o perfil de qualquer cliente, não só os que ele atendeu — considerar restringir numa fase futura)*
+- [x] Criptografia em trânsito e em repouso — padrão do Supabase (TLS + AES-256), nenhuma configuração adicional necessária
 - [ ] Plano básico de resposta a incidente (o que fazer se vazar dado)
 
 ---
