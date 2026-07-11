@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Prime Barbearia — Maringá</title>
+<script>
+  // iOS Safari ignora "user-scalable=no" da viewport de propósito — só dá pra travar
+  // pinça e duplo-toque via JS mesmo. Sem isso o zoom acidental "desalinha" a tela toda.
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+  document.addEventListener('gesturechange', function(e){ e.preventDefault(); });
+  document.addEventListener('touchmove', function(e){ if(e.touches.length > 1) e.preventDefault(); }, { passive:false });
+  let primeLastTouchEnd = 0;
+  document.addEventListener('touchend', function(e){
+    const now = Date.now();
+    if(now - primeLastTouchEnd <= 300) e.preventDefault();
+    primeLastTouchEnd = now;
+  }, { passive:false });
+</script>
 <meta name="description" content="Um novo conceito de barbearia em Maringá. Cortes clássicos e modernos, barbaterapia relaxante e excelência em cada detalhe. Av. Pedro Taques, 2824.">
 <link rel="canonical" href="https://gabrielparcel-byte.github.io/prime-barbearia/">
 
@@ -96,7 +109,7 @@ html::-webkit-scrollbar-track{background:transparent}
 html::-webkit-scrollbar-thumb{background:transparent;border-radius:9px;transition:background .4s ease}
 html:hover::-webkit-scrollbar-thumb{background:rgba(53,197,88,.15)}
 html.scrolling::-webkit-scrollbar-thumb{background:rgba(53,197,88,.6);box-shadow:0 0 8px rgba(53,197,88,.5)}
-body{background:var(--verde-noite);color:var(--prata);font-family:var(--font-body);font-weight:300;line-height:1.6;overflow-x:hidden}
+body{background:var(--verde-noite);color:var(--prata);font-family:var(--font-body);font-weight:300;line-height:1.6;overflow-x:hidden;touch-action:manipulation}
 ::selection{background:var(--verde-prime);color:#fff}
 
 .eyebrow{font-weight:500;font-size:.72rem;letter-spacing:.42em;text-transform:uppercase;color:var(--dourado)}
