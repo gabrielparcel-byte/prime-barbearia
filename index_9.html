@@ -54,6 +54,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+<!-- Supabase (Fase A — auth de clientes e barbeiros, roster de barbeiros) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const sb = window.supabase.createClient(
+    'https://yojvzwkvtedxqlohpuug.supabase.co',
+    'sb_publishable_Sr6YB54aCIQVdvhdrNWlSA_PMjlAdMG'
+  );
+</script>
+
 <style>
 :root{
   /* Verdes — ação, marca, sucesso */
@@ -1125,7 +1135,6 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-field" id="ca-f-pass"><label>Senha</label><input type="password" id="ca-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <button class="ca-btn" onclick="primeBtnLoading(this,400);caLogin()">Entrar</button>
         <p class="ca-login-err" id="ca-login-err" style="display:none;color:var(--erro);font-size:.82rem;margin-top:.8rem">E-mail ou senha incorretos.</p>
-        <p class="ca-signup" style="margin-top:.8rem;font-size:.72rem;opacity:.6">Login de exemplo: cliente@prime.com / 123456</p>
         <p class="ca-signup">Ainda não tem conta? <a href="#" onclick="caShowSignup();return false">Criar conta</a></p>
       </div>
 
@@ -1133,12 +1142,14 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-form-title">Criar sua conta</div>
         <div class="ca-field" id="ca-f-su-nome"><label>Nome</label><input type="text" id="ca-su-nome" placeholder="Seu nome"><span class="err">Digite seu nome</span></div>
         <div class="ca-field" id="ca-f-su-email"><label>E-mail</label><input type="email" id="ca-su-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
+        <div class="ca-field" id="ca-f-su-pass"><label>Senha</label><input type="password" id="ca-su-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <div class="ca-row">
           <div class="ca-field" id="ca-f-su-phone"><label>Telefone</label><input type="tel" id="ca-su-phone" placeholder="(44) 90000-0000"><span class="err">Telefone válido</span></div>
           <div class="ca-field" id="ca-f-su-age"><label>Idade</label><input type="number" id="ca-su-age" placeholder="18" min="1" max="120"><span class="err">Idade válida</span></div>
         </div>
         <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
         <div class="ca-field"><label>Código de indicação (opcional)</label><input type="text" id="ca-su-ref" placeholder="Ex: JOA4F9K" style="text-transform:uppercase"></div>
+        <p class="ca-login-err" id="ca-signup-err" style="display:none;color:var(--erro);font-size:.82rem">Não foi possível criar a conta. Verifique os dados ou tente outro e-mail.</p>
         <button class="ca-btn" onclick="primeBtnLoading(this,400);caSignup()">Criar conta</button>
         <p class="ca-signup">Já tem conta? <a href="#" onclick="caShowLogin();return false">Entrar</a></p>
       </div>
@@ -1325,12 +1336,19 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 
 <script>
 // ══ Persistência (localStorage) ══
-const PRIME_KEYS = {loggedIn:'primeLoggedIn', account:'primeAccount', appts:'primeAppointments', notifs:'primeNotifs', seq:'primeSeq'};
-const DEMO_ACCOUNT = {email:'cliente@prime.com', pass:'123456'};
-function primeIsLoggedIn(){ return localStorage.getItem(PRIME_KEYS.loggedIn)==='1'; }
-function primeSetLoggedIn(v){ if(v) localStorage.setItem(PRIME_KEYS.loggedIn,'1'); else localStorage.removeItem(PRIME_KEYS.loggedIn); }
-function primeSaveAccount(acc){ localStorage.setItem(PRIME_KEYS.account, JSON.stringify(acc)); }
-function primeGetAccount(){ try{ return JSON.parse(localStorage.getItem(PRIME_KEYS.account)||'null'); }catch(e){ return null; } }
+const PRIME_KEYS = {appts:'primeAppointments', notifs:'primeNotifs', seq:'primeSeq'};
+let primeAccountCache = null; // mirror em memória da linha do cliente logado na tabela `clients` do Supabase
+function primeIsLoggedIn(){ return !!primeAccountCache; }
+function primeSetLoggedIn(v){ /* no-op — login state vem da sessão do Supabase Auth agora */ }
+function primeSaveAccount(acc){
+  primeAccountCache = acc; // otimista: atualiza o cache antes da resposta da rede
+  if(!acc || !acc.id) return;
+  sb.from('clients').upsert({
+    id: acc.id, email: acc.email, name: acc.name, phone: acc.phone, age: acc.age,
+    instagram: acc.instagram, favorite_barber: acc.favoriteBarber, referral_code: acc.referralCode
+  }).then(({error})=>{ if(error) console.error('primeSaveAccount', error); });
+}
+function primeGetAccount(){ return primeAccountCache; }
 function primeGetAppointments(){ try{ return JSON.parse(localStorage.getItem(PRIME_KEYS.appts)||'[]'); }catch(e){ return []; } }
 function primeSaveAppointments(list){ localStorage.setItem(PRIME_KEYS.appts, JSON.stringify(list)); }
 function primeNextId(){ const n = (parseInt(localStorage.getItem(PRIME_KEYS.seq)||'0',10)+1); localStorage.setItem(PRIME_KEYS.seq, String(n)); return n; }
@@ -1518,10 +1536,7 @@ function primeClearBrindeChoice(email){
 }
 // só retorna quem atende clientes de fato (barbeiros + admins vinculados como barbeiro, ex-dono/gerente fica de fora)
 function primeGetBarberRoster(){
-  try{
-    const all = JSON.parse(localStorage.getItem('barberRoster')||'[]');
-    return all.filter(b=> b.isBarber !== false);
-  }catch(e){ return []; }
+  return (typeof baRosterCache!=='undefined' ? baRosterCache : []).filter(b=> b.isBarber !== false);
 }
 // seed de demonstração: algumas reservas futuras já ocupadas, pra mostrar o bloqueio de horário
 function primeSeedDemoAppointments(){
@@ -1886,7 +1901,7 @@ function caResumeBookingIfPending(){
   renderBarberStep();
   render();
 }
-function caLogout(){document.getElementById('clientApp').classList.remove('logged');primeSetLoggedIn(false);caShowLogin();caShow('ca-screen-login');document.querySelectorAll('#clientApp .ca-tab,#clientApp .tb-link').forEach(t=>t.classList.remove('active'));document.querySelector('#clientApp .ca-tab[data-tab=home]').classList.add('active');document.querySelector('#clientApp .tb-link[data-tab=home]').classList.add('active');updateNavAuthUI()}
+function caLogout(){sb.auth.signOut();primeAccountCache=null;document.getElementById('clientApp').classList.remove('logged');primeSetLoggedIn(false);caShowLogin();caShow('ca-screen-login');document.querySelectorAll('#clientApp .ca-tab,#clientApp .tb-link').forEach(t=>t.classList.remove('active'));document.querySelector('#clientApp .ca-tab[data-tab=home]').classList.add('active');document.querySelector('#clientApp .tb-link[data-tab=home]').classList.add('active');updateNavAuthUI()}
 function caTab(tab){
   if(tab==='agendar'){ caGoBook(); return; }
   const m={home:'ca-screen-home',hist:'ca-screen-hist',perfil:'ca-screen-perfil'};
@@ -1902,18 +1917,20 @@ function caTab(tab){
   }
 }
 function caGoBook(){ openModal(); }
-function caLogin(){
+async function caLogin(){
   const e=document.getElementById('ca-email'),p=document.getElementById('ca-pass'),fe=document.getElementById('ca-f-email'),fp=document.getElementById('ca-f-pass'),err=document.getElementById('ca-login-err');
   let ok=true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.value)){fe.classList.add('invalid');ok=false}else fe.classList.remove('invalid');
   if(p.value.length<6){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
   if(!ok){ err.style.display='none'; return; }
-  const isDemo = e.value.trim().toLowerCase()===DEMO_ACCOUNT.email && p.value===DEMO_ACCOUNT.pass;
-  if(isDemo){
-    err.style.display='none';
-    if(!primeGetAccount()) primeSaveAccount({email:DEMO_ACCOUNT.email});
-    caEnter();
-  } else { err.style.display='block'; }
+  const { data, error } = await sb.auth.signInWithPassword({ email: e.value.trim(), password: p.value });
+  if(error){ err.style.display='block'; return; }
+  const { data: profile } = await sb.from('clients').select('*').eq('id', data.user.id).single();
+  err.style.display='none';
+  primeAccountCache = profile ? { id:profile.id, email:profile.email, name:profile.name, phone:profile.phone,
+    age:profile.age, instagram:profile.instagram, favoriteBarber:profile.favorite_barber, referralCode:profile.referral_code }
+    : { id:data.user.id, email:data.user.email };
+  caEnter();
 }
 function caRenderReferralCard(){
   const box = document.getElementById('ca-referral-card');
@@ -2109,19 +2126,25 @@ function caSavePerfil(){
   document.getElementById('ca-perfil-saved').style.display = 'block';
   caRenderHomeBarbeiro();
 }
-function caSignup(){
-  const nome=document.getElementById('ca-su-nome'), email=document.getElementById('ca-su-email'), phone=document.getElementById('ca-su-phone'), age=document.getElementById('ca-su-age'), ig=document.getElementById('ca-su-ig');
-  const fn=document.getElementById('ca-f-su-nome'), fe=document.getElementById('ca-f-su-email'), fp=document.getElementById('ca-f-su-phone'), fa=document.getElementById('ca-f-su-age'), fi=document.getElementById('ca-f-su-ig');
+async function caSignup(){
+  const nome=document.getElementById('ca-su-nome'), email=document.getElementById('ca-su-email'), pass=document.getElementById('ca-su-pass'), phone=document.getElementById('ca-su-phone'), age=document.getElementById('ca-su-age'), ig=document.getElementById('ca-su-ig');
+  const fn=document.getElementById('ca-f-su-nome'), fe=document.getElementById('ca-f-su-email'), fpass=document.getElementById('ca-f-su-pass'), fp=document.getElementById('ca-f-su-phone'), fa=document.getElementById('ca-f-su-age'), fi=document.getElementById('ca-f-su-ig'), err=document.getElementById('ca-signup-err');
   let ok=true;
   if(!nome.value.trim()){fn.classList.add('invalid');ok=false}else fn.classList.remove('invalid');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)){fe.classList.add('invalid');ok=false}else fe.classList.remove('invalid');
+  if(pass.value.length<6){fpass.classList.add('invalid');ok=false}else fpass.classList.remove('invalid');
   if(phone.value.replace(/\D/g,'').length<10){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
   const ageNum=parseInt(age.value,10);
   if(!ageNum||ageNum<1||ageNum>120){fa.classList.add('invalid');ok=false}else fa.classList.remove('invalid');
   if(!ig.value.trim()){fi.classList.add('invalid');ok=false}else fi.classList.remove('invalid');
-  if(!ok) return;
+  if(!ok){ err.style.display='none'; return; }
   const newEmail = email.value.trim();
-  primeSaveAccount({name:nome.value.trim(), email:newEmail, phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim()});
+  const { data, error } = await sb.auth.signUp({ email: newEmail, password: pass.value });
+  if(error){ err.style.display='block'; return; }
+  err.style.display='none';
+  const acc = { id:data.user.id, name:nome.value.trim(), email:newEmail, phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim() };
+  await sb.from('clients').insert({ id:acc.id, email:acc.email, name:acc.name, phone:acc.phone, age:acc.age, instagram:acc.instagram });
+  primeAccountCache = acc;
   const refInput = document.getElementById('ca-su-ref');
   const refCode = refInput ? refInput.value.trim().toUpperCase() : '';
   if(refCode){
@@ -2133,7 +2156,17 @@ function caSignup(){
   }
   caEnter();
 }
-if(primeIsLoggedIn()){ caEnter(); }
+(async function primeBootstrapAuth(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){
+    const { data: profile } = await sb.from('clients').select('*').eq('id', session.user.id).single();
+    if(profile){
+      primeAccountCache = { id:profile.id, email:profile.email, name:profile.name, phone:profile.phone,
+        age:profile.age, instagram:profile.instagram, favoriteBarber:profile.favorite_barber, referralCode:profile.referral_code };
+      caEnter();
+    }
+  }
+})();
 document.querySelectorAll('[data-open-login]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();caOpen()}));
 document.querySelectorAll('[data-open-account]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();caOpen();caTab('home');}));
 addEventListener('keydown',e=>{if(e.key==='Escape')caClose()});
@@ -2548,12 +2581,24 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         </div>
         <div class="ba-logo">PRIME</div>
         <div class="ba-sub">Área do barbeiro</div>
-        <div class="ba-form-title">Entrar</div>
-        <div class="ba-field" id="ba-f-email"><label>E-mail</label><input type="email" id="ba-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
-        <div class="ba-field" id="ba-f-pass"><label>Senha</label><input type="password" id="ba-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
-        <button class="ba-btn" onclick="primeBtnLoading(this,400);baLogin()">Entrar</button>
-        <p class="ba-err" id="ba-login-err">E-mail ou senha incorretos.</p>
-        <p class="ba-hint">Login de exemplo — admin: nathan@prime.com / 123456 · barbeiro: lucas@prime.com / 123456</p>
+        <div id="ba-login-form">
+          <div class="ba-form-title">Entrar</div>
+          <div class="ba-field" id="ba-f-email"><label>E-mail</label><input type="email" id="ba-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
+          <div class="ba-field" id="ba-f-pass"><label>Senha</label><input type="password" id="ba-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
+          <button class="ba-btn" onclick="primeBtnLoading(this,400);baLogin()">Entrar</button>
+          <p class="ba-err" id="ba-login-err">E-mail ou senha incorretos.</p>
+          <p class="ba-hint">Recebeu um código de convite? <a href="#" onclick="baShowInviteForm();return false">Tenho um convite</a></p>
+        </div>
+        <div id="ba-invite-form" style="display:none">
+          <div class="ba-form-title">Cadastro com convite</div>
+          <div class="ba-field" id="ba-f-inv-code"><label>Código de convite</label><input type="text" id="ba-inv-code" placeholder="Ex: A1B2C3D4" style="text-transform:uppercase"><span class="err">Digite o código recebido do admin</span></div>
+          <div class="ba-field" id="ba-f-inv-name"><label>Nome</label><input type="text" id="ba-inv-name" placeholder="Seu nome"><span class="err">Digite seu nome</span></div>
+          <div class="ba-field" id="ba-f-inv-email"><label>E-mail</label><input type="email" id="ba-inv-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
+          <div class="ba-field" id="ba-f-inv-pass"><label>Senha</label><input type="password" id="ba-inv-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
+          <button class="ba-btn" onclick="primeBtnLoading(this,400);baRedeemInvite()">Criar minha conta</button>
+          <p class="ba-err" id="ba-invite-err">Código inválido ou já utilizado.</p>
+          <p class="ba-hint">Já tem conta? <a href="#" onclick="baShowLoginForm();return false">Entrar</a></p>
+        </div>
       </div>
     </div>
 
@@ -2826,10 +2871,10 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         </div>
 
         <div class="ba-card" id="ba-admin-panel" style="display:none">
-          <div class="ba-slabel" style="margin-top:0">Adicionar barbeiro</div>
+          <div class="ba-slabel" style="margin-top:0">Convidar barbeiro</div>
+          <p style="color:var(--prata-dim);font-size:.8rem;margin-bottom:.9rem">Gere um código de convite — a pessoa cria a própria conta e senha na tela "Tenho um convite" da área do barbeiro.</p>
           <div class="ba-field" id="ba-f-nb-name"><label>Nome</label><input type="text" id="ba-nb-name" placeholder="Nome do barbeiro"><span class="err">Digite um nome</span></div>
-          <div class="ba-field" id="ba-f-nb-email"><label>E-mail</label><input type="email" id="ba-nb-email" placeholder="email@prime.com"><span class="err">Digite um e-mail válido</span></div>
-          <div class="ba-field" id="ba-f-nb-pass"><label>Senha</label><input type="password" id="ba-nb-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
+          <div class="ba-field" id="ba-f-nb-email"><label>E-mail (referência)</label><input type="email" id="ba-nb-email" placeholder="email@prime.com"><span class="err">Digite um e-mail válido</span></div>
           <div class="ba-field"><label>Função</label>
             <select id="ba-nb-role">
               <option value="barbeiro">Barbeiro</option>
@@ -2840,8 +2885,9 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
             <input type="checkbox" id="ba-nb-isbarber" checked style="width:16px;height:16px;accent-color:var(--dourado)">
             Atende clientes como barbeiro (aparece pra escolha dos clientes)
           </label>
-          <button class="ba-btn" style="max-width:100%" onclick="baCreateBarber()">Adicionar à equipe</button>
+          <button class="ba-btn" style="max-width:100%" onclick="baCreateBarber()">Gerar convite</button>
           <p class="ba-err" id="ba-nb-err">Já existe um barbeiro cadastrado com esse e-mail.</p>
+          <p id="ba-nb-invite-result" style="display:none;color:var(--prata-dim);font-size:.85rem;margin-top:.8rem;line-height:1.5"></p>
           <div class="ba-slabel">Equipe atual</div>
           <div id="ba-roster-list"></div>
         </div>
@@ -2884,31 +2930,23 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 </div>
 
 <script>
-const BARBER_KEYS = {loggedInEmail:'barberLoggedInEmail', sales:'barberSales', clients:'barberClients', roster:'barberRoster'};
+const BARBER_KEYS = {sales:'barberSales', clients:'barberClients'};
 const BARBER_COMMISSION_PCT = 0.6; // 60% barbeiro / 40% barbearia
 const BARBER_RETURN_DAYS = 15; // estimativa média de retorno pro próximo corte
 let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a cliente/venda é filtrado por ele
 let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê o painel de gerenciar equipe
+let baRosterCache = []; // mirror em memória da tabela `barbers` do Supabase
 
-function baIsLoggedIn(){ return !!localStorage.getItem(BARBER_KEYS.loggedInEmail); }
-function baSetLoggedInEmail(email){ if(email) localStorage.setItem(BARBER_KEYS.loggedInEmail, email); else localStorage.removeItem(BARBER_KEYS.loggedInEmail); }
+function baIsLoggedIn(){ return !!baCurrentBarber; }
 
-function baSeedRoster(){
-  if(localStorage.getItem(BARBER_KEYS.roster)) return;
-  localStorage.setItem(BARBER_KEYS.roster, JSON.stringify([
-    {name:'Nathan', email:'nathan@prime.com', pass:'123456', role:'admin', isBarber:true},
-    {name:'Lucas Ferreira', email:'lucas@prime.com', pass:'123456', role:'barbeiro', isBarber:true}
-  ]));
+async function baLoadRoster(){
+  const { data, error } = await sb.from('barbers').select('*').order('created_at');
+  if(error){ console.error('baLoadRoster', error); return; }
+  baRosterCache = (data||[]).map(b=>({ id:b.id, name:b.name, email:b.email, role:b.role, isBarber:b.is_barber,
+    commissionPct:b.commission_pct, monthlyGoal:b.monthly_goal, hours:b.hours }));
+  renderTeamSection();
 }
-// corrige cadastros salvos antes de existir o campo "isBarber" — por padrão todo mundo (inclusive admin) atende como barbeiro
-function baMigrateRoster(){
-  const roster = baGetRoster();
-  if(roster.length && roster.some(b=>b.isBarber===undefined)){
-    baSaveRoster(roster.map(b=> b.isBarber===undefined ? {...b, isBarber:true} : b));
-  }
-}
-function baGetRoster(){ try{ return JSON.parse(localStorage.getItem(BARBER_KEYS.roster)||'[]'); }catch(e){ return []; } }
-function baSaveRoster(list){ localStorage.setItem(BARBER_KEYS.roster, JSON.stringify(list)); }
+function baGetRoster(){ return baRosterCache; }
 
 function baSeedSales(){
   if(localStorage.getItem(BARBER_KEYS.sales)) return;
@@ -2977,7 +3015,7 @@ function baTab(tab){
 }
 
 function baMyCommissionPct(){
-  const me = baGetRoster().find(b=>b.email===localStorage.getItem(BARBER_KEYS.loggedInEmail));
+  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
   return (me && typeof me.commissionPct==='number') ? me.commissionPct : BARBER_COMMISSION_PCT;
 }
 let baVendasFilter = 'hoje';
@@ -3124,7 +3162,7 @@ function baMonthlyTotal(year, month){
   return baMySales().filter(s=>s.date>=from && s.date<=to).reduce((s,x)=>s+x.value,0);
 }
 function baMyGoal(){
-  const me = baGetRoster().find(b=>b.email===localStorage.getItem(BARBER_KEYS.loggedInEmail));
+  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
   return me && typeof me.monthlyGoal==='number' && me.monthlyGoal>0 ? me.monthlyGoal : null;
 }
 
@@ -4558,29 +4596,63 @@ function baEnter(barber){
   baSeedSales();
   baMigrateSales();
   baSeedClients();
-  baSetLoggedInEmail(barber.email);
   document.getElementById('ba-tabbar').style.display='';
   baTab('agenda');
 }
 function baLogout(){
+  sb.auth.signOut();
   document.getElementById('barberApp').classList.remove('logged');
   baCurrentBarber = null;
   baCurrentRole = null;
   baAgendaDay = null;
-  baSetLoggedInEmail(null);
   baShow('ba-screen-login');
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.remove('active'));
   document.querySelector('#barberApp .ba-tab[data-tab=agenda]').classList.add('active');
   document.querySelector('#barberApp .ba-links button[data-tab=agenda]').classList.add('active');
 }
-function baLogin(){
+function baShowInviteForm(){
+  document.getElementById('ba-login-form').style.display='none';
+  document.getElementById('ba-invite-form').style.display='block';
+}
+function baShowLoginForm(){
+  document.getElementById('ba-invite-form').style.display='none';
+  document.getElementById('ba-login-form').style.display='block';
+}
+async function baRedeemInvite(){
+  const code=document.getElementById('ba-inv-code'),name=document.getElementById('ba-inv-name'),email=document.getElementById('ba-inv-email'),pass=document.getElementById('ba-inv-pass');
+  const fc=document.getElementById('ba-f-inv-code'),fn=document.getElementById('ba-f-inv-name'),fe=document.getElementById('ba-f-inv-email'),fp=document.getElementById('ba-f-inv-pass');
+  const err=document.getElementById('ba-invite-err');
+  let ok=true;
+  if(!code.value.trim()){fc.classList.add('invalid');ok=false}else fc.classList.remove('invalid');
+  if(!name.value.trim()){fn.classList.add('invalid');ok=false}else fn.classList.remove('invalid');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)){fe.classList.add('invalid');ok=false}else fe.classList.remove('invalid');
+  if(pass.value.length<6){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
+  if(!ok){ err.style.display='none'; return; }
+  const codeVal = code.value.trim().toUpperCase();
+  const { data: invite } = await sb.from('barber_invites').select('*').eq('code', codeVal).is('used_at', null).maybeSingle();
+  if(!invite){ err.textContent='Código inválido ou já utilizado.'; err.style.display='block'; return; }
+  const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: pass.value });
+  if(error){ err.textContent='Não foi possível criar a conta. Tente outro e-mail.'; err.style.display='block'; return; }
+  const { error: insertErr } = await sb.from('barbers').insert({
+    id: data.user.id, name: name.value.trim(), email: email.value.trim().toLowerCase(), role: invite.role, is_barber: true
+  });
+  if(insertErr){ err.textContent='Não foi possível concluir o cadastro.'; err.style.display='block'; return; }
+  await sb.from('barber_invites').update({ used_at: new Date().toISOString(), used_by: data.user.id }).eq('code', codeVal);
+  err.style.display='none';
+  await baLoadRoster();
+  const match = baGetRoster().find(b=>b.id===data.user.id);
+  if(match) baEnter(match);
+}
+async function baLogin(){
   const e=document.getElementById('ba-email'),p=document.getElementById('ba-pass'),fe=document.getElementById('ba-f-email'),fp=document.getElementById('ba-f-pass'),err=document.getElementById('ba-login-err');
   let ok=true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.value)){fe.classList.add('invalid');ok=false}else fe.classList.remove('invalid');
   if(p.value.length<6){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
   if(!ok){ err.style.display='none'; return; }
-  const match = baGetRoster().find(b=> b.email.toLowerCase()===e.value.trim().toLowerCase() && b.pass===p.value);
-  if(match){ err.style.display='none'; baEnter(match); } else { err.style.display='block'; }
+  const { data, error } = await sb.auth.signInWithPassword({ email: e.value.trim(), password: p.value });
+  if(error){ err.style.display='block'; return; }
+  const match = baGetRoster().find(b=> b.id===data.user.id);
+  if(match){ err.style.display='none'; baEnter(match); } else { err.style.display='block'; await sb.auth.signOut(); }
 }
 function baRenderPerfil(){
   document.getElementById('ba-perfil-nome').textContent = baCurrentBarber;
@@ -4615,12 +4687,14 @@ function baRenderRoster(){
     <div id="ba-edit-row-${i}" class="ba-card" style="display:none;margin-top:-.4rem;margin-bottom:.9rem"></div>`;
   }).join('');
 }
-function baToggleIsBarber(email){
+async function baToggleIsBarber(email){
   const roster = baGetRoster();
   const b = roster.find(x=>x.email===email);
   if(!b) return;
-  b.isBarber = !b.isBarber;
-  baSaveRoster(roster);
+  const newVal = !b.isBarber;
+  const { error } = await sb.from('barbers').update({ is_barber:newVal }).eq('id', b.id);
+  if(error){ console.error('baToggleIsBarber', error); return; }
+  b.isBarber = newVal;
   baRenderRoster();
   renderTeamSection();
 }
@@ -4665,7 +4739,7 @@ function baBuildEditForm(b, i){
   return `
     <div class="ba-field"><label>Nome</label><input type="text" id="ba-edit-name-${i}" value="${b.name.replace(/"/g,'&quot;')}"></div>
     <div class="ba-field"><label>E-mail</label><input type="email" id="ba-edit-email-${i}" value="${b.email.replace(/"/g,'&quot;')}"></div>
-    <div class="ba-field"><label>Nova senha (deixe em branco pra manter)</label><input type="password" id="ba-edit-pass-${i}" placeholder="••••••••"></div>
+    <p><a href="#" onclick="baSendPasswordReset('${b.email.replace(/'/g,"\\'")}');return false" style="font-size:.78rem;color:var(--dourado)">Enviar e-mail de redefinição de senha</a></p>
     <div class="ba-field"><label>Função</label>
       <select id="ba-edit-role-${i}">
         <option value="barbeiro" ${b.role!=='admin'?'selected':''}>Barbeiro</option>
@@ -4685,7 +4759,12 @@ function baBuildEditForm(b, i){
     <button class="ba-btn ghost" style="max-width:100%" onclick="baToggleEditBarber(${i})">Cancelar</button>`;
 }
 
-function baSaveEditBarber(i){
+async function baSendPasswordReset(email){
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  alert(error ? 'Não foi possível enviar o e-mail de redefinição.' : `E-mail de redefinição enviado para ${email}.`);
+}
+
+async function baSaveEditBarber(i){
   const roster = baGetRoster();
   const b = roster[i];
   if(!b) return;
@@ -4693,7 +4772,6 @@ function baSaveEditBarber(i){
   errEl.style.display='none';
   const newName = document.getElementById('ba-edit-name-'+i).value.trim();
   const newEmail = document.getElementById('ba-edit-email-'+i).value.trim().toLowerCase();
-  const newPass = document.getElementById('ba-edit-pass-'+i).value;
   const newRole = document.getElementById('ba-edit-role-'+i).value;
   const newIsBarber = document.getElementById('ba-edit-isbarber-'+i).checked;
   const newCommPct = Number(document.getElementById('ba-edit-comm-'+i).value);
@@ -4704,14 +4782,14 @@ function baSaveEditBarber(i){
 
   if(!newName) return fail('Digite um nome.');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail)) return fail('E-mail inválido.');
-  if(newPass && newPass.length<6) return fail('A nova senha precisa ter ao menos 6 caracteres.');
   if(isNaN(newCommPct) || newCommPct<0 || newCommPct>100) return fail('Comissão inválida.');
   if(newGoal!==undefined && (isNaN(newGoal) || newGoal<0)) return fail('Meta mensal inválida.');
   if(roster.some((x,xi)=> xi!==i && x.email.toLowerCase()===newEmail)) return fail('Já existe outro barbeiro com esse e-mail.');
   const otherAdmins = roster.filter((x,xi)=> xi!==i && x.role==='admin');
   if(b.role==='admin' && newRole!=='admin' && otherAdmins.length===0) return fail('Não é possível remover o último admin da equipe.');
+  if(newEmail !== b.email) return fail('Troca de e-mail ainda não é suportada nessa fase — remova e recrie o barbeiro se precisar.');
 
-  const isSelf = b.email === localStorage.getItem(BARBER_KEYS.loggedInEmail);
+  const isSelf = b.name === baCurrentBarber;
   const oldName = b.name;
   const nameChanged = oldName !== newName;
 
@@ -4728,16 +4806,15 @@ function baSaveEditBarber(i){
       }
     }
   });
+  const hoursVal = Object.keys(hours).length ? hours : null;
 
-  roster[i] = {
-    ...b,
-    name:newName, email:newEmail, role:newRole, isBarber:newIsBarber,
-    commissionPct: newCommPct/100,
-    monthlyGoal: newGoal,
-    hours: Object.keys(hours).length ? hours : undefined,
-    ...(newPass ? {pass:newPass} : {})
-  };
-  baSaveRoster(roster);
+  const { error } = await sb.from('barbers').update({
+    name:newName, role:newRole, is_barber:newIsBarber,
+    commission_pct:newCommPct/100, monthly_goal:newGoal ?? null, hours:hoursVal
+  }).eq('id', b.id);
+  if(error){ return fail('Não foi possível salvar. Tente de novo.'); }
+
+  roster[i] = { ...b, name:newName, role:newRole, isBarber:newIsBarber, commissionPct:newCommPct/100, monthlyGoal:newGoal, hours:hoursVal||undefined };
 
   if(nameChanged){
     const sales = baGetSales().map(s=> s.barber===oldName ? {...s, barber:newName} : s);
@@ -4752,7 +4829,6 @@ function baSaveEditBarber(i){
   if(isSelf){
     baCurrentBarber = newName;
     baCurrentRole = newRole;
-    baSetLoggedInEmail(newEmail);
   }
   baToggleEditBarber(i);
   baRenderRoster();
@@ -4760,11 +4836,11 @@ function baSaveEditBarber(i){
   if(document.getElementById('ba-screen-perfil').classList.contains('active')) baRenderPerfil();
 }
 
-function baDeleteBarber(email){
+async function baDeleteBarber(email){
   const roster = baGetRoster();
   const b = roster.find(x=>x.email===email);
   if(!b) return;
-  const isSelf = email === localStorage.getItem(BARBER_KEYS.loggedInEmail);
+  const isSelf = b.name === baCurrentBarber;
   if(isSelf){
     alert('Você não pode remover a própria conta enquanto estiver logado com ela. Peça pra outro admin remover.');
     return;
@@ -4775,31 +4851,39 @@ function baDeleteBarber(email){
     return;
   }
   if(!confirm(`Remover ${b.name} da equipe? O histórico de vendas, clientes e agendamentos dele(a) é mantido, mas essa pessoa não vai mais conseguir fazer login.`)) return;
-  baSaveRoster(roster.filter(x=>x.email!==email));
+  const { error } = await sb.from('barbers').delete().eq('id', b.id);
+  if(error){ alert('Não foi possível remover.'); return; }
+  baRosterCache = roster.filter(x=>x.email!==email);
   baEditingIndex = null;
   baRenderRoster();
   renderTeamSection();
 }
-function baCreateBarber(){
-  const name=document.getElementById('ba-nb-name'), email=document.getElementById('ba-nb-email'), pass=document.getElementById('ba-nb-pass'), role=document.getElementById('ba-nb-role'), isBarber=document.getElementById('ba-nb-isbarber');
-  const fn=document.getElementById('ba-f-nb-name'), fe=document.getElementById('ba-f-nb-email'), fp=document.getElementById('ba-f-nb-pass');
+async function baCreateBarber(){
+  const name=document.getElementById('ba-nb-name'), email=document.getElementById('ba-nb-email'), role=document.getElementById('ba-nb-role'), isBarber=document.getElementById('ba-nb-isbarber');
+  const fn=document.getElementById('ba-f-nb-name'), fe=document.getElementById('ba-f-nb-email');
   const errEl = document.getElementById('ba-nb-err');
   let ok=true;
   if(!name.value.trim()){fn.classList.add('invalid');ok=false}else fn.classList.remove('invalid');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)){fe.classList.add('invalid');ok=false}else fe.classList.remove('invalid');
-  if(pass.value.length<6){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
   errEl.style.display='none';
   if(!ok) return;
   const roster = baGetRoster();
   if(roster.some(b=>b.email.toLowerCase()===email.value.trim().toLowerCase())){
+    errEl.textContent = 'Já existe um barbeiro com esse e-mail.';
     errEl.style.display='block';
     return;
   }
-  roster.push({name:name.value.trim(), email:email.value.trim().toLowerCase(), pass:pass.value, role:role.value, isBarber:isBarber.checked});
-  baSaveRoster(roster);
-  name.value=''; email.value=''; pass.value=''; role.value='barbeiro'; isBarber.checked=true;
-  baRenderRoster();
-  renderTeamSection();
+  const code = crypto.randomUUID().slice(0,8).toUpperCase();
+  const { error } = await sb.from('barber_invites').insert({
+    code, role: role.value, name_hint: name.value.trim(), created_by: (roster.find(b=>b.name===baCurrentBarber)||{}).id
+  });
+  if(error){ errEl.textContent = 'Não foi possível gerar o convite. Tente de novo.'; errEl.style.display='block'; return; }
+  const resultEl = document.getElementById('ba-nb-invite-result');
+  if(resultEl){
+    resultEl.style.display='block';
+    resultEl.innerHTML = `Convite gerado para <b>${name.value.trim()}</b>. Código: <b style="color:var(--dourado)">${code}</b><br>Peça pra pessoa acessar a área do barbeiro, clicar em "Tenho um convite" e usar esse código.`;
+  }
+  name.value=''; email.value=''; role.value='barbeiro'; isBarber.checked=true;
 }
 
 document.querySelectorAll('[data-open-barber]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();baOpen();}));
@@ -4883,14 +4967,14 @@ function renderTeamSection(){
       </div>
     </div>`).join('') : '<p style="color:var(--prata-dim)">Equipe em breve.</p>';
 }
-baSeedRoster();
-baMigrateRoster();
-renderTeamSection();
-if(baIsLoggedIn()){
-  const savedEmail = localStorage.getItem(BARBER_KEYS.loggedInEmail);
-  const restored = baGetRoster().find(b=>b.email===savedEmail);
-  if(restored) baEnter(restored); else baSetLoggedInEmail(null);
-}
+(async function baBootstrapAuth(){
+  await baLoadRoster();
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){
+    const match = baRosterCache.find(b=>b.id===session.user.id);
+    if(match) baEnter(match); else await sb.auth.signOut();
+  }
+})();
 
 (function(){
   function baApplyMode(){

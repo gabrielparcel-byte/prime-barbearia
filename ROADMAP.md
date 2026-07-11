@@ -117,13 +117,22 @@
 
 ## 🗄️ Fase 6 — Backend Real & Conformidade LGPD
 
-> Contexto: hoje TUDO (roster de barbeiros, clientes, vendas, agendamentos, achievements, brindes) vive no `localStorage` do navegador. Isso significa que cada barbeiro só enxerga os próprios dados no próprio aparelho — não há sincronização entre dispositivos nem backup real. Essa fase é a maior mudança estrutural do projeto: não é um "adicional", é trocar a fundação de armazenamento.
+> Contexto: hoje TUDO (roster de barbeiros, clientes, vendas, agendamentos, achievements, brindes) vive no `localStorage` do navegador. Isso significa que cada barbeiro só enxerga os próprios dados no próprio aparelho — não há sincronização entre dispositivos nem backup real. Essa fase é a maior mudança estrutural do projeto: não é um "adicional", é trocar a fundação de armazenamento. Rollout em sub-fases (A/B/C/D) pra não travar o app no meio do caminho.
 
-### Migração de dados
-- [ ] Escolher backend (recomendado: Supabase — Postgres gerenciado, tier grátis, SDK JS simples de plugar aos poucos, row-level security ajuda no controle de acesso por barbeiro/LGPD; alternativa: Firebase/Firestore, mas o formato dos dados aqui é mais relacional)
-- [ ] Modelar tabelas: barbeiros, clientes, vendas, agendamentos, achievements, brindes (hoje já são objetos JS parecidos com linhas de tabela — migração é direta)
-- [ ] Trocar todo `localStorage.getItem/setItem` por chamadas ao backend (maior esforço técnico da fase — toca praticamente todo o arquivo)
-- [ ] Sincronização entre dispositivos (2 barbeiros em 2 celulares vendo os mesmos dados em tempo real)
+### Fase A — Fundação: Auth + Roster de barbeiros ✅ *(concluída 2026-07-11)*
+- [x] Projeto Supabase criado (Postgres + Auth), schema `barbers`/`clients`/`barber_invites` com Row Level Security
+- [x] Autenticação real via Supabase Auth (substitui comparação de senha em texto puro) — cliente e barbeiro
+- [x] Roster de barbeiros migrado de `localStorage` pra tabela `barbers` (leitura pública, escrita restrita a admin via RLS)
+- [x] Fluxo de convite pra criar novo barbeiro (admin gera código, convidado se auto-cadastra — sem precisar de service_role/Edge Function)
+- [x] Redefinição de senha por e-mail (`resetPasswordForEmail`) substituindo a edição direta de senha em texto puro
+- [x] Sessão persistente entre reloads (Supabase Auth), testado ponta a ponta: login/logout/signup/RLS negativo/regressão em agenda-vendas-clientes
+- Banco começou zerado (sem migrar dados de teste do localStorage); Nathan e Lucas recriados como usuários reais
+
+### Fase B/C/D — Próximos passos (ainda não iniciados)
+- [ ] Migrar agendamentos (`primeAppointments`) pra tabela própria com FK real pra `clients`/`barbers` (hoje ainda em localStorage, ligado por nome/email string)
+- [ ] Migrar vendas/financeiro (`barberSales`, despesas, produtos/estoque) — maior tabela, dados sensíveis de faturamento
+- [ ] Migrar achievements, indicações e brindes (gamificação da Fase 1/3)
+- [ ] Sincronização entre dispositivos (2 barbeiros em 2 celulares vendo os mesmos dados em tempo real) — consequência natural de tudo estar no banco
 - [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
 - [ ] Backup automático / histórico não se perde ao limpar o navegador
 
@@ -164,4 +173,4 @@
 
 ---
 
-*Última atualização: 2026-07-11*
+*Última atualização: 2026-07-11 (Fase 6A concluída)*
