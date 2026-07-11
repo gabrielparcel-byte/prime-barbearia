@@ -35,21 +35,21 @@
 ## 🎨 Fase 2 — Polish Visual / UX
 
 ### Animações e Transições
-- [ ] Micro-animações nos botões (hover, press, loading)
-- [ ] Transições suaves entre telas do app (slide/fade)
-- [ ] Skeleton loading nos cards enquanto carrega dados
-- [ ] Animação de entrada do logo ao abrir o app
+- [x] Micro-animações nos botões (hover lift, press scale, spinner loading) + modais com fade/pop
+- [x] Transições suaves entre telas do app (fade+translateY com cubic-bezier)
+- [x] Skeleton loading nos cards enquanto carrega dados (`primeSkeletonThen`)
+- [x] Animação de entrada do logo ao abrir o app (emblem rotate+scale, wordmark slide-up)
 
 ### Refinamento de UI
-- [ ] Glassmorphism refinado nos cards (efeito vidro fosco consistente)
-- [ ] Tipografia e espaçamentos revisados para consistência
-- [ ] Ícones SVG customizados (substituir emojis por ícones próprios)
-- [ ] Paleta de cores revisada e documentada
+- [x] Glassmorphism refinado nos cards (backdrop-filter blur+saturate, com @supports fallback)
+- [x] Tipografia e espaçamentos revisados para consistência (ba-slabel alinhado com ca-slabel)
+- [x] Ícones SVG customizados — sino, estrela, presente, QR, calendário, pessoa (substituem emojis)
+- [x] Paleta de cores revisada e documentada — `--dourado-claro` adicionado (faltava), `--erro`/`--alerta`/`--violeta` criados, 29 hex hardcoded → `var()`
 
 ### Responsividade
-- [ ] Testar e ajustar todas as telas em 375px, 390px, 414px (iPhones)
-- [ ] Testar em tablets (768px)
-- [ ] PWA básico (manifest.json, ícone na home screen)
+- [x] Testar e ajustar todas as telas em 375px, 390px, 414px (iPhones) — JS overflow scan automatizado
+- [x] Testar em tablets (768px) — nav breakpoint corrigido de 760→960px
+- [x] PWA básico (manifest.json, ícones 192/512, meta tags, dev server atualizado)
 
 ---
 
@@ -164,4 +164,4 @@
 
 ---
 
-*Última atualização: 2026-07-10*
+*Última atualização: 2026-07-11*
