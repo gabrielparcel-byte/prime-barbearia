@@ -137,6 +137,10 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .btn-loading::after{content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:btnSpin .6s linear infinite}
 #barberApp .ba-btn.btn-loading::after{border-color:rgba(26,21,6,.3);border-top-color:#1a1506}
 #clientApp .ca-btn.ghost.btn-loading::after,#barberApp .ba-btn.ghost.btn-loading::after{border-color:rgba(237,237,232,.3);border-top-color:var(--prata)}
+
+/* ── Skeleton loading (Fase 2) ── */
+@keyframes skelShimmer{0%{background-position:150% 0}100%{background-position:-50% 0}}
+.skel{border-radius:8px;background:linear-gradient(100deg,rgba(237,237,232,.05) 30%,rgba(237,237,232,.13) 50%,rgba(237,237,232,.05) 70%);background-size:250% 100%;animation:skelShimmer 1.3s ease-in-out infinite}
 .hero .local{position:absolute;bottom:2rem;font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;color:var(--prata-dim)}
 .hero .local b{color:var(--dourado);font-weight:500}
 
@@ -239,7 +243,10 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 
 /* ── MODAL WIZARD DE AGENDAMENTO ── */
 .modal-backdrop{position:fixed;inset:0;background:rgba(5,10,6,.85);backdrop-filter:blur(4px);z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem}
-.modal-backdrop.open{display:flex}
+.modal-backdrop.open{display:flex;animation:modalBgFade .3s ease}
+@keyframes modalBgFade{from{opacity:0}to{opacity:1}}
+.modal-backdrop.open .modal{animation:modalPop .32s cubic-bezier(.16,1,.3,1)}
+@keyframes modalPop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 .modal{background:var(--grafite-card);border:1px solid var(--dourado);max-width:520px;width:100%;max-height:92svh;overflow-y:auto;padding:clamp(1.5rem,4vw,2.5rem);position:relative}
 .modal .close{position:absolute;top:1rem;right:1.1rem;background:none;border:none;color:var(--prata-dim);font-size:1.3rem;cursor:pointer;line-height:1}
 .modal .close:hover{color:var(--prata)}
@@ -587,6 +594,20 @@ function primeBtnLoading(btn, ms){
   setTimeout(()=>{ btn.classList.remove('btn-loading'); btn.disabled = false; }, ms || 500);
 }
 
+// mostra placeholders animados num container e só chama o render de verdade depois de `ms`
+// (dados vêm do localStorage, então são instantâneos — isso é feedback visual pra não "piscar" a tela)
+function primeSkeletonThen(containerIds, rowsByContainer, renderFn, ms){
+  containerIds.forEach((id,i)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const [count,height] = rowsByContainer[i];
+    let html='';
+    for(let r=0;r<count;r++) html += `<div class="skel" style="height:${height}px;margin-bottom:.7rem"></div>`;
+    el.innerHTML = html;
+  });
+  setTimeout(renderFn, ms || 260);
+}
+
 // resolve o horário efetivo de um barbeiro num dia da semana, considerando folga/horário customizado dele
 // barber.hours: ausente = herda o horário da loja; null = folga nesse dia; [abre,fecha] = horário próprio
 function resolveBarberHours(barber, weekday){
@@ -820,9 +841,9 @@ render();
 #clientApp{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;z-index:1000;background:#050906;display:none;overflow:hidden}
 #clientApp.open{display:block}
 #clientApp .phone{position:absolute;top:0;bottom:0;height:100%;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--verde-noite);overflow:hidden;display:flex;flex-direction:column}
-#clientApp .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow:hidden;animation:caFade .4s ease}
+#clientApp .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow:hidden;animation:caFade .38s cubic-bezier(.16,1,.3,1)}
 #clientApp .screen.active{display:flex}
-@keyframes caFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes caFade{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 #clientApp .ca-close{position:absolute;top:.9rem;right:1rem;z-index:80;width:36px;height:36px;border-radius:50%;background:rgba(20,23,21,.9);border:1px solid var(--dourado-dim);color:var(--prata);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #clientApp .ca-login{align-items:center;text-align:center;padding:2.2rem 2rem 3rem;position:relative;flex:1;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
@@ -835,7 +856,12 @@ render();
 #clientApp .ca-login.scrolling::-webkit-scrollbar-thumb{background:rgba(53,197,88,.6);box-shadow:0 0 6px rgba(53,197,88,.5)}
 #clientApp .ca-login::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 50% 30%,rgba(53,197,88,.14),transparent 70%);pointer-events:none}
 #clientApp .ca-login-inner{margin:auto;width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;position:relative}
-#clientApp .ca-logo{width:90px;height:90px;position:relative;margin-bottom:1.5rem;filter:drop-shadow(0 0 16px rgba(53,197,88,.5))}
+#clientApp .ca-logo{width:90px;height:90px;position:relative;margin-bottom:1.5rem;filter:drop-shadow(0 0 16px rgba(53,197,88,.5));color:var(--prata)}
+#clientApp .ca-logo .prime-emblem{width:100%;height:100%;animation:primeEmblemIn .7s cubic-bezier(.34,1.56,.64,1) both}
+#clientApp .ca-login .wordmark{animation:primeWordIn .5s ease .22s both}
+#clientApp .ca-login .sub{animation:primeWordIn .5s ease .34s both}
+@keyframes primeEmblemIn{0%{opacity:0;transform:scale(.5) rotate(-10deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes primeWordIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 #clientApp .ca-login .wordmark{font-family:var(--font-display);font-size:1.4rem;letter-spacing:.3em;font-weight:500;margin-right:-.3em;color:var(--prata)}
 #clientApp .ca-login .sub{font-family:var(--font-display);letter-spacing:.55em;font-size:.68rem;color:var(--prata-dim);margin:.3rem 0 2.2rem;margin-right:-.55em}
 #clientApp .ca-form-title{font-family:var(--font-display);font-size:1rem;letter-spacing:.1em;color:var(--dourado);margin-bottom:1.3rem;width:100%}
@@ -1024,7 +1050,49 @@ render();
     <div class="screen ca-login active" id="ca-screen-login">
       <button class="ca-btn ghost" style="max-width:320px;margin-bottom:1.2rem" onclick="caBackToStart()">← Voltar ao início</button>
       <div class="ca-login-inner">
-      <img class="ca-logo" src="data:image/webp;base64,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" alt="Prime">
+      <div class="ca-logo">
+        <svg class="prime-emblem" viewBox="70 17 152 152" aria-hidden="true">
+          <g transform="translate(0.000000,175.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
+            <path d="M1295 1510 c-134 -35 -223 -86 -323 -183 -194 -189 -267 -465 -188
+-712 37 -115 90 -201 181 -292 68 -67 99 -89 176 -126 116 -55 203 -77 309
+-77 327 0 607 224 685 547 27 113 17 283 -22 389 -32 84 -80 168 -141 242 -76
+92 -232 186 -364 217 -87 20 -227 18 -313 -5z m125 -165 c0 -157 -26 -205
+-113 -205 -45 0 -69 11 -121 57 -46 42 -93 63 -141 63 -19 0 -35 4 -35 9 0 15
+101 91 161 121 71 37 144 57 237 69 9 1 12 -28 12 -114z m209 88 c30 -8 80
+-27 110 -43 60 -30 161 -106 161 -121 0 -5 -17 -9 -37 -9 -50 -1 -107 -28
+-166 -78 -41 -36 -55 -42 -94 -42 -38 0 -50 5 -79 34 l-34 34 0 127 0 127 43
+-7 c23 -3 67 -13 96 -22z m-512 -279 c56 -35 96 -103 97 -169 1 -24 -2 -46 -5
+-49 -3 -4 -32 7 -64 23 -69 35 -178 56 -248 48 l-49 -6 7 27 c14 57 69 146 95
+154 48 14 118 2 167 -28z m842 25 c25 -9 38 -25 66 -84 19 -39 35 -77 35 -82
+0 -7 -26 -9 -68 -5 -78 5 -173 -16 -240 -53 -25 -14 -48 -25 -53 -25 -14 0
+-11 87 4 123 45 105 157 161 256 126z m-398 -109 c23 -6 48 -9 56 -6 10 4 13
+1 9 -12 -14 -50 -16 -83 -7 -121 9 -41 9 -42 -28 -65 -41 -26 -89 -77 -117
+-125 -10 -17 -21 -31 -24 -31 -3 0 -14 16 -25 36 -18 33 -118 134 -134 134 -4
+0 -7 42 -6 94 0 52 3 92 7 90 15 -10 98 20 129 46 l34 28 32 -29 c18 -15 51
+-33 74 -39z m-562 -139 c23 -6 21 -8 -20 -20 -24 -7 -70 -31 -101 -52 l-58
+-39 0 42 c0 24 4 48 8 55 12 19 122 28 171 14z m1043 3 c35 -6 37 -8 43 -56 4
+-27 5 -52 2 -55 -3 -3 -23 9 -45 27 -22 17 -65 42 -97 55 -49 19 -54 24 -34
+28 38 7 91 7 131 1z m-807 -107 c55 -28 135 -104 100 -94 -140 39 -291 -7
+-398 -123 l-57 -62 -15 36 c-9 20 -21 59 -27 86 -11 49 -11 51 18 81 32 34 97
+75 152 96 57 21 166 12 227 -20z m680 12 c35 -13 76 -40 111 -72 l54 -52 -10
+-40 c-6 -22 -18 -59 -27 -83 l-16 -42 -56 59 c-115 120 -244 160 -401 124
+l-25 -6 30 32 c87 93 221 125 340 80z m-548 -197 c37 -20 42 -26 47 -69 16
+-119 -63 -260 -177 -319 -28 -15 -33 -15 -66 1 -100 47 -241 181 -241 228 0 9
+26 44 58 77 79 84 147 112 257 107 57 -2 92 -10 122 -25z m443 -1 c67 -35 106
+-67 141 -117 l31 -45 -28 -41 c-40 -57 -126 -131 -195 -168 l-59 -31 -52 28
+c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
+23 254 -9z m-244 -404 c34 -24 36 -27 18 -34 -24 -10 -260 -11 -270 -1 -4 4
+14 26 40 49 25 22 58 61 72 85 l26 44 38 -58 c22 -32 56 -70 76 -85z M1234
+1335 c-9 -35 3 -73 31 -101 32 -32 52 -30 60 5 7 35 -14 82 -47 105 -30 22
+-37 20 -44 -9z M1614 1326 c-25 -25 -34 -43 -34 -67 0 -56 12 -64 48 -34 33
+28 51 74 44 112 -6 31 -18 29 -58 -11z M998 1133 c-25 -6 -23 -17 12 -56 30
+-35 66 -49 101 -40 26 7 24 18 -13 57 -33 34 -67 47 -100 39z M1845 1131 c-45
+-19 -80 -86 -48 -93 45 -10 123 36 123 73 0 26 -35 36 -75 20z M1435 996 c-11
+-17 -34 -37 -50 -45 -27 -13 -28 -15 -9 -22 24 -8 74 -65 74 -82 0 -7 8 4 18
+23 9 19 31 42 49 51 l32 16 -33 15 c-18 9 -39 29 -47 45 l-14 30 -20 -31z"/>
+          </g>
+        </svg>
+      </div>
       <div class="wordmark">PRIME</div><div class="sub">BARBEARIA</div>
 
       <div id="ca-login-form">
@@ -1800,9 +1868,14 @@ function caTab(tab){
   const m={home:'ca-screen-home',hist:'ca-screen-hist',perfil:'ca-screen-perfil'};
   caShow(m[tab]);
   document.querySelectorAll('#clientApp .ca-tab,#clientApp .tb-link').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  if(tab==='hist'){ renderMyAppointments(); caRenderHist(); }
+  if(tab==='hist'){
+    primeSkeletonThen(['ca-hist-list'], [[4,64]], ()=>{ renderMyAppointments(); caRenderHist(); });
+  }
   if(tab==='perfil')caRenderPerfil();
-  if(tab==='home'){ caRenderHomeBarbeiro(); caRenderPlanCard(); caRenderNextAppointment(); caRenderHist(); caRenderNotifs(); }
+  if(tab==='home'){
+    caRenderHomeBarbeiro(); caRenderPlanCard(); caRenderNotifs();
+    primeSkeletonThen(['ca-next-area','ca-home-recentes'], [[1,88],[3,60]], ()=>{ caRenderNextAppointment(); caRenderHist(); });
+  }
 }
 function caGoBook(){ openModal(); }
 function caLogin(){
@@ -2080,7 +2153,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;z-index:1000;background:#050906;display:none;overflow:hidden}
 #barberApp.open{display:block}
 #barberApp .phone{position:absolute;top:0;bottom:0;height:100%;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--verde-noite);overflow:hidden;display:flex;flex-direction:column;z-index:1}
-#barberApp .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow:hidden;animation:caFade .4s ease}
+#barberApp .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;overflow:hidden;animation:caFade .38s cubic-bezier(.16,1,.3,1)}
 #barberApp .screen.active{display:flex}
 #barberApp>.ba-close{position:absolute;top:.9rem;right:1rem;z-index:50;width:40px;height:40px;border-radius:50%;background:rgba(20,23,21,.95);border:1px solid var(--dourado-dim);color:var(--prata);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #barberApp .ba-login{align-items:center;text-align:center;padding:2.2rem 2rem 3rem;position:relative;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:transparent transparent;transition:scrollbar-color .4s ease}
@@ -2092,8 +2165,10 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-login.scrolling::-webkit-scrollbar-thumb{background:rgba(198,167,94,.6);box-shadow:0 0 6px rgba(198,167,94,.5)}
 #barberApp .ba-login::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 50% 30%,rgba(198,167,94,.16),transparent 70%);pointer-events:none}
 #barberApp .ba-login-inner{margin:auto;width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;position:relative}
-#barberApp .ba-logo{font-family:var(--font-display);font-size:1.5rem;letter-spacing:.3em;font-weight:500;color:var(--prata);margin-right:-.3em}
-#barberApp .ba-sub{font-family:var(--font-display);letter-spacing:.45em;font-size:.66rem;color:var(--dourado);margin:.4rem 0 2.2rem;text-transform:uppercase;margin-right:-.45em}
+#barberApp .ba-emblem{width:64px;height:64px;margin:0 auto 1rem;color:var(--dourado);filter:drop-shadow(0 0 14px rgba(198,167,94,.4))}
+#barberApp .ba-emblem .prime-emblem{width:100%;height:100%;animation:primeEmblemIn .7s cubic-bezier(.34,1.56,.64,1) both}
+#barberApp .ba-logo{font-family:var(--font-display);font-size:1.5rem;letter-spacing:.3em;font-weight:500;color:var(--prata);margin-right:-.3em;animation:primeWordIn .5s ease .22s both}
+#barberApp .ba-sub{font-family:var(--font-display);letter-spacing:.45em;font-size:.66rem;color:var(--dourado);margin:.4rem 0 2.2rem;text-transform:uppercase;margin-right:-.45em;animation:primeWordIn .5s ease .34s both}
 #barberApp .ba-form-title{font-family:var(--font-display);font-size:1rem;letter-spacing:.1em;color:var(--dourado);margin-bottom:1.3rem;width:100%}
 #barberApp .ba-field{width:100%;max-width:320px;text-align:left;margin-bottom:1rem}
 #barberApp .ba-field label{display:block;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dourado);margin-bottom:.4rem}
@@ -2404,6 +2479,49 @@ addEventListener('resize', caApplyMode, {passive:true});
     <div class="screen ba-login active" id="ba-screen-login">
       <button class="ba-btn ghost" style="max-width:320px;margin-bottom:1.2rem" onclick="baClose()">← Voltar ao início</button>
       <div class="ba-login-inner">
+        <div class="ba-emblem">
+          <svg class="prime-emblem" viewBox="70 17 152 152" aria-hidden="true">
+            <g transform="translate(0.000000,175.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
+              <path d="M1295 1510 c-134 -35 -223 -86 -323 -183 -194 -189 -267 -465 -188
+-712 37 -115 90 -201 181 -292 68 -67 99 -89 176 -126 116 -55 203 -77 309
+-77 327 0 607 224 685 547 27 113 17 283 -22 389 -32 84 -80 168 -141 242 -76
+92 -232 186 -364 217 -87 20 -227 18 -313 -5z m125 -165 c0 -157 -26 -205
+-113 -205 -45 0 -69 11 -121 57 -46 42 -93 63 -141 63 -19 0 -35 4 -35 9 0 15
+101 91 161 121 71 37 144 57 237 69 9 1 12 -28 12 -114z m209 88 c30 -8 80
+-27 110 -43 60 -30 161 -106 161 -121 0 -5 -17 -9 -37 -9 -50 -1 -107 -28
+-166 -78 -41 -36 -55 -42 -94 -42 -38 0 -50 5 -79 34 l-34 34 0 127 0 127 43
+-7 c23 -3 67 -13 96 -22z m-512 -279 c56 -35 96 -103 97 -169 1 -24 -2 -46 -5
+-49 -3 -4 -32 7 -64 23 -69 35 -178 56 -248 48 l-49 -6 7 27 c14 57 69 146 95
+154 48 14 118 2 167 -28z m842 25 c25 -9 38 -25 66 -84 19 -39 35 -77 35 -82
+0 -7 -26 -9 -68 -5 -78 5 -173 -16 -240 -53 -25 -14 -48 -25 -53 -25 -14 0
+-11 87 4 123 45 105 157 161 256 126z m-398 -109 c23 -6 48 -9 56 -6 10 4 13
+1 9 -12 -14 -50 -16 -83 -7 -121 9 -41 9 -42 -28 -65 -41 -26 -89 -77 -117
+-125 -10 -17 -21 -31 -24 -31 -3 0 -14 16 -25 36 -18 33 -118 134 -134 134 -4
+0 -7 42 -6 94 0 52 3 92 7 90 15 -10 98 20 129 46 l34 28 32 -29 c18 -15 51
+-33 74 -39z m-562 -139 c23 -6 21 -8 -20 -20 -24 -7 -70 -31 -101 -52 l-58
+-39 0 42 c0 24 4 48 8 55 12 19 122 28 171 14z m1043 3 c35 -6 37 -8 43 -56 4
+-27 5 -52 2 -55 -3 -3 -23 9 -45 27 -22 17 -65 42 -97 55 -49 19 -54 24 -34
+28 38 7 91 7 131 1z m-807 -107 c55 -28 135 -104 100 -94 -140 39 -291 -7
+-398 -123 l-57 -62 -15 36 c-9 20 -21 59 -27 86 -11 49 -11 51 18 81 32 34 97
+75 152 96 57 21 166 12 227 -20z m680 12 c35 -13 76 -40 111 -72 l54 -52 -10
+-40 c-6 -22 -18 -59 -27 -83 l-16 -42 -56 59 c-115 120 -244 160 -401 124
+l-25 -6 30 32 c87 93 221 125 340 80z m-548 -197 c37 -20 42 -26 47 -69 16
+-119 -63 -260 -177 -319 -28 -15 -33 -15 -66 1 -100 47 -241 181 -241 228 0 9
+26 44 58 77 79 84 147 112 257 107 57 -2 92 -10 122 -25z m443 -1 c67 -35 106
+-67 141 -117 l31 -45 -28 -41 c-40 -57 -126 -131 -195 -168 l-59 -31 -52 28
+c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
+23 254 -9z m-244 -404 c34 -24 36 -27 18 -34 -24 -10 -260 -11 -270 -1 -4 4
+14 26 40 49 25 22 58 61 72 85 l26 44 38 -58 c22 -32 56 -70 76 -85z M1234
+1335 c-9 -35 3 -73 31 -101 32 -32 52 -30 60 5 7 35 -14 82 -47 105 -30 22
+-37 20 -44 -9z M1614 1326 c-25 -25 -34 -43 -34 -67 0 -56 12 -64 48 -34 33
+28 51 74 44 112 -6 31 -18 29 -58 -11z M998 1133 c-25 -6 -23 -17 12 -56 30
+-35 66 -49 101 -40 26 7 24 18 -13 57 -33 34 -67 47 -100 39z M1845 1131 c-45
+-19 -80 -86 -48 -93 45 -10 123 36 123 73 0 26 -35 36 -75 20z M1435 996 c-11
+-17 -34 -37 -50 -45 -27 -13 -28 -15 -9 -22 24 -8 74 -65 74 -82 0 -7 8 4 18
+23 9 19 31 42 49 51 l32 16 -33 15 c-18 9 -39 29 -47 45 l-14 30 -20 -31z"/>
+            </g>
+          </svg>
+        </div>
         <div class="ba-logo">PRIME</div>
         <div class="ba-sub">Área do barbeiro</div>
         <div class="ba-form-title">Entrar</div>
@@ -2827,7 +2945,7 @@ function baTab(tab){
   baShow(m[tab]);
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   if(tab==='vendas') baRenderVendas();
-  if(tab==='clientes') baRenderClientes();
+  if(tab==='clientes') primeSkeletonThen(['ba-clientes-list'], [[5,58]], baRenderClientes);
   if(tab==='agenda') baRenderAgenda();
   if(tab==='perfil') baRenderPerfil();
   if(tab==='dashboard') baRenderDashboard();
