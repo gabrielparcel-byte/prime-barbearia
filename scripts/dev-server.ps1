@@ -23,6 +23,9 @@ while ($listener.IsListening) {
                 ".css"  { "text/css" }
                 ".js"   { "application/javascript" }
                 ".svg"  { "image/svg+xml" }
+                ".json" { "application/json" }
+                ".png"  { "image/png" }
+                ".webmanifest" { "application/manifest+json" }
                 default { "application/octet-stream" }
             }
             $res.ContentType = $contentType

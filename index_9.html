@@ -7,6 +7,15 @@
 <meta name="description" content="Um novo conceito de barbearia em Maringá. Cortes clássicos e modernos, barbaterapia relaxante e excelência em cada detalhe. Av. Pedro Taques, 2824.">
 <link rel="canonical" href="https://gabrielparcel-byte.github.io/prime-barbearia/">
 
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B140D">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prime">
+
 <!-- Open Graph / compartilhamento em redes sociais -->
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_BR">
@@ -47,15 +56,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
+  /* Verdes — ação, marca, sucesso */
   --verde-neon:#35C558;
   --verde-prime:#1E6B33;
   --verde-noite:#0B140D;
+  /* Neutros — fundo e superfícies */
   --grafite:#141715;
   --grafite-card:#1A1E1B;
+  /* Texto */
   --prata:#EDEDE8;
   --prata-dim:#9BA39C;
+  /* Dourado — destaque, valores, premium */
   --dourado:#C6A75E;
+  --dourado-claro:#E8D5A4;
   --dourado-dim:rgba(198,167,94,.35);
+  /* Estados — usados em banners/alertas pontuais (não fazem parte da ação principal) */
+  --erro:#E58A6B;
+  --alerta:#D9A441;
+  --violeta:#9B7EDE;
+  /* Tipografia */
   --font-display:'Cinzel',serif;
   --font-body:'Jost',sans-serif;
 }
@@ -94,7 +113,7 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 @media(prefers-reduced-motion:reduce){.nav-cta{animation:none}}
 .nav-login{border:1px solid rgba(237,237,232,.25);padding:.55rem 1.1rem;transition:all .25s;white-space:nowrap}
 .nav-login:hover{border-color:var(--verde-neon);color:var(--verde-neon)!important}
-@media(max-width:760px){.nav-links li:not(:last-child):not(.keep-mobile){display:none}.nav-links{gap:.6rem}.nav-links a.nav-login{font-size:.68rem;padding:.45rem .7rem;letter-spacing:.08em}.nav-links a.nav-cta{font-size:.72rem;padding:.45rem .9rem}}
+@media(max-width:960px){.nav-links li:not(:last-child):not(.keep-mobile){display:none}.nav-links{gap:.6rem}.nav-links a.nav-login{font-size:.68rem;padding:.45rem .7rem;letter-spacing:.08em}.nav-links a.nav-cta{font-size:.72rem;padding:.45rem .9rem}}
 
 /* ── HERO ── */
 .hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;padding:6rem 1.5rem 4rem;border-bottom:1px solid var(--dourado-dim)}
@@ -141,6 +160,10 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 /* ── Skeleton loading (Fase 2) ── */
 @keyframes skelShimmer{0%{background-position:150% 0}100%{background-position:-50% 0}}
 .skel{border-radius:8px;background:linear-gradient(100deg,rgba(237,237,232,.05) 30%,rgba(237,237,232,.13) 50%,rgba(237,237,232,.05) 70%);background-size:250% 100%;animation:skelShimmer 1.3s ease-in-out infinite}
+
+/* ── Ícones SVG customizados (Fase 2) — substituem emojis usados como ícone de UI ── */
+.pi-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:middle}
+.ca-bell .pi-icon{width:19px;height:19px}
 .hero .local{position:absolute;bottom:2rem;font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;color:var(--prata-dim)}
 .hero .local b{color:var(--dourado);font-weight:500}
 
@@ -262,9 +285,9 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 .chip:hover{border-color:var(--verde-neon);color:var(--prata)}
 .chip.active{background:var(--verde-prime);border-color:var(--verde-prime);color:#fff}
 .chip small{display:block;font-size:.68rem;letter-spacing:.08em;opacity:.7}
-.chip.taken{position:relative;opacity:.45;border-color:#E58A6B;color:#E58A6B;cursor:not-allowed}
-.chip.taken:hover{border-color:#E58A6B;color:#E58A6B}
-.chip.taken::after{content:"";position:absolute;top:14%;bottom:14%;left:50%;width:2px;background:#E58A6B;transform:translateX(-50%) rotate(14deg)}
+.chip.taken{position:relative;opacity:.45;border-color:var(--erro);color:var(--erro);cursor:not-allowed}
+.chip.taken:hover{border-color:var(--erro);color:var(--erro)}
+.chip.taken::after{content:"";position:absolute;top:14%;bottom:14%;left:50%;width:2px;background:var(--erro);transform:translateX(-50%) rotate(14deg)}
 .wbarber-list{display:flex;flex-direction:column;gap:.7rem}
 .wbarber-card{position:relative;display:flex;align-items:center;gap:1rem;border:1px solid rgba(237,237,232,.2);padding:.9rem 1.1rem;cursor:pointer;transition:all .2s}
 .wbarber-card:hover{border-color:var(--verde-neon)}
@@ -873,9 +896,9 @@ render();
 #clientApp .ca-field input{width:100%;background:var(--grafite-card);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.95rem;transition:border-color .2s}
 #clientApp .ca-field input::placeholder{color:rgba(237,237,232,.3)}
 #clientApp .ca-field input:focus{outline:none;border-color:var(--verde-neon)}
-#clientApp .ca-field .err{color:#E58A6B;font-size:.72rem;margin-top:.35rem;display:none}
+#clientApp .ca-field .err{color:var(--erro);font-size:.72rem;margin-top:.35rem;display:none}
 #clientApp .ca-field.invalid .err{display:block}
-#clientApp .ca-field.invalid input{border-color:#E58A6B}
+#clientApp .ca-field.invalid input{border-color:var(--erro)}
 #clientApp .ca-btn{width:100%;max-width:320px;border:none;font-family:var(--font-body);font-weight:500;font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;padding:1rem;cursor:pointer;background:var(--verde-prime);color:#fff;box-shadow:0 0 20px rgba(53,197,88,.22);margin-top:.5rem}
 #clientApp .ca-btn:active{background:var(--verde-neon);color:var(--verde-noite)}
 #clientApp .ca-btn.ghost{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);box-shadow:none}
@@ -919,7 +942,8 @@ render();
 #clientApp .cut-counter .label{font-size:.72rem;color:var(--prata-dim)}
 #clientApp .brinde-section{background:var(--grafite-card);border:1px solid var(--dourado-dim);border-radius:8px;padding:.9rem 1rem;margin-bottom:.9rem}
 #clientApp .brinde-section .bs-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.15rem}
-#clientApp .brinde-section .bs-header .emoji{font-size:1.1rem;line-height:1}
+#clientApp .brinde-section .bs-header .emoji{display:inline-flex;color:var(--dourado)}
+#clientApp .brinde-section .bs-header .emoji .pi-icon{width:18px;height:18px}
 #clientApp .brinde-section .bs-header .title{font-size:.85rem;color:var(--dourado-claro);font-weight:500}
 #clientApp .brinde-section .bs-sub{font-size:.72rem;color:var(--prata-dim);margin-bottom:.75rem;line-height:1.45}
 #clientApp .brinde-opt{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid rgba(198,167,94,.12);border-radius:6px;cursor:pointer;transition:all .18s;margin-bottom:.4rem}
@@ -964,7 +988,7 @@ render();
 #clientApp .ca-next .when div{font-size:.82rem}
 #clientApp .ca-nextact{display:flex;gap:.6rem}
 #clientApp .ca-nextact button{flex:1;border:1px solid rgba(237,237,232,.3);background:rgba(11,20,13,.35);color:var(--prata);padding:.7rem;font-family:var(--font-body);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
-#clientApp .ca-nextact button.ghost{border-color:rgba(229,138,107,.4);color:#E58A6B}
+#clientApp .ca-nextact button.ghost{border-color:rgba(229,138,107,.4);color:var(--erro)}
 #clientApp .ca-cta{width:100%;background:var(--verde-prime);border:none;color:#fff;padding:1.1rem;font-family:var(--font-body);font-weight:500;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;margin-top:1rem;box-shadow:0 0 20px rgba(53,197,88,.2)}
 #clientApp .ca-cta:active{background:var(--verde-neon);color:var(--verde-noite)}
 #clientApp .ca-hist{display:flex;align-items:center;gap:1rem;padding:1rem 0;border-bottom:1px solid rgba(198,167,94,.12)}
@@ -999,7 +1023,7 @@ render();
 #clientApp .ca-topbar .tb-right{margin-left:auto;display:flex;align-items:center;gap:1rem}
 #clientApp .ca-topbar .tb-avatar{width:38px;height:38px;border-radius:50%;background:var(--grafite-card);border:1px solid var(--dourado-dim);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);color:var(--dourado)}
 #clientApp .ca-topbar .tb-exit{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);font-family:var(--font-body);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.5rem .9rem;cursor:pointer;transition:all .2s}
-#clientApp .ca-topbar .tb-exit:hover{border-color:#E58A6B;color:#E58A6B}
+#clientApp .ca-topbar .tb-exit:hover{border-color:var(--erro);color:var(--erro)}
 
 /* ══ MODO DESKTOP ══ */
 #clientApp.desktop .phone{max-width:none;width:100%;left:0;transform:none;flex-direction:column}
@@ -1040,7 +1064,7 @@ render();
         <button class="tb-link" data-tab="perfil" onclick="caTab('perfil')">Perfil</button>
       </div>
       <div class="tb-right">
-        <button class="ca-bell" onclick="caToggleNotifs()" aria-label="Notificações" style="width:38px;height:38px">🔔<span class="ca-bell-count" id="ca-bell-count-d" style="display:none">0</span></button>
+        <button class="ca-bell" onclick="caToggleNotifs()" aria-label="Notificações" style="width:38px;height:38px"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 3.4 1 5.4 2 7H4c1-1.6 2-3.6 2-7z"/><path d="M9.5 19a2.5 2.5 0 005 0"/></svg><span class="ca-bell-count" id="ca-bell-count-d" style="display:none">0</span></button>
         <div class="tb-avatar">C</div>
         <button class="tb-exit" onclick="caLogout()">Sair</button>
       </div>
@@ -1100,7 +1124,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-field" id="ca-f-email"><label>E-mail</label><input type="email" id="ca-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
         <div class="ca-field" id="ca-f-pass"><label>Senha</label><input type="password" id="ca-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <button class="ca-btn" onclick="primeBtnLoading(this,400);caLogin()">Entrar</button>
-        <p class="ca-login-err" id="ca-login-err" style="display:none;color:#E58A6B;font-size:.82rem;margin-top:.8rem">E-mail ou senha incorretos.</p>
+        <p class="ca-login-err" id="ca-login-err" style="display:none;color:var(--erro);font-size:.82rem;margin-top:.8rem">E-mail ou senha incorretos.</p>
         <p class="ca-signup" style="margin-top:.8rem;font-size:.72rem;opacity:.6">Login de exemplo: cliente@prime.com / 123456</p>
         <p class="ca-signup">Ainda não tem conta? <a href="#" onclick="caShowSignup();return false">Criar conta</a></p>
       </div>
@@ -1125,7 +1149,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <div class="screen" id="ca-screen-home">
       <div class="ca-head"><div><div class="hi">Bem-vindo</div><div class="name" id="ca-home-hello">Olá, Cliente</div></div>
         <div style="display:flex;align-items:center;gap:.8rem">
-          <button class="ca-bell" id="ca-bell" onclick="caToggleNotifs()" aria-label="Notificações">🔔<span class="ca-bell-count" id="ca-bell-count" style="display:none">0</span></button>
+          <button class="ca-bell" id="ca-bell" onclick="caToggleNotifs()" aria-label="Notificações"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 3.4 1 5.4 2 7H4c1-1.6 2-3.6 2-7z"/><path d="M9.5 19a2.5 2.5 0 005 0"/></svg><span class="ca-bell-count" id="ca-bell-count" style="display:none">0</span></button>
           <div class="ca-avatar" id="ca-home-avatar">C</div>
         </div>
       </div>
@@ -1654,7 +1678,7 @@ function caRenderPendingRating(){
   if(!next){ area.innerHTML = ''; return; }
   area.innerHTML = `
     <div class="brinde-section">
-      <div class="bs-header"><span class="emoji">⭐</span><span class="title">Avalie seu último corte</span></div>
+      <div class="bs-header"><span class="emoji"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg></span><span class="title">Avalie seu último corte</span></div>
       <div class="bs-sub">${(next.services||[]).join(' + ')} com ${next.barber||'a equipe'} · ${next.dayLabel||''}</div>
       <button class="brinde-confirm enabled" onclick="caFinishAppointment(${next.id})">Avaliar agora</button>
     </div>`;
@@ -1935,9 +1959,9 @@ function caRenderClub(){
       const giftOpts = primeGetBrindeOpts();
       const chosen = primeGetBrindeChoice(email);
       if(chosen){
-        brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji">🎁</span><span class="title">Brinde escolhido</span></div><div class="bs-sub" style="margin-bottom:0">Você escolheu <b style="color:var(--dourado-claro)">${chosen}</b>. Avise seu barbeiro na próxima visita!</div></div>`;
+        brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M3 9h18v4H3z"/><path d="M5 13h14v8H5z"/><path d="M12 9v12"/><path d="M12 9c-1.4-3-5-3.6-5-1 0 1.4 2 1 5 1z"/><path d="M12 9c1.4-3 5-3.6 5-1 0 1.4-2 1-5 1z"/></svg></span><span class="title">Brinde escolhido</span></div><div class="bs-sub" style="margin-bottom:0">Você escolheu <b style="color:var(--dourado-claro)">${chosen}</b>. Avise seu barbeiro na próxima visita!</div></div>`;
       } else {
-        brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji">🎁</span><span class="title">Você ganhou um mimo!</span></div><div class="bs-sub">Seus ${cuts} cortes te deram direito a um brinde. Escolha o seu:</div><div class="brinde-opts">${giftOpts.map((g,i)=>`<div class="brinde-opt" onclick="caSelectBrinde(${i})"><div class="radio"></div><span class="opt-name">${g}</span></div>`).join('')}</div><button class="brinde-confirm" id="ca-brinde-btn" onclick="caConfirmBrinde()">Confirmar escolha</button></div>`;
+        brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M3 9h18v4H3z"/><path d="M5 13h14v8H5z"/><path d="M12 9v12"/><path d="M12 9c-1.4-3-5-3.6-5-1 0 1.4 2 1 5 1z"/><path d="M12 9c1.4-3 5-3.6 5-1 0 1.4-2 1-5 1z"/></svg></span><span class="title">Você ganhou um mimo!</span></div><div class="bs-sub">Seus ${cuts} cortes te deram direito a um brinde. Escolha o seu:</div><div class="brinde-opts">${giftOpts.map((g,i)=>`<div class="brinde-opt" onclick="caSelectBrinde(${i})"><div class="radio"></div><span class="opt-name">${g}</span></div>`).join('')}</div><button class="brinde-confirm" id="ca-brinde-btn" onclick="caConfirmBrinde()">Confirmar escolha</button></div>`;
       }
     }
   }
@@ -2175,14 +2199,14 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-field input,#barberApp .ba-field select{width:100%;background:var(--grafite-card);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.95rem}
 #barberApp .ba-field input::placeholder{color:rgba(237,237,232,.3)}
 #barberApp .ba-field input:focus,#barberApp .ba-field select:focus{outline:none;border-color:var(--dourado)}
-#barberApp .ba-field .err{color:#E58A6B;font-size:.72rem;margin-top:.35rem;display:none}
+#barberApp .ba-field .err{color:var(--erro);font-size:.72rem;margin-top:.35rem;display:none}
 #barberApp .ba-field.invalid .err{display:block}
-#barberApp .ba-field.invalid input{border-color:#E58A6B}
+#barberApp .ba-field.invalid input{border-color:var(--erro)}
 #barberApp .ba-btn{width:100%;max-width:320px;border:none;font-family:var(--font-body);font-weight:500;font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;padding:1rem;cursor:pointer;background:var(--dourado);color:var(--verde-noite);box-shadow:0 0 20px rgba(198,167,94,.25);margin-top:.5rem}
 #barberApp .ba-btn:active{background:#d8bb75}
 #barberApp .ba-btn.ghost{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);box-shadow:none}
 #barberApp .ba-btn.ghost:active{background:rgba(198,167,94,.12);color:var(--prata)}
-#barberApp .ba-err{display:none;color:#E58A6B;font-size:.82rem;margin-top:.8rem}
+#barberApp .ba-err{display:none;color:var(--erro);font-size:.82rem;margin-top:.8rem}
 #barberApp .ba-hint{margin-top:.8rem;font-size:.72rem;opacity:.6;color:var(--prata-dim)}
 #barberApp .ba-topbar{display:none;align-items:center;justify-content:space-between;padding:1.1rem 2rem;border-bottom:1px solid var(--dourado-dim);flex-shrink:0}
 #barberApp.desktop.logged .ba-topbar{display:flex}
@@ -2191,7 +2215,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-topbar .ba-links button{background:none;border:none;color:var(--prata-dim);font-family:var(--font-body);font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:.4rem 0;border-bottom:2px solid transparent}
 #barberApp .ba-topbar .ba-links button.active{color:var(--dourado);border-color:var(--dourado)}
 #barberApp .ba-topbar .ba-exit{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);font-family:var(--font-body);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.5rem .9rem;cursor:pointer}
-#barberApp .ba-topbar .ba-exit:hover{border-color:#E58A6B;color:#E58A6B}
+#barberApp .ba-topbar .ba-exit:hover{border-color:var(--erro);color:var(--erro)}
 #barberApp.desktop .screen:not(.ba-login){top:66px}
 #barberApp .ba-head{display:flex;align-items:center;justify-content:space-between;padding:1.3rem 1.3rem .9rem;flex-shrink:0;position:sticky;top:0;background:linear-gradient(180deg,var(--verde-noite),rgba(11,20,13,.85));backdrop-filter:blur(4px);z-index:10;pointer-events:none}
 #barberApp .ba-head>*{pointer-events:auto}
@@ -2267,12 +2291,12 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .at-success{color:var(--verde-neon);font-size:.82rem;margin-bottom:.8rem}
 
 /* ── carrinho ao vivo (atendimento em andamento) ── */
-#barberApp .cart-header{background:var(--grafite-card);border:1px solid #D9A441;border-radius:10px;padding:1rem 1.1rem;margin-bottom:1.2rem;position:relative;overflow:hidden}
-#barberApp .cart-header::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#D9A441}
+#barberApp .cart-header{background:var(--grafite-card);border:1px solid var(--alerta);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1.2rem;position:relative;overflow:hidden}
+#barberApp .cart-header::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--alerta)}
 #barberApp .cart-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
 #barberApp .cart-client{font-family:var(--font-display);font-size:1.1rem;color:var(--prata)}
-#barberApp .cart-time{font-size:.7rem;color:#D9A441;display:flex;align-items:center;gap:.3rem}
-#barberApp .cart-time .dot{width:6px;height:6px;border-radius:50%;background:#D9A441;animation:giftPulse 1.6s ease-in-out infinite}
+#barberApp .cart-time{font-size:.7rem;color:var(--alerta);display:flex;align-items:center;gap:.3rem}
+#barberApp .cart-time .dot{width:6px;height:6px;border-radius:50%;background:var(--alerta);animation:giftPulse 1.6s ease-in-out infinite}
 #barberApp .cart-sub{font-size:.74rem;color:var(--prata-dim)}
 #barberApp .cart-svc-row{display:flex;align-items:center;justify-content:space-between;background:var(--grafite-card);border-radius:8px;padding:.7rem .9rem;margin-bottom:.8rem}
 #barberApp .cart-svc-row .lbl{font-size:.68rem;color:var(--prata-dim)}
@@ -2291,29 +2315,29 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ts-row{display:flex;justify-content:space-between;font-size:.76rem;color:var(--prata-dim);padding:.15rem 0}
 #barberApp .ts-row.final{border-top:1px solid var(--hair);margin-top:.4rem;padding-top:.5rem;font-size:.95rem;color:var(--prata);font-weight:600}
 #barberApp .ts-row.final .val{color:var(--dourado-claro);font-family:var(--font-display)}
-#barberApp .andamento-badge{font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:#D9A441;background:rgba(217,164,65,.15);padding:.15rem .45rem;border-radius:99px;display:inline-flex;align-items:center;gap:.25rem}
-#barberApp .andamento-badge .dot{width:5px;height:5px;border-radius:50%;background:#D9A441;animation:giftPulse 1.6s ease-in-out infinite}
-#barberApp .ba-tslot.andamento{border-left-color:#D9A441}
-#barberApp .ba-tslot.andamento .ts-time::after{background:#D9A441;border-color:#D9A441;animation:giftPulse 1.6s ease-in-out infinite}
+#barberApp .andamento-badge{font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--alerta);background:rgba(217,164,65,.15);padding:.15rem .45rem;border-radius:99px;display:inline-flex;align-items:center;gap:.25rem}
+#barberApp .andamento-badge .dot{width:5px;height:5px;border-radius:50%;background:var(--alerta);animation:giftPulse 1.6s ease-in-out infinite}
+#barberApp .ba-tslot.andamento{border-left-color:var(--alerta)}
+#barberApp .ba-tslot.andamento .ts-time::after{background:var(--alerta);border-color:var(--alerta);animation:giftPulse 1.6s ease-in-out infinite}
 #barberApp .ba-tslot.andamento .ts-card{border-color:rgba(217,164,65,.5);background:rgba(217,164,65,.08)}
 #barberApp .ba-mini-btn{border:none;font-family:var(--font-body);font-weight:500;font-size:.65rem;letter-spacing:.04em;text-transform:uppercase;padding:.35rem .7rem;border-radius:4px;cursor:pointer;white-space:nowrap}
-#barberApp .ba-mini-btn.amber{background:#D9A441;color:#1a1506}
+#barberApp .ba-mini-btn.amber{background:var(--alerta);color:#1a1506}
 #barberApp .ba-mini-btn.primary{background:var(--dourado);color:#1a1506}
 #barberApp .gift-dot{width:7px;height:7px;border-radius:50%;background:var(--dourado);box-shadow:0 0 5px rgba(198,167,94,.6);flex:none;animation:giftPulse 2.2s ease-in-out infinite}
 @keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
-#barberApp .sumiu-dot{width:7px;height:7px;border-radius:50%;background:#D9A441;box-shadow:0 0 5px rgba(217,164,65,.6);flex:none}
-#barberApp .referral-dot{width:7px;height:7px;border-radius:50%;background:#9B7EDE;box-shadow:0 0 5px rgba(155,126,222,.6);flex:none}
+#barberApp .sumiu-dot{width:7px;height:7px;border-radius:50%;background:var(--alerta);box-shadow:0 0 5px rgba(217,164,65,.6);flex:none}
+#barberApp .referral-dot{width:7px;height:7px;border-radius:50%;background:var(--violeta);box-shadow:0 0 5px rgba(155,126,222,.6);flex:none}
 #barberApp .sumiu-banner{background:var(--grafite-card);border:1px solid rgba(217,164,65,.4);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
-#barberApp .sumiu-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#D9A441;border-radius:8px 0 0 8px}
+#barberApp .sumiu-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--alerta);border-radius:8px 0 0 8px}
 #barberApp .sumiu-banner .sb-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
-#barberApp .sumiu-banner .sb-title{font-size:.82rem;color:#D9A441;font-weight:500}
+#barberApp .sumiu-banner .sb-title{font-size:.82rem;color:var(--alerta);font-weight:500}
 #barberApp .sumiu-banner .sb-desc{font-size:.76rem;color:var(--prata-dim);line-height:1.5;margin-bottom:.85rem}
 #barberApp .sumiu-banner .sb-desc b{color:var(--prata);font-weight:500}
 #barberApp .referral-card{background:var(--grafite-card);border:1px solid rgba(155,126,222,.4);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.2rem;position:relative}
-#barberApp .referral-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#9B7EDE;border-radius:8px 0 0 8px}
+#barberApp .referral-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--violeta);border-radius:8px 0 0 8px}
 #barberApp .referral-card .bc-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem}
-#barberApp .referral-card .bc-title{font-size:.82rem;color:#9B7EDE;font-weight:500}
+#barberApp .referral-card .bc-title{font-size:.82rem;color:var(--violeta);font-weight:500}
 #barberApp .referral-card .bc-desc{font-size:.76rem;color:var(--prata-dim);line-height:1.5;margin-bottom:.85rem}
 #barberApp .referral-card .bc-desc b{color:var(--prata);font-weight:500}
 #barberApp .referral-card .bc-actions{display:flex;gap:.5rem}
@@ -2337,7 +2361,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-info{flex:1;min-width:0}
 #barberApp .prod-name{font-size:.82rem;color:var(--prata)}
 #barberApp .prod-meta{font-size:.68rem;color:var(--prata-dim);margin-top:.1rem}
-#barberApp .prod-meta.low{color:#D9A441}
+#barberApp .prod-meta.low{color:var(--alerta)}
 #barberApp .prod-price{font-size:.8rem;color:var(--dourado-claro);font-weight:600;flex:none;font-variant-numeric:tabular-nums}
 #barberApp .prod-actions{display:flex;gap:.3rem;flex:none}
 #barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .45rem;border-radius:3px;transition:all .15s;background:none;border:none}
@@ -2470,7 +2494,7 @@ addEventListener('resize', caApplyMode, {passive:true});
         <button data-tab="perfil" onclick="baTab('perfil')">Perfil</button>
       </div>
       <div style="display:flex;align-items:center;gap:.8rem">
-        <button class="ca-bell" onclick="baToggleNotifs()" aria-label="Notificações">🔔<span class="ca-bell-count" id="ba-bell-count" style="display:none">0</span></button>
+        <button class="ca-bell" onclick="baToggleNotifs()" aria-label="Notificações"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 3.4 1 5.4 2 7H4c1-1.6 2-3.6 2-7z"/><path d="M9.5 19a2.5 2.5 0 005 0"/></svg><span class="ca-bell-count" id="ba-bell-count" style="display:none">0</span></button>
         <button class="ba-exit" onclick="baLogout()">Sair</button>
       </div>
     </div>
@@ -2536,7 +2560,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <!-- AGENDA -->
     <div class="screen" id="ba-screen-agenda">
       <div class="ba-head"><div><div class="hi">Sua agenda</div><div class="name">Agenda</div></div>
-        <button class="ca-bell" onclick="baToggleNotifs()" aria-label="Notificações">🔔<span class="ca-bell-count" id="ba-bell-count-m" style="display:none">0</span></button>
+        <button class="ca-bell" onclick="baToggleNotifs()" aria-label="Notificações"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 3.4 1 5.4 2 7H4c1-1.6 2-3.6 2-7z"/><path d="M9.5 19a2.5 2.5 0 005 0"/></svg><span class="ca-bell-count" id="ba-bell-count-m" style="display:none">0</span></button>
       </div>
       <div class="ca-notif-panel" id="ba-notif-panel" style="display:none"></div>
       <div class="ba-body">
@@ -2842,7 +2866,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           </div>
         </div>
 
-        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem" onclick="baOpenQRPrint()">📱 QR Code pro balcão</button>
+        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem;display:flex;align-items:center;justify-content:center;gap:.5rem" onclick="baOpenQRPrint()"><svg class="pi-icon" viewBox="0 0 24 24" style="width:16px;height:16px;flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M17 20h3"/></svg> QR Code pro balcão</button>
         <button class="ba-btn ghost" style="max-width:100%" onclick="baLogout()">Sair</button>
       </div>
     </div>
@@ -2996,7 +3020,7 @@ function baRenderVendasHoje(){
   const totalDia = realizado + previstoVal;
   const comissaoDia = totalDia * pct;
   box.innerHTML =
-    `<div class="vh-title">📅 Resumo de hoje</div>
+    `<div class="vh-title"><svg class="pi-icon" viewBox="0 0 24 24" style="width:15px;height:15px;flex:none"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg> Resumo de hoje</div>
      <div class="vh-row"><span class="vh-lbl">Realizados</span><span class="vh-val">${realizadoCount} corte${realizadoCount!==1?'s':''} · ${baFormatMoney(realizado)}</span></div>
      <div class="vh-row"><span class="vh-lbl">Previstos (agenda)</span><span class="vh-val">${previstoCount} corte${previstoCount!==1?'s':''} · ${baFormatMoney(previstoVal)}</span></div>
      <div class="vh-row"><span class="vh-lbl">Total estimado do dia</span><span class="vh-val destaque">${baFormatMoney(totalDia)}</span></div>
@@ -3628,7 +3652,7 @@ function baRenderSumiu(client, lastSale){
   if(days < CLIENTE_SUMIU_DAYS){ el.innerHTML = ''; return; }
   el.innerHTML = `
     <div class="sumiu-banner">
-      <div class="sb-row"><span style="font-size:1.1rem;line-height:1">👋</span><span class="sb-title">Não vem há ${days} dias</span></div>
+      <div class="sb-row"><span style="display:inline-flex;color:var(--alerta)"><svg class="pi-icon" viewBox="0 0 24 24" style="width:18px;height:18px"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5"/><path d="M17 10h4"/></svg></span><span class="sb-title">Não vem há ${days} dias</span></div>
       <p class="sb-desc">${client.name.split(' ')[0]} sumiu — bom momento pra chamar de volta.</p>
       <button class="ba-btn" style="max-width:100%;margin:0" onclick="document.getElementById('ba-cli-msg-btn').click()">Mandar mensagem no WhatsApp</button>
     </div>`;
@@ -3646,7 +3670,7 @@ function baRenderBrinde(client){
     : `<p style="font-size:.72rem;color:var(--prata-dim);margin-bottom:.7rem;font-style:italic;opacity:.7">Cliente ainda não escolheu o brinde.</p>`;
   el.innerHTML = `
     <div class="brinde-card">
-      <div class="bc-row"><span style="font-size:1.1rem;line-height:1">🎁</span><span class="bc-title">Elegível a um mimo</span></div>
+      <div class="bc-row"><span style="display:inline-flex;color:var(--dourado-claro)"><svg class="pi-icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M3 9h18v4H3z"/><path d="M5 13h14v8H5z"/><path d="M12 9v12"/><path d="M12 9c-1.4-3-5-3.6-5-1 0 1.4 2 1 5 1z"/><path d="M12 9c1.4-3 5-3.6 5-1 0 1.4-2 1-5 1z"/></svg></span><span class="bc-title">Elegível a um mimo</span></div>
       <p class="bc-desc">${client.name.split(' ')[0]} bateu <b>${info.cuts} cortes</b>. Bom momento pra surpreender.</p>
       ${choiceHtml}
       <div class="bc-actions">
