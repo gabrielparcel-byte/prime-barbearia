@@ -2239,6 +2239,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-btn:active{background:#d8bb75}
 #barberApp .ba-btn.ghost{background:none;border:1px solid var(--dourado-dim);color:var(--prata-dim);box-shadow:none}
 #barberApp .ba-btn.ghost:active{background:rgba(198,167,94,.12);color:var(--prata)}
+#barberApp .ba-btn.ghost.active{background:var(--dourado);border-color:var(--dourado);color:var(--verde-noite)}
 #barberApp .ba-err{display:none;color:var(--erro);font-size:.82rem;margin-top:.8rem}
 #barberApp .ba-hint{margin-top:.8rem;font-size:.72rem;opacity:.6;color:var(--prata-dim)}
 #barberApp .ba-topbar{display:none;align-items:center;justify-content:space-between;padding:1.1rem 2rem;border-bottom:1px solid var(--dourado-dim);flex-shrink:0}
@@ -2524,6 +2525,7 @@ addEventListener('resize', caApplyMode, {passive:true});
         <button data-tab="vendas" onclick="baTab('vendas')">Minhas vendas</button>
         <button data-tab="dashboard" onclick="baTab('dashboard')">Dashboard</button>
         <button data-tab="clientes" onclick="baTab('clientes')">Clientes</button>
+        <button data-tab="gestao" onclick="baTab('gestao')" id="ba-link-gestao" style="display:none">Gestão</button>
         <button data-tab="perfil" onclick="baTab('perfil')">Perfil</button>
       </div>
       <div style="display:flex;align-items:center;gap:.8rem">
@@ -2870,7 +2872,28 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--dourado)"><span id="ba-perfil-comm-pct">60</span><span style="font-size:1rem">%</span> <span style="font-size:.85rem;color:var(--prata-dim);font-family:var(--font-body);letter-spacing:0;text-transform:none">pra você · <span id="ba-perfil-comm-salao">40</span>% barbearia</span></div>
         </div>
 
-        <div class="ba-card" id="ba-admin-panel" style="display:none">
+        <div class="ba-card">
+          <div class="ba-slabel" style="margin-top:0">Login e segurança</div>
+          <div class="ba-field"><label>E-mail</label><input type="email" id="ba-perfil-email" disabled></div>
+          <button class="ba-btn ghost" style="max-width:100%" onclick="baSendPasswordReset(baCurrentBarberEmail)">Trocar senha</button>
+        </div>
+
+        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem;display:flex;align-items:center;justify-content:center;gap:.5rem" onclick="baOpenQRPrint()"><svg class="pi-icon" viewBox="0 0 24 24" style="width:16px;height:16px;flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M17 20h3"/></svg> QR Code pro balcão</button>
+        <button class="ba-btn ghost" style="max-width:100%" onclick="baLogout()">Sair</button>
+      </div>
+    </div>
+
+    <!-- GESTÃO (admin) -->
+    <div class="screen" id="ba-screen-gestao">
+      <div class="ba-head"><div><div class="hi">Administração</div><div class="name">Gestão</div></div></div>
+      <div class="ba-body">
+        <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="ba-btn ghost active" data-sub="equipe" onclick="baGestaoTab('equipe')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Equipe</button>
+          <button class="ba-btn ghost" data-sub="brindes" onclick="baGestaoTab('brindes')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Brindes</button>
+          <button class="ba-btn ghost" data-sub="produtos" onclick="baGestaoTab('produtos')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Produtos</button>
+        </div>
+
+        <div class="ba-card" id="ba-admin-panel">
           <div class="ba-slabel" style="margin-top:0">Convidar barbeiro</div>
           <p style="color:var(--prata-dim);font-size:.8rem;margin-bottom:.9rem">Gere um código de convite — a pessoa cria a própria conta e senha na tela "Tenho um convite" da área do barbeiro.</p>
           <div class="ba-field" id="ba-f-nb-name"><label>Nome</label><input type="text" id="ba-nb-name" placeholder="Nome do barbeiro"><span class="err">Digite um nome</span></div>
@@ -2911,9 +2934,6 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
             <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddProduct()">Adicionar</button>
           </div>
         </div>
-
-        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem;display:flex;align-items:center;justify-content:center;gap:.5rem" onclick="baOpenQRPrint()"><svg class="pi-icon" viewBox="0 0 24 24" style="width:16px;height:16px;flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M17 20h3"/></svg> QR Code pro balcão</button>
-        <button class="ba-btn ghost" style="max-width:100%" onclick="baLogout()">Sair</button>
       </div>
     </div>
 
@@ -2924,6 +2944,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
       <button class="ba-tab" data-tab="vendas" onclick="baTab('vendas')"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9"/></svg><span>Vendas</span></button>
       <button class="ba-tab" data-tab="dashboard" onclick="baTab('dashboard')"><svg viewBox="0 0 24 24"><path d="M4 20V10M12 20V4M20 20v-7"/></svg><span>Painel</span></button>
       <button class="ba-tab" data-tab="clientes" onclick="baTab('clientes')"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 13.2c2.7.3 5 1.7 5 4.3v1.5"/></svg><span>Clientes</span></button>
+      <button class="ba-tab" data-tab="gestao" onclick="baTab('gestao')" id="ba-tabicon-gestao" style="display:none"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 13.5a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1.04 1.56V19.6a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1.04-1.56 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87A1.7 1.7 0 004.4 12.46H4.3a2 2 0 110-4h.09a1.7 1.7 0 001.56-1.04 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H10.4A1.7 1.7 0 0011.46 1.3V1.2a2 2 0 114 0v.09a1.7 1.7 0 001.04 1.56 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v.09c.24.68.85 1.16 1.56 1.16h.09a2 2 0 110 4h-.09a1.7 1.7 0 00-1.56 1.04z"/></svg><span>Gestão</span></button>
       <button class="ba-tab" data-tab="perfil" onclick="baTab('perfil')"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0114 0v1"/></svg><span>Perfil</span></button>
     </nav>
   </div>
@@ -2934,7 +2955,8 @@ const BARBER_KEYS = {sales:'barberSales', clients:'barberClients'};
 const BARBER_COMMISSION_PCT = 0.6; // 60% barbeiro / 40% barbearia
 const BARBER_RETURN_DAYS = 15; // estimativa média de retorno pro próximo corte
 let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a cliente/venda é filtrado por ele
-let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê o painel de gerenciar equipe
+let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê a aba Gestão
+let baCurrentBarberEmail = null;
 let baRosterCache = []; // mirror em memória da tabela `barbers` do Supabase
 
 function baIsLoggedIn(){ return !!baCurrentBarber; }
@@ -3003,7 +3025,8 @@ function baOpen(){document.getElementById('barberApp').classList.add('open');doc
 function baClose(){document.getElementById('barberApp').classList.remove('open');document.body.style.overflow=''}
 
 function baTab(tab){
-  const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil',dashboard:'ba-screen-dashboard',atendimento:'ba-screen-atendimento'};
+  if(tab==='gestao' && baCurrentRole!=='admin') tab='perfil';
+  const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil',dashboard:'ba-screen-dashboard',atendimento:'ba-screen-atendimento',gestao:'ba-screen-gestao'};
   baShow(m[tab]);
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   if(tab==='vendas') baRenderVendas();
@@ -3012,6 +3035,17 @@ function baTab(tab){
   if(tab==='perfil') baRenderPerfil();
   if(tab==='dashboard') baRenderDashboard();
   if(tab==='atendimento') baRenderAtendimento();
+  if(tab==='gestao') baRenderGestao();
+}
+function baGestaoTab(sub){
+  document.querySelectorAll('#ba-screen-gestao [data-sub]').forEach(b=>b.classList.toggle('active', b.dataset.sub===sub));
+  document.getElementById('ba-admin-panel').style.display = sub==='equipe' ? 'block' : 'none';
+  document.getElementById('ba-brinde-config').style.display = sub==='brindes' ? 'block' : 'none';
+  document.getElementById('ba-produtos-config').style.display = sub==='produtos' ? 'block' : 'none';
+}
+function baRenderGestao(){
+  if(baCurrentRole!=='admin') return;
+  baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig();
 }
 
 function baMyCommissionPct(){
@@ -4593,9 +4627,13 @@ function baEnter(barber){
   document.getElementById('barberApp').classList.add('logged');
   baCurrentBarber = barber.name;
   baCurrentRole = barber.role;
+  baCurrentBarberEmail = barber.email;
   baSeedSales();
   baMigrateSales();
   baSeedClients();
+  const isAdmin = barber.role==='admin';
+  document.getElementById('ba-link-gestao').style.display = isAdmin ? '' : 'none';
+  document.getElementById('ba-tabicon-gestao').style.display = isAdmin ? '' : 'none';
   document.getElementById('ba-tabbar').style.display='';
   baTab('agenda');
 }
@@ -4660,11 +4698,7 @@ function baRenderPerfil(){
   const pct = baMyCommissionPct();
   document.getElementById('ba-perfil-comm-pct').textContent = Math.round(pct*100);
   document.getElementById('ba-perfil-comm-salao').textContent = 100-Math.round(pct*100);
-  const isAdmin = baCurrentRole==='admin';
-  document.getElementById('ba-admin-panel').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('ba-brinde-config').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('ba-produtos-config').style.display = isAdmin ? 'block' : 'none';
-  if(isAdmin){ baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig(); }
+  document.getElementById('ba-perfil-email').value = baCurrentBarberEmail || '';
 }
 function baRenderRoster(){
   const roster = baGetRoster();
@@ -4829,6 +4863,9 @@ async function baSaveEditBarber(i){
   if(isSelf){
     baCurrentBarber = newName;
     baCurrentRole = newRole;
+    const isAdmin = newRole==='admin';
+    document.getElementById('ba-link-gestao').style.display = isAdmin ? '' : 'none';
+    document.getElementById('ba-tabicon-gestao').style.display = isAdmin ? '' : 'none';
   }
   baToggleEditBarber(i);
   baRenderRoster();
