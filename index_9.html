@@ -552,6 +552,7 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
   <div class="f-bottom">
     <span>© 2026 Prime Barbearia. Todos os direitos reservados.</span>
     <span>Maringá, Paraná</span>
+    <span><a href="#" onclick="openPrivacyModal();return false" style="color:inherit;text-decoration:none;opacity:.7">Política de privacidade</a></span>
     <span><a href="#" data-open-barber style="color:inherit;text-decoration:none;opacity:.7">Área do barbeiro</a></span>
   </div>
 </footer>
@@ -1163,6 +1164,11 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         </div>
         <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
         <div class="ca-field"><label>Código de indicação (opcional)</label><input type="text" id="ca-su-ref" placeholder="Ex: JOA4F9K" style="text-transform:uppercase"></div>
+        <label id="ca-f-su-consent" style="display:flex;align-items:flex-start;gap:.6rem;font-size:.78rem;color:var(--prata-dim);margin-bottom:1rem;cursor:pointer;line-height:1.5">
+          <input type="checkbox" id="ca-su-consent" style="width:16px;height:16px;flex:none;margin-top:.15rem;accent-color:var(--verde-neon)">
+          Li e concordo com a <a href="#" onclick="event.stopPropagation();openPrivacyModal();return false" style="color:var(--verde-neon)">Política de Privacidade</a>, incluindo o uso dos meus dados pra viabilizar o agendamento.
+        </label>
+        <span class="err" id="ca-su-consent-err" style="display:none;color:var(--erro);font-size:.76rem;margin:-.6rem 0 .8rem">Você precisa aceitar a Política de Privacidade pra criar a conta.</span>
         <p class="ca-login-err" id="ca-signup-err" style="display:none;color:var(--erro);font-size:.82rem">Não foi possível criar a conta. Verifique os dados ou tente outro e-mail.</p>
         <button class="ca-btn" onclick="primeBtnLoading(this,400);caSignup()">Criar conta</button>
         <p class="ca-signup">Já tem conta? <a href="#" onclick="caShowLogin();return false">Entrar</a></p>
@@ -1318,6 +1324,58 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <p id="clubStkLabel" style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;margin:.5rem 0 .4rem"></p>
     <p id="clubStkDesc" style="color:var(--prata-dim);font-size:.92rem;line-height:1.55;margin-bottom:1.4rem"></p>
     <button class="btn btn-ghost" style="width:100%" onclick="closeClubSticker()">Fechar</button>
+  </div>
+</div>
+
+<!-- MODAL: política de privacidade -->
+<div class="modal-backdrop" id="privacyModal" role="dialog" aria-modal="true" style="z-index:1300" onclick="if(event.target===this)closePrivacyModal()">
+  <div class="modal" style="max-width:640px">
+    <button class="close" aria-label="Fechar" onclick="closePrivacyModal()">✕</button>
+    <h3 style="margin-bottom:.3rem">Política de Privacidade</h3>
+    <p style="color:var(--prata-dim);font-size:.78rem;margin-bottom:1.6rem">Última atualização: 11 de julho de 2026</p>
+
+    <div style="color:var(--prata-dim);font-size:.9rem;line-height:1.7">
+      <p style="margin-bottom:1.2rem">Esta política explica, em linguagem simples, quais dados a Prime Barbearia coleta quando você usa este site ou agenda um horário, por que coletamos, com quem compartilhamos e como você pode exercer seus direitos — em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, "LGPD").</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">1. Quem é responsável pelos seus dados</h4>
+      <p style="margin-bottom:1rem">A Prime Barbearia (Av. Pedro Taques, 2824, Maringá — PR) é a controladora dos dados coletados por este site. Somos uma empresa de pequeno porte — pela regulamentação da Autoridade Nacional de Proteção de Dados (ANPD) pra negócios desse porte, não somos obrigados a manter um encarregado de dados (DPO) formal, mas disponibilizamos um canal de contato pra qualquer solicitação (seção 7).</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">2. Quais dados coletamos</h4>
+      <p style="margin-bottom:.5rem"><b style="color:var(--prata)">Quando você cria uma conta de cliente:</b> nome, e-mail, senha (armazenada de forma criptografada — nunca em texto puro), telefone, idade e @ do Instagram.</p>
+      <p style="margin-bottom:.5rem"><b style="color:var(--prata)">Quando você agenda um horário:</b> os serviços escolhidos, dia e horário, o barbeiro selecionado, o status do atendimento e, se você optar por avaliar, a nota e o comentário deixados.</p>
+      <p style="margin-bottom:.5rem"><b style="color:var(--prata)">Dados opcionais:</b> barbeiro favorito e código de quem te indicou, se você preencher — usados só pra personalizar sua experiência e o programa de indicação.</p>
+      <p style="margin-bottom:1rem"><b style="color:var(--prata)">Não coletamos</b> CPF, endereço completo, dados de pagamento (não processamos pagamento pelo site) nem dados sensíveis (saúde, biometria, origem racial etc). O site também não usa cookies de rastreamento nem ferramentas de publicidade de terceiros (tipo Google Analytics ou Meta Pixel) — só guardamos localmente no seu aparelho o necessário pra você continuar logado e ver seu progresso no Prime Club.</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">3. Por que coletamos e qual a base legal</h4>
+      <p style="margin-bottom:.5rem">Nome, telefone, e-mail e os dados do agendamento são coletados com base na <b style="color:var(--prata)">execução do contrato de prestação de serviço</b> (art. 7º, V da LGPD) — sem eles, não conseguimos confirmar seu horário nem avisar sobre mudanças.</p>
+      <p style="margin-bottom:1rem">Idade, Instagram, barbeiro favorito, código de indicação e o uso desses dados pro programa de fidelidade (Prime Club) dependem do seu <b style="color:var(--prata)">consentimento</b> (art. 7º, I) — dado ao marcar a caixa de aceite no cadastro, e que você pode revogar a qualquer momento pedindo a atualização ou remoção desses campos.</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">4. Com quem compartilhamos</h4>
+      <p style="margin-bottom:.5rem">Seus dados ficam num banco de dados operado pela <b style="color:var(--prata)">Supabase</b> (infraestrutura de nuvem), que atua como operadora — trata os dados só seguindo nossas instruções, com criptografia em trânsito e em repouso, e controle de acesso restrito (cada barbeiro só enxerga os próprios atendimentos; você só enxerga os seus).</p>
+      <p style="margin-bottom:1rem">Se você conversar com a barbearia pelo <b style="color:var(--prata)">WhatsApp</b>, essa conversa segue a política de privacidade do WhatsApp/Meta, fora do nosso controle. Não vendemos nem alugamos seus dados a terceiros pra fins de marketing. Só compartilhamos dados com autoridades se formos legalmente obrigados.</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">5. Por quanto tempo guardamos</h4>
+      <p style="margin-bottom:1rem">Enquanto sua conta estiver ativa. Se você pedir a exclusão da conta, apagamos seus dados pessoais identificáveis, com exceção do que formos legalmente obrigados a manter (ex: obrigações fiscais sobre vendas já realizadas, quando aplicável).</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">6. Seus direitos</h4>
+      <p style="margin-bottom:.5rem">Você pode, a qualquer momento:</p>
+      <ul style="margin:0 0 1rem 1.2rem;padding:0">
+        <li>Confirmar se tratamos seus dados e acessá-los;</li>
+        <li>Corrigir dados incompletos, desatualizados ou incorretos (você mesmo consegue editar a maior parte no seu Perfil);</li>
+        <li>Pedir a eliminação dos dados tratados com base no seu consentimento;</li>
+        <li>Pedir a portabilidade dos seus dados pra outro fornecedor;</li>
+        <li>Saber com quem compartilhamos seus dados;</li>
+        <li>Revogar seu consentimento a qualquer momento.</li>
+      </ul>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">7. Como exercer seus direitos</h4>
+      <p style="margin-bottom:1rem">Chama a gente pelo WhatsApp ou Instagram informados no rodapé do site, explicando o que precisa. Por sermos uma empresa de pequeno porte, o prazo de resposta pode ser um pouco maior que o padrão geral da LGPD, conforme previsto na regulamentação da ANPD pra negócios do nosso porte — mas respondemos todo pedido.</p>
+
+      <h4 style="color:var(--prata);font-family:var(--font-display);font-size:1rem;margin:1.4rem 0 .5rem">8. Alterações nesta política</h4>
+      <p style="margin-bottom:0">Podemos atualizar esta política pra refletir mudanças no site ou na lei. A data no topo sempre mostra a versão mais recente. Mudanças relevantes serão avisadas por aqui.</p>
+    </div>
+
+    <button class="btn btn-ghost" style="width:100%;margin-top:1.6rem" onclick="closePrivacyModal()">Fechar</button>
   </div>
 </div>
 
@@ -2095,6 +2153,9 @@ function caOpenSticker(id){
 }
 function closeClubSticker(){ document.getElementById('clubStickerModal').classList.remove('open'); }
 
+function openPrivacyModal(){ document.getElementById('privacyModal').classList.add('open'); }
+function closePrivacyModal(){ document.getElementById('privacyModal').classList.remove('open'); }
+
 // ══ Prime Club — celebração de desbloqueio ══
 let cuQueue = [];
 let cfAnim = null;
@@ -2207,6 +2268,8 @@ async function caSignup(){
   const ageNum=parseInt(age.value,10);
   if(!ageNum||ageNum<1||ageNum>120){fa.classList.add('invalid');ok=false}else fa.classList.remove('invalid');
   if(!ig.value.trim()){fi.classList.add('invalid');ok=false}else fi.classList.remove('invalid');
+  const consent = document.getElementById('ca-su-consent'), consentErr = document.getElementById('ca-su-consent-err');
+  if(!consent.checked){ consentErr.style.display='block'; ok=false; } else consentErr.style.display='none';
   if(!ok){ err.style.display='none'; return; }
   const newEmail = email.value.trim();
   const { data, error } = await sb.auth.signUp({ email: newEmail, password: pass.value });
