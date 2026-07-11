@@ -2206,7 +2206,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-body.scrolling::-webkit-scrollbar-thumb{background:rgba(198,167,94,.6);box-shadow:0 0 6px rgba(198,167,94,.5)}
 #barberApp.desktop .ba-body{padding:2rem calc((100% - 1180px)/2) 3rem;width:100%;margin:0}
 #barberApp.desktop .ba-body>*{max-width:1180px;margin-left:auto;margin-right:auto}
-#barberApp .ba-slabel{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dourado);margin:1.4rem 0 .8rem}
+#barberApp .ba-slabel{font-size:.66rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dourado);margin:1.6rem 0 .9rem}
 #barberApp .ba-slabel:first-child{margin-top:.4rem}
 #barberApp .ba-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);padding:1.3rem 1.4rem;margin-bottom:.9rem}
 #barberApp .ba-cli-row{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.6rem 0;border-bottom:1px solid rgba(198,167,94,.12)}
@@ -4933,6 +4933,32 @@ if(baIsLoggedIn()){
 #ba-qr-print .qp-code{border:2px solid #B08D3E;border-radius:12px;padding:1.2rem;display:inline-block;margin-bottom:1.8rem}
 #ba-qr-print .qp-code img{display:block;width:220px;height:220px}
 #ba-qr-print .qp-foot{font-size:.72rem;color:#8C6F2E;letter-spacing:.06em}
+
+/* ══ Glassmorphism refinado nos cards (Fase 2) ══
+   fundo translúcido + blur + brilho superior sutil, consistente em todos os cards
+   neutros dos dois apps e da landing. Cards de destaque (com gradiente) e elementos
+   pequenos (inputs, avatares, pontinhos) ficam de fora de propósito. */
+:root{ --glass-card:rgba(24,28,25,.42); --glass-blur:blur(20px) saturate(135%); }
+.svc, .review,
+#clientApp .ca-plan, #clientApp .ca-fav, #clientApp .club-card, #clientApp .brinde-section,
+#barberApp .ba-card, #barberApp .meta-card, #barberApp .stat-tile, #barberApp .chart-card,
+#barberApp .rank-row, #barberApp .sumiu-banner, #barberApp .referral-card,
+#barberApp .brinde-card, #barberApp .cart-header, #barberApp .ba-encaixe{
+  background:var(--glass-card);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  box-shadow:inset 0 1px 0 rgba(237,237,232,.08), 0 6px 24px rgba(0,0,0,.26);
+}
+/* dispositivos sem suporte a backdrop-filter: mantém fundo sólido pra não ficar transparente demais */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .svc, .review,
+  #clientApp .ca-plan, #clientApp .ca-fav, #clientApp .club-card, #clientApp .brinde-section,
+  #barberApp .ba-card, #barberApp .meta-card, #barberApp .stat-tile, #barberApp .chart-card,
+  #barberApp .rank-row, #barberApp .sumiu-banner, #barberApp .referral-card,
+  #barberApp .brinde-card, #barberApp .cart-header, #barberApp .ba-encaixe{
+    background:var(--grafite-card);
+  }
+}
 </style>
 <div id="ba-report-print" class="prime-print-target"></div>
 <div id="ba-qr-print" class="prime-print-target"></div>
