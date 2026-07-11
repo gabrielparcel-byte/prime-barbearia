@@ -663,7 +663,7 @@ function barbersScheduledAt(weekday, timeStr){
 }
 
 // ══ Estado do wizard ══
-const state = {step:1, services:[], day:null, dayLabel:null, time:null, barber:null, barberIntroAnswered:null};
+const state = {step:1, services:[], day:null, dayLabel:null, time:null, barber:null, barberId:null, barberIntroAnswered:null};
 let pendingBooking = null;
 const modal = document.getElementById('bookingModal');
 const steps = [...document.querySelectorAll('.wstep')];
@@ -721,8 +721,8 @@ document.getElementById('wService').addEventListener('click',e=>{
   state.services = [...document.querySelectorAll('#wService .chip.active')].map(x=>x.dataset.v);
   render();
 });
-chipSelect('wDay', c=>{ state.day=c.dataset.iso; state.dayLabel=c.dataset.label; state.time=null; state.barber=null; buildTimes(); });
-chipSelect('wTime', c=>{ state.time=c.dataset.v; state.barber=null; });
+chipSelect('wDay', c=>{ state.day=c.dataset.iso; state.dayLabel=c.dataset.label; state.time=null; state.barber=null; state.barberId=null; buildTimes(); });
+chipSelect('wTime', c=>{ state.time=c.dataset.v; state.barber=null; state.barberId=null; });
 
 // próximos 10 dias com funcionamento
 const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -740,14 +740,14 @@ function buildDays(){
     box.appendChild(btn);
   }
 }
-function buildTimes(){
+async function buildTimes(){
   const box=document.getElementById('wTime'); box.innerHTML='';
   if(!state.day) return;
   const d=new Date(state.day+'T12:00:00');
   const h=HORARIOS[d.getDay()]; if(!h) return;
   const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
   const now=new Date(); const isToday = state.day===primeLocalDate(now);
-  const dayAppts = (typeof primeGetAppointments==='function'?primeGetAppointments():[]).filter(a=>a.day===state.day);
+  const dayAppts = await primeFetchDayAppointments(state.day);
   const weekday = d.getDay();
   const bookedCountByTime = {};
   dayAppts.forEach(a=>{ bookedCountByTime[a.time] = (bookedCountByTime[a.time]||0) + 1; });
@@ -765,13 +765,13 @@ function buildTimes(){
   }
 }
 
-function renderBarberStep(){
+async function renderBarberStep(){
   const area = document.getElementById('wBarberArea');
   if(!area) return;
   const acc = typeof primeGetAccount==='function' ? primeGetAccount() : null;
   const favorite = acc && acc.favoriteBarber;
   const allBarbers = typeof primeGetBarberRoster==='function' ? primeGetBarberRoster() : [];
-  const appts = typeof primeGetAppointments==='function' ? primeGetAppointments() : [];
+  const appts = await primeFetchDayAppointments(state.day);
   const weekday = new Date(state.day+'T12:00:00').getDay();
   const available = allBarbers.filter(b => {
     const h = resolveBarberHours(b, weekday);
@@ -780,7 +780,7 @@ function renderBarberStep(){
     const [tH,tM]=state.time.split(':').map(Number);
     const t=tH*60+tM;
     if(t<oH*60+oM || t+SLOT_MIN>cH*60+cM) return false;
-    return !appts.some(a=>a.day===state.day && a.time===state.time && a.barber===b.name);
+    return !appts.some(a=>a.day===state.day && a.time===state.time && a.barberId===b.id);
   });
 
   if(!favorite && !state.barberIntroAnswered){
@@ -808,7 +808,7 @@ function renderBarberStep(){
     area.innerHTML = `<div class="wbarber-list">${available.map(b=>{
       const p = barberDemoProfile(b.name);
       const isFav = b.name===favorite;
-      return `<div class="wbarber-card${state.barber===b.name?' active':''}" data-name="${b.name.replace(/"/g,'&quot;')}">
+      return `<div class="wbarber-card${state.barber===b.name?' active':''}" data-name="${b.name.replace(/"/g,'&quot;')}" data-id="${b.id}">
         ${isFav?'<span class="wbarber-star" title="Seu barbeiro favorito">★</span>':''}
         <div class="wbarber-ph"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z"/></svg></div>
         <div class="wbarber-info"><h4>${b.name}</h4><p>${p.esp} · ${p.exp} de experiência</p></div>
@@ -816,18 +816,19 @@ function renderBarberStep(){
     }).join('')}</div>`;
   } else {
     area.innerHTML = `<div class="chips">${available.map(b=>
-      `<button class="chip${state.barber===b.name?' active':''}" data-name="${b.name.replace(/"/g,'&quot;')}">${b.name===favorite?'<span class="wbarber-chip-star">★</span>':''}${b.name}</button>`
+      `<button class="chip${state.barber===b.name?' active':''}" data-name="${b.name.replace(/"/g,'&quot;')}" data-id="${b.id}">${b.name===favorite?'<span class="wbarber-chip-star">★</span>':''}${b.name}</button>`
     ).join('')}</div>`;
   }
   area.querySelectorAll('[data-name]').forEach(el=>el.addEventListener('click', ()=>{
     state.barber = el.dataset.name;
+    state.barberId = el.dataset.id;
     renderBarberStep();
     render();
   }));
 }
 
 document.getElementById('wBack').addEventListener('click',()=>{ state.step=Math.max(1,state.step-1); render(); });
-document.getElementById('wNext').addEventListener('click',()=>{
+document.getElementById('wNext').addEventListener('click', async ()=>{
   if(state.step<5){
     if(state.step===3 && !primeIsLoggedIn()){
       pendingBooking = {services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time};
@@ -836,8 +837,8 @@ document.getElementById('wNext').addEventListener('click',()=>{
       return;
     }
     state.step++;
-    if(state.step===3) buildTimes();
-    if(state.step===4) renderBarberStep();
+    if(state.step===3) await buildTimes();
+    if(state.step===4) await renderBarberStep();
     render();
     return;
   }
@@ -845,14 +846,14 @@ document.getElementById('wNext').addEventListener('click',()=>{
   const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n\nPode confirmar pra mim?`;
   window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
   const acc = primeGetAccount();
-  const savedAppt = primeSaveAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, barber:state.barber, clientEmail: acc && acc.email});
+  const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email});
   // notifica o barbeiro sobre o novo pedido de agendamento
   primeAddNotif({forRole:'barber', target:state.barber, type:'novo', apptId:savedAppt.id,
     text:`Novo agendamento de ${name} — ${state.dayLabel} às ${state.time} (${state.services.join(' + ')})`});
   if(acc && !acc.favoriteBarber){ acc.favoriteBarber = state.barber; primeSaveAccount(acc); }
-  if(acc && acc.email) primeCheckAchievements(acc.email, {bookedTime: state.time, bookedDay: state.day});
+  if(acc && acc.email) await primeCheckAchievements({bookedTime: state.time, bookedDay: state.day});
   closeModal();
-  state.step=1; state.services=[]; state.day=null; state.dayLabel=null; state.time=null; state.barber=null; state.barberIntroAnswered=null;
+  state.step=1; state.services=[]; state.day=null; state.dayLabel=null; state.time=null; state.barber=null; state.barberId=null; state.barberIntroAnswered=null;
   document.querySelectorAll('#wService .chip, #wDay .chip, #wTime .chip').forEach(c=>c.classList.remove('active'));
   document.getElementById('wName').value='';
   render();
@@ -1423,6 +1424,24 @@ async function primeFetchDayAppointments(day){
   if(error){ console.error('primeFetchDayAppointments', error); return []; }
   return (data||[]).map(primeApptFromRow);
 }
+async function baFetchAgendaAppointments(day){
+  const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baCurrentBarberId).eq('day', day).neq('status','cancelado');
+  if(error){ console.error('baFetchAgendaAppointments', error); return []; }
+  return (data||[]).map(primeApptFromRow);
+}
+async function baFetchPendingAppointments(){
+  const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baCurrentBarberId).eq('status','pendente');
+  if(error){ console.error('baFetchPendingAppointments', error); return []; }
+  return (data||[]).map(primeApptFromRow);
+}
+async function baFetchReviews(){
+  const isAdmin = baCurrentRole==='admin';
+  let q = sb.from('appointments').select('*').not('rating','is',null);
+  if(!isAdmin) q = q.eq('barber_id', baCurrentBarberId);
+  const { data, error } = await q;
+  if(error){ console.error('baFetchReviews', error); return []; }
+  return (data||[]).map(primeApptFromRow);
+}
 
 // ══ Notificações (sino) ══
 // forRole: 'barber' → target = nome do barbeiro | 'client' → target = e-mail do cliente
@@ -1780,8 +1799,8 @@ document.getElementById('cancelModal').addEventListener('click', e=>{ if(e.targe
 
 // ── Modal de feedback (estrelas) ──
 let feedbackTargetId = null, feedbackWho = 'cliente', feedbackStars = 0;
-function openFeedback(id, who){
-  const ap = primeGetAppointmentById(id);
+async function openFeedback(id, who){
+  const ap = await primeFetchAppointmentById(id);
   if(!ap) return;
   feedbackTargetId = id; feedbackWho = who; feedbackStars = 0;
   const title = document.getElementById('feedbackTitle');
@@ -1795,7 +1814,7 @@ function openFeedback(id, who){
   } else {
     // cliente avaliando o corte/barbeiro
     title.textContent = 'Como foi seu atendimento?';
-    sub.innerHTML = `Avalie o corte com <b>${ap.barber||'o barbeiro'}</b>.`;
+    sub.innerHTML = `Avalie o corte com <b>${apBarberName(ap)}</b>.`;
     comment.placeholder = 'Quer deixar um comentário? (opcional)';
   }
   comment.value = '';
@@ -1810,7 +1829,7 @@ function renderFeedbackStars(){
   ).join('');
   box.querySelectorAll('[data-star]').forEach(s=>s.addEventListener('click',()=>{ feedbackStars=+s.dataset.star; renderFeedbackStars(); }));
 }
-document.getElementById('feedbackSubmit').addEventListener('click', ()=>{
+document.getElementById('feedbackSubmit').addEventListener('click', async ()=>{
   if(!feedbackTargetId) return;
   if(feedbackStars===0){ alert('Escolha de 1 a 5 estrelas.'); return; }
   const comment = document.getElementById('feedbackComment').value.trim();
@@ -1818,16 +1837,17 @@ document.getElementById('feedbackSubmit').addEventListener('click', ()=>{
   const patch = feedbackWho==='barbeiro'
     ? {status:'concluido', clientRating:feedbackStars, clientRatingComment:comment}
     : {status:'concluido', rating:feedbackStars, ratingComment:comment, ratingBy:'cliente'};
-  const ap = primeUpdateAppointment(feedbackTargetId, patch);
-  if(ap && ap.clientEmail){
-    primeCheckAchievements(ap.clientEmail);
-    // celebra na hora se foi o próprio cliente avaliando
-    if(feedbackWho==='cliente' && typeof caCelebrateUnlocks==='function') setTimeout(caCelebrateUnlocks, 400);
+  const ap = await primeUpdateAppointment(feedbackTargetId, patch);
+  // achievements só recalculam quando o próprio cliente logado avaliou (barbeiro avaliando cliente não tem
+  // acesso, via RLS, ao histórico completo desse cliente com outros barbeiros)
+  if(ap && feedbackWho==='cliente'){
+    await primeCheckAchievements();
+    if(typeof caCelebrateUnlocks==='function') setTimeout(caCelebrateUnlocks, 400);
   }
   // notifica a outra parte
   if(ap){
-    if(feedbackWho==='cliente' && ap.barber){
-      primeAddNotif({forRole:'barber', target:ap.barber, type:'avaliacao', apptId:ap.id,
+    if(feedbackWho==='cliente'){
+      primeAddNotif({forRole:'barber', target:apBarberName(ap), type:'avaliacao', apptId:ap.id,
         text:`${ap.name||'Cliente'} avaliou o atendimento de ${ap.dayLabel}: ${feedbackStars}★`});
     } else if(feedbackWho==='barbeiro' && ap.clientEmail){
       primeAddNotif({forRole:'client', target:ap.clientEmail, type:'pedido-avaliacao', apptId:ap.id,
@@ -1991,14 +2011,14 @@ function caShareReferral(){
   const msg = `E aí! Bora cortar o cabelo na Prime Barbearia? Usa meu código *${code}* quando for criar sua conta lá no app 💈`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
-function caRenderClub(){
+async function caRenderClub(){
   const acc = primeGetAccount() || {};
   const email = acc.email || '';
   const lvlBox = document.getElementById('ca-club-level');
   const grid = document.getElementById('ca-club-grid');
   if(!lvlBox || !grid) return;
   const st = primeGetAch(email);
-  const {level, next, cuts} = primeClientLevel(email);
+  const {level, next, cuts} = await primeClientLevel();
   const pct = next ? Math.min(100, Math.round(((cuts - level.min) / (next.min - level.min)) * 100)) : 100;
   const unlockedCount = Object.keys(st.unlocked).length;
   lvlBox.innerHTML = `
@@ -2994,6 +3014,7 @@ const BARBER_RETURN_DAYS = 15; // estimativa média de retorno pro próximo cort
 let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a cliente/venda é filtrado por ele
 let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê a aba Gestão
 let baCurrentBarberEmail = null;
+let baCurrentBarberId = null; // uuid em barbers — usado nas queries de appointments
 let baRosterCache = []; // mirror em memória da tabela `barbers` do Supabase
 
 function baIsLoggedIn(){ return !!baCurrentBarber; }
@@ -3112,14 +3133,14 @@ function baGetFilterRange(){
   if(from && to) return [from, to];
   return [todayStr.slice(0,8)+'01', todayStr];
 }
-function baRenderVendasHoje(){
+async function baRenderVendasHoje(){
   const box = document.getElementById('ba-vendas-hoje');
   const todayStr = primeLocalDate();
   const sales = baMySales().filter(s=>s.date===todayStr);
   const realizado = sales.reduce((s,x)=>s+x.value,0);
   const realizadoCount = sales.length;
-  const appts = (typeof primeGetAppointments==='function'?primeGetAppointments():[])
-    .filter(a=>a.day===todayStr && a.barber===baCurrentBarber && a.status!=='cancelado' && !sales.some(s=>s.client===a.name && s.date===a.day));
+  const appts = (await baFetchAgendaAppointments(todayStr))
+    .filter(a=>!sales.some(s=>s.client===a.name && s.date===a.day));
   const previstoVal = appts.reduce((s,a)=>{
     const svcs = a.services || (a.service ? [a.service] : []);
     return s + svcs.reduce((t,name)=> t + (SVC_PRICES[name]||0), 0);
@@ -3135,8 +3156,8 @@ function baRenderVendasHoje(){
      <div class="vh-row"><span class="vh-lbl">Total estimado do dia</span><span class="vh-val destaque">${baFormatMoney(totalDia)}</span></div>
      <div class="vh-row"><span class="vh-lbl">Comissão estimada (${Math.round(pct*100)}%)</span><span class="vh-val">${baFormatMoney(comissaoDia)}</span></div>`;
 }
-function baRenderVendas(){
-  baRenderVendasHoje();
+async function baRenderVendas(){
+  await baRenderVendasHoje();
   const [from, to] = baGetFilterRange();
   const sales = baMySales().filter(s=>s.date>=from && s.date<=to).sort((a,b)=> b.date.localeCompare(a.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
@@ -3164,14 +3185,12 @@ function baRenderVendas(){
 }
 
 // avaliações que os clientes deixaram nos atendimentos concluídos
-function baRenderReviews(){
+async function baRenderReviews(){
   const isAdmin = baCurrentRole==='admin';
   const label = document.getElementById('ba-reviews-label');
   const box = document.getElementById('ba-reviews-list');
   // admin vê todas as avaliações; barbeiro comum vê só as dele
-  const reviews = (typeof primeGetAppointments==='function'?primeGetAppointments():[])
-    .filter(a=>a.rating && (isAdmin || a.barber===baCurrentBarber))
-    .sort((a,b)=> (b.day||'').localeCompare(a.day||''));
+  const reviews = (await baFetchReviews()).sort((a,b)=> (b.day||'').localeCompare(a.day||''));
   label.textContent = isAdmin ? 'Avaliações dos clientes (toda a equipe)' : 'Avaliações dos seus clientes';
   if(!reviews.length){
     box.innerHTML = '<p style="color:var(--prata-dim);padding:.6rem 0 1rem">Nenhuma avaliação ainda.</p>';
@@ -3185,7 +3204,7 @@ function baRenderReviews(){
       return `<div class="ba-item" style="flex-direction:column;align-items:stretch">
         <div class="info">
           <div class="n" style="color:var(--dourado)">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div>
-          <div class="d">${a.name||'Cliente'}${isAdmin?' · '+(a.barber||''):''} · ${a.dayLabel||''}${a.ratingComment?'<br>“'+a.ratingComment+'”':''}</div>
+          <div class="d">${a.name||'Cliente'}${isAdmin?' · '+apBarberName(a):''} · ${a.dayLabel||''}${a.ratingComment?'<br>“'+a.ratingComment+'”':''}</div>
         </div>
         ${replyHtml}
         <button class="review-reply-btn" onclick="baToggleReplyForm(${a.id})">${a.barberReply?'Editar resposta':'Responder'}</button>
@@ -4665,6 +4684,7 @@ function baEnter(barber){
   baCurrentBarber = barber.name;
   baCurrentRole = barber.role;
   baCurrentBarberEmail = barber.email;
+  baCurrentBarberId = barber.id;
   baSeedSales();
   baMigrateSales();
   baSeedClients();
@@ -4679,6 +4699,7 @@ function baLogout(){
   document.getElementById('barberApp').classList.remove('logged');
   baCurrentBarber = null;
   baCurrentRole = null;
+  baCurrentBarberId = null;
   baAgendaDay = null;
   baShow('ba-screen-login');
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.remove('active'));
