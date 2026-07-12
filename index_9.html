@@ -3122,16 +3122,14 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 </div>
 
 <script>
-const BARBER_KEYS = {sales:'barberSales', clients:'barberClients'};
 const BARBER_COMMISSION_PCT = 0.6; // 60% barbeiro / 40% barbearia
 const BARBER_RETURN_DAYS = 15; // estimativa média de retorno pro próximo corte
 let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a cliente/venda é filtrado por ele
 let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê a aba Gestão
 let baCurrentBarberEmail = null;
-let baCurrentBarberId = null; // uuid em barbers — usado nas queries de appointments
+let baCurrentBarberId = null; // uuid em barbers — usado nas queries de appointments/vendas/clientes
 let baRosterCache = []; // mirror em memória da tabela `barbers` do Supabase
-
-function baIsLoggedIn(){ return !!baCurrentBarber; }
+let baProductsCache = []; // mirror em memória da tabela `products` — refresh em pontos de entrada, leitura síncrona no resto
 
 async function baLoadRoster(){
   const { data, error } = await sb.from('barbers').select('*').order('created_at');
@@ -3141,45 +3139,89 @@ async function baLoadRoster(){
   renderTeamSection();
 }
 function baGetRoster(){ return baRosterCache; }
+function baIsLoggedIn(){ return !!baCurrentBarber; }
 
-function baSeedSales(){
-  if(localStorage.getItem(BARBER_KEYS.sales)) return;
-  const seed = [
-    {client:'Lucas Andrade', service:'Corte + Barba', value:70, date:'2026-07-02', barber:'Nathan'},
-    {client:'Rafael Souza', service:'Corte', value:45, date:'2026-06-29', barber:'Nathan'},
-    {client:'Bruno Lima', service:'Barbaterapia', value:60, date:'2026-06-27', barber:'Nathan'},
-    {client:'Lucas Andrade', service:'Barba', value:35, date:'2026-06-20', barber:'Nathan'},
-    {client:'Diego Martins', service:'Corte + Barba', value:70, date:'2026-06-18', barber:'Nathan'},
-    {client:'Rafael Souza', service:'Sobrancelha', value:15, date:'2026-06-15', barber:'Nathan'},
-    {client:'Gustavo Alves', service:'Pigmentação', value:40, date:'2026-06-10', barber:'Nathan'},
-    {client:'Bruno Lima', service:'Corte', value:45, date:'2026-06-05', barber:'Nathan'}
-  ];
-  localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(seed));
+// ══ Vendas (Supabase) ══
+function baSaleFromRow(r){
+  if(!r) return r;
+  return { id:r.id, barberId:r.barber_id, client:r.client_name, appointmentId:r.appointment_id,
+    service:r.service, value:r.value, date:r.date, time:r.time, notaId:r.nota_id,
+    qty:r.qty, type:r.type, createdAt:r.created_at };
 }
-// corrige dados salvos antes de existir o campo "barber" (sessões de teste anteriores)
-function baMigrateSales(){
-  const sales = baGetSales();
-  if(sales.length && sales.some(s=>!s.barber)){
-    localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales.map(s=> s.barber ? s : {...s, barber:'Nathan'})));
-  }
+function baSaleToRow(s){
+  const row = {};
+  if('barberId' in s) row.barber_id = s.barberId;
+  if('client' in s) row.client_name = s.client;
+  if('appointmentId' in s) row.appointment_id = s.appointmentId;
+  if('service' in s) row.service = s.service;
+  if('value' in s) row.value = s.value;
+  if('date' in s) row.date = s.date;
+  if('time' in s) row.time = s.time;
+  if('notaId' in s) row.nota_id = s.notaId;
+  if('qty' in s) row.qty = s.qty;
+  if('type' in s) row.type = s.type;
+  return row;
 }
-function baGetSales(){ try{ return JSON.parse(localStorage.getItem(BARBER_KEYS.sales)||'[]'); }catch(e){ return []; } }
-function baMySales(){ return baGetSales().filter(s=>s.barber===baCurrentBarber); }
+async function baInsertSales(rows){
+  const { data, error } = await sb.from('sales').insert(rows.map(baSaleToRow)).select();
+  if(error){ console.error('baInsertSales', error); return []; }
+  return (data||[]).map(baSaleFromRow);
+}
+async function baFetchMySales(from, to){
+  const { data, error } = await sb.from('sales').select('*').eq('barber_id', baCurrentBarberId).gte('date', from).lte('date', to);
+  if(error){ console.error('baFetchMySales', error); return []; }
+  return (data||[]).map(baSaleFromRow);
+}
+async function baFetchShopSales(from, to){ // admin-only na prática — RLS libera tudo só pra role admin
+  const { data, error } = await sb.from('sales').select('*').gte('date', from).lte('date', to);
+  if(error){ console.error('baFetchShopSales', error); return []; }
+  return (data||[]).map(baSaleFromRow);
+}
+function baSaleBarberName(s){ return apBarberName({barberId: s.barberId}); }
+async function baFetchAllMySales(){
+  const { data, error } = await sb.from('sales').select('*').eq('barber_id', baCurrentBarberId);
+  if(error){ console.error('baFetchAllMySales', error); return []; }
+  return (data||[]).map(baSaleFromRow);
+}
+async function baFetchClientSales(clientName){
+  const { data, error } = await sb.from('sales').select('*').eq('barber_id', baCurrentBarberId).eq('client_name', clientName);
+  if(error){ console.error('baFetchClientSales', error); return []; }
+  return (data||[]).map(baSaleFromRow);
+}
 
-function baSeedClients(){
-  if(localStorage.getItem(BARBER_KEYS.clients)) return;
-  const seed = [
-    {name:'Lucas Andrade', barber:'Nathan', age:27, instagram:'@lucas.andrade', email:'lucas.andrade@email.com', phone:'5544991234567'},
-    {name:'Rafael Souza', barber:'Nathan', age:32, instagram:'@rafasouza', email:'rafael.souza@email.com', phone:'5544992345678'},
-    {name:'Bruno Lima', barber:'Nathan', age:24, instagram:'@brunolima24', email:'bruno.lima@email.com', phone:'5544993456789'},
-    {name:'Diego Martins', barber:'Nathan', age:38, instagram:'@diegomartins', email:'diego.martins@email.com', phone:'5544994567890'},
-    {name:'Gustavo Alves', barber:'Nathan', age:29, instagram:'@gu.alves', email:'gustavo.alves@email.com', phone:'5544995678901'}
-  ];
-  localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(seed));
+// ══ Carteira de clientes do barbeiro (Supabase, crm_clients) ══
+function baCrmFromRow(r){
+  if(!r) return r;
+  return { id:r.id, barberId:r.barber_id, clientId:r.client_id, name:r.name, phone:r.phone,
+    email:r.email, age:r.age, instagram:r.instagram, plan:r.plan };
 }
-function baGetClients(){ try{ return JSON.parse(localStorage.getItem(BARBER_KEYS.clients)||'[]'); }catch(e){ return []; } }
-// só retorna clientes cadastrados sob o barbeiro logado — um barbeiro nunca vê a carteira de outro
-function baMyClients(){ return baGetClients().filter(c=>c.barber===baCurrentBarber); }
+async function baFetchMyCrmClients(){
+  const { data, error } = await sb.from('crm_clients').select('*').eq('barber_id', baCurrentBarberId);
+  if(error){ console.error('baFetchMyCrmClients', error); return []; }
+  return (data||[]).map(baCrmFromRow);
+}
+// tenta achar uma conta real (tabela `clients`, Fase A) que bata com nome/telefone/e-mail — mesma ideia do encaixe da Fase B
+async function baFindRealClientId(name, phone, email){
+  let q = sb.from('clients').select('id');
+  if(email) q = q.eq('email', email);
+  else if(phone) q = q.eq('phone', phone);
+  else q = q.ilike('name', name);
+  const { data } = await q.limit(1).maybeSingle();
+  return data ? data.id : null;
+}
+async function baCreateCrmClient(fields){ // {name, phone?, email?, age?, instagram?}
+  const clientId = await baFindRealClientId(fields.name, fields.phone, fields.email);
+  const { data, error } = await sb.from('crm_clients').insert({
+    barber_id: baCurrentBarberId, client_id: clientId, name: fields.name, phone: fields.phone||null,
+    email: fields.email||null, age: fields.age||null, instagram: fields.instagram||null
+  }).select().single();
+  if(error){ console.error('baCreateCrmClient', error); return null; }
+  return baCrmFromRow(data);
+}
+async function baUpdateCrmClientPlan(crmId, plan){
+  const { error } = await sb.from('crm_clients').update({plan}).eq('id', crmId);
+  if(error) console.error('baUpdateCrmClientPlan', error);
+}
 
 function baFormatMoney(v){ return 'R$ ' + v.toFixed(2).replace('.',','); }
 function baFormatDate(iso){
@@ -3250,11 +3292,11 @@ function baGetFilterRange(){
 async function baRenderVendasHoje(){
   const box = document.getElementById('ba-vendas-hoje');
   const todayStr = primeLocalDate();
-  const sales = baMySales().filter(s=>s.date===todayStr);
+  const sales = await baFetchMySales(todayStr, todayStr);
   const realizado = sales.reduce((s,x)=>s+x.value,0);
   const realizadoCount = sales.length;
   const appts = (await baFetchAgendaAppointments(todayStr))
-    .filter(a=>!sales.some(s=>s.client===a.name && s.date===a.day));
+    .filter(a=>!sales.some(s=>s.appointmentId===a.id));
   const previstoVal = appts.reduce((s,a)=>{
     const svcs = a.services || (a.service ? [a.service] : []);
     return s + svcs.reduce((t,name)=> t + (SVC_PRICES[name]||0), 0);
@@ -3273,7 +3315,7 @@ async function baRenderVendasHoje(){
 async function baRenderVendas(){
   await baRenderVendasHoje();
   const [from, to] = baGetFilterRange();
-  const sales = baMySales().filter(s=>s.date>=from && s.date<=to).sort((a,b)=> b.date.localeCompare(a.date));
+  const sales = (await baFetchMySales(from, to)).sort((a,b)=> b.date.localeCompare(a.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
   const pct = baMyCommissionPct();
   const minha = total*pct;
@@ -3349,21 +3391,25 @@ const BA_DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
 const BA_MONTHS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 let baDashBarDays = 7, baDashLineMonths = 6;
 
-function baDailySalesMap(){
+// busca uma vez (13 meses pra trás, cobre os 30 dias do gráfico de barras e os 12 meses do de linha)
+// e agrega tudo em memória — evita 1 fetch por dia/mês dentro dos loops dos gráficos
+let baDashSalesCache = [];
+async function baLoadDashSales(){
+  const today = new Date();
+  const from = primeLocalDate(new Date(today.getFullYear(), today.getMonth()-12, 1));
+  const to = primeLocalDate(today);
+  baDashSalesCache = baDashScope==='shop' ? await baFetchShopSales(from, to) : await baFetchMySales(from, to);
+}
+function baScopedDailySalesMap(){
   const map = {};
-  baMySales().forEach(s=>{ map[s.date] = (map[s.date]||0) + s.value; });
+  baDashSalesCache.forEach(s=>{ map[s.date] = (map[s.date]||0) + s.value; });
   return map;
 }
-function baShopDailySalesMap(){
-  const map = {};
-  baGetSales().forEach(s=>{ map[s.date] = (map[s.date]||0) + s.value; });
-  return map;
-}
-function baMonthlyTotal(year, month){
+function baScopedMonthlyTotal(year, month){
   const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
   const d = new Date(year, month+1, 0);
   const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  return baMySales().filter(s=>s.date>=from && s.date<=to).reduce((s,x)=>s+x.value,0);
+  return baDashSalesCache.filter(s=>s.date>=from && s.date<=to).reduce((s,x)=>s+x.value,0);
 }
 function baMyGoal(){
   const me = baGetRoster().find(b=>b.name===baCurrentBarber);
@@ -3372,15 +3418,10 @@ function baMyGoal(){
 
 // visão do dashboard: 'mine' (padrão) ou 'shop' (barbearia toda — só admin pode alternar)
 let baDashScope = 'mine';
-function baScopedMonthlyTotal(year, month){
-  return baDashScope==='shop' ? baShopFinancials(year, month).faturamento : baMonthlyTotal(year, month);
-}
-function baScopedDailySalesMap(){
-  return baDashScope==='shop' ? baShopDailySalesMap() : baDailySalesMap();
-}
-function baSetDashScope(scope){
+async function baSetDashScope(scope){
   baDashScope = scope;
   document.querySelectorAll('#ba-dash-scope .seg-btn').forEach(b=>b.classList.toggle('active', b.dataset.scope===scope));
+  await baLoadDashSales();
   baRenderDashComparativo();
   baRenderDashBars(baDashBarDays);
   baRenderDashLine(baDashLineMonths);
@@ -3393,10 +3434,11 @@ if(baDashScopeEl) baDashScopeEl.addEventListener('click', e=>{
 });
 
 let baDashRankSort = 'attendances';
-function baRenderDashboard(){
+async function baRenderDashboard(){
   const isAdmin = baCurrentRole==='admin';
   if(!isAdmin) baDashScope = 'mine';
   document.getElementById('ba-dash-scope-wrap').style.display = isAdmin ? 'block' : 'none';
+  await baLoadDashSales();
   baRenderDashMeta();
   baRenderDashComparativo();
   baRenderDashBars(baDashBarDays);
@@ -3409,11 +3451,13 @@ function baRenderDashboard(){
   if(isAdmin) baRenderLucro();
 }
 
-function baRenderDashMeta(){
+async function baRenderDashMeta(){
   const el = document.getElementById('ba-dash-meta');
   const goal = baMyGoal();
   const today = new Date();
-  const total = baMonthlyTotal(today.getFullYear(), today.getMonth());
+  const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
+  const mySales = await baFetchMySales(from, primeLocalDate(today));
+  const total = mySales.reduce((s,x)=>s+x.value,0);
   if(!goal){
     el.innerHTML = `<div class="meta-card"><p class="meta-empty">Peça ao admin pra definir sua meta mensal.</p></div>`;
     return;
@@ -3537,11 +3581,11 @@ async function baTeamRankingData(){
   const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
   const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
   const to = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  const monthSales = baGetSales().filter(s=>s.date>=from && s.date<=to);
+  const monthSales = await baFetchShopSales(from, to);
   const monthAppts = (await baFetchReviews()).filter(a=>a.day>=from && a.day<=to);
   const roster = (typeof primeGetBarberRoster==='function'?primeGetBarberRoster():[]);
   return roster.map(b=>{
-    const mySales = monthSales.filter(s=>s.barber===b.name);
+    const mySales = monthSales.filter(s=>s.barberId===b.id);
     const myRatings = monthAppts.filter(a=>a.barberId===b.id);
     const rating = myRatings.length ? myRatings.reduce((s,a)=>s+a.rating,0)/myRatings.length : 0;
     return {name:b.name, attendances:mySales.length, rating, ratingCount:myRatings.length, resumo:baServiceResumo(mySales)};
@@ -3577,10 +3621,22 @@ async function baRenderRanking(sortKey){
   }).join('') : '<p style="color:var(--prata-dim);padding:.6rem 0">Nenhum barbeiro na equipe ainda.</p>';
 }
 
-// ══ Despesas (admin) ══
-function baGetExpenses(){ try{ return JSON.parse(localStorage.getItem('primeExpenses')||'[]'); }catch(e){ return []; } }
-function baSaveExpenses(list){ localStorage.setItem('primeExpenses', JSON.stringify(list)); }
-function baRenderDespesas(){
+// ══ Despesas (Supabase, admin-only) ══
+async function baFetchExpenses(from, to){
+  const { data, error } = await sb.from('expenses').select('*').gte('date', from).lte('date', to).order('date',{ascending:false});
+  if(error){ console.error('baFetchExpenses', error); return []; }
+  return data||[];
+}
+async function baAddExpenseRow(name, value, date){
+  const { data, error } = await sb.from('expenses').insert({name, value, date}).select().single();
+  if(error){ console.error('baAddExpenseRow', error); return null; }
+  return data;
+}
+async function baRemoveExpenseRow(id){
+  const { error } = await sb.from('expenses').delete().eq('id', id);
+  if(error) console.error('baRemoveExpenseRow', error);
+}
+async function baRenderDespesas(){
   const listEl = document.getElementById('ba-dash-despesas-list');
   const totalEl = document.getElementById('ba-dash-despesas-total');
   if(!listEl) return;
@@ -3588,8 +3644,7 @@ function baRenderDespesas(){
   const from = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`;
   const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
   const to = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  const all = baGetExpenses();
-  const month = all.filter(e=>e.date>=from && e.date<=to).sort((a,b)=>b.date.localeCompare(a.date));
+  const month = await baFetchExpenses(from, to);
   const total = month.reduce((s,e)=>s+e.value,0);
   totalEl.textContent = baFormatMoney(total);
   listEl.innerHTML = month.length ? month.map(e=>
@@ -3600,7 +3655,7 @@ function baRenderDespesas(){
     </div>`
   ).join('') : '<p style="color:var(--prata-dim);font-size:.82rem;padding:.4rem 0">Nenhuma despesa registrada este mês.</p>';
 }
-function baAddExpense(){
+async function baAddExpense(){
   const nameEl = document.getElementById('ba-despesa-nome');
   const valorEl = document.getElementById('ba-despesa-valor');
   const dataEl = document.getElementById('ba-despesa-data');
@@ -3608,39 +3663,36 @@ function baAddExpense(){
   const value = parseFloat(valorEl.value);
   const date = dataEl.value || primeLocalDate();
   if(!name || !value || value<=0) return;
-  const all = baGetExpenses();
-  all.push({id:primeNextId(), name, value, date});
-  baSaveExpenses(all);
+  await baAddExpenseRow(name, value, date);
   nameEl.value=''; valorEl.value=''; dataEl.value='';
   baRenderDespesas();
 }
-function baRemoveExpense(id){
-  const all = baGetExpenses().filter(e=>e.id!==id);
-  baSaveExpenses(all);
+async function baRemoveExpense(id){
+  await baRemoveExpenseRow(id);
   baRenderDespesas();
 }
 
 // ══ Lucro líquido estimado (admin) — faturamento da barbearia toda - comissões - despesas ══
-function baShopFinancials(year, month){
+async function baShopFinancials(year, month){
   const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
   const d = new Date(year, month+1, 0);
   const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const sales = baGetSales().filter(s=>s.date>=from && s.date<=to);
+  const sales = await baFetchShopSales(from, to);
   const roster = baGetRoster();
   const faturamento = sales.reduce((s,x)=>s+x.value,0);
   const comissoes = sales.reduce((s,x)=>{
-    const b = roster.find(r=>r.name===x.barber);
+    const b = roster.find(r=>r.id===x.barberId);
     const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
     return s + x.value*pct;
   },0);
-  const despesas = baGetExpenses().filter(e=>e.date>=from && e.date<=to).reduce((s,e)=>s+e.value,0);
+  const despesas = (await baFetchExpenses(from, to)).reduce((s,e)=>s+e.value,0);
   return { faturamento, comissoes, despesas, lucro: faturamento - comissoes - despesas };
 }
-function baRenderLucro(){
+async function baRenderLucro(){
   const el = document.getElementById('ba-dash-lucro');
   if(!el) return;
   const today = new Date();
-  const f = baShopFinancials(today.getFullYear(), today.getMonth());
+  const f = await baShopFinancials(today.getFullYear(), today.getMonth());
   el.innerHTML = `
     <div class="row"><span class="lbl">Faturamento (equipe toda)</span><span class="val small">${baFormatMoney(f.faturamento)}</span></div>
     <div class="row"><span class="lbl">Comissões repassadas</span><span class="val small">${baFormatMoney(f.comissoes)}</span></div>
@@ -3657,23 +3709,23 @@ function baReportMonthRange(){
   const monthName = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][today.getMonth()];
   return { from, to, label: `${monthName} de ${today.getFullYear()}` };
 }
-function baBuildReportData(){
+async function baBuildReportData(){
   const { from, to, label } = baReportMonthRange();
   const isAdmin = baCurrentRole==='admin';
   if(isAdmin){
     const today = new Date();
-    const fin = baShopFinancials(today.getFullYear(), today.getMonth());
-    const despesas = baGetExpenses().filter(e=>e.date>=from && e.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
+    const fin = await baShopFinancials(today.getFullYear(), today.getMonth());
+    const despesas = (await baFetchExpenses(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
     const roster = baGetRoster();
-    const sales = baGetSales().filter(s=>s.date>=from && s.date<=to);
+    const sales = await baFetchShopSales(from, to);
     const byBarber = {};
     roster.forEach(b=>{
-      const mine = sales.filter(s=>s.barber===b.name).sort((a,b2)=>a.date.localeCompare(b2.date));
+      const mine = sales.filter(s=>s.barberId===b.id).sort((a,b2)=>a.date.localeCompare(b2.date));
       if(mine.length) byBarber[b.name] = mine;
     });
     return { isAdmin:true, label, fin, despesas, byBarber };
   }
-  const sales = baMySales().filter(s=>s.date>=from && s.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
+  const sales = (await baFetchMySales(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
   const pct = baMyCommissionPct();
   return { isAdmin:false, label, sales, total, comissao: total*pct, name: baCurrentBarber };
@@ -3682,8 +3734,8 @@ function baReportLogoSrc(){
   const img = document.querySelector('.ca-logo');
   return img ? img.getAttribute('src') : '';
 }
-function baRenderReportHTML(){
-  const d = baBuildReportData();
+async function baRenderReportHTML(){
+  const d = await baBuildReportData();
   const logo = baReportLogoSrc();
   const geradoEm = baFormatDate(primeLocalDate());
   let body;
@@ -3746,8 +3798,8 @@ function baRenderReportHTML(){
     <div class="rp-foot">PRIME BARBEARIA · Av. Pedro Taques, 2824 — Maringá · PR<br>Relatório gerado automaticamente pelo sistema Prime</div>
   `;
 }
-function baExportReportPDF(){
-  document.getElementById('ba-report-print').innerHTML = baRenderReportHTML();
+async function baExportReportPDF(){
+  document.getElementById('ba-report-print').innerHTML = await baRenderReportHTML();
   window.print();
 }
 function baOpenQRPrint(){
@@ -3764,8 +3816,8 @@ function baOpenQRPrint(){
     <div class="qp-foot">${siteUrl.replace(/^https?:\/\//,'')}</div>`;
   window.print();
 }
-function baShareReportWhatsApp(){
-  const d = baBuildReportData();
+async function baShareReportWhatsApp(){
+  const d = await baBuildReportData();
   let text;
   if(d.isAdmin){
     text = `📊 *Relatório Prime — ${d.label}*\n\n` +
@@ -3821,8 +3873,8 @@ function baSetCliFilter(f){
   document.querySelectorAll('#ba-cli-filter .period-chip').forEach(c=>c.classList.toggle('active', c.dataset.filter===f));
   baRenderClientes();
 }
-function baRenderClientes(){
-  const sales = baMySales();
+async function baRenderClientes(){
+  const sales = await baFetchAllMySales();
   const last = {}, count = {};
   sales.forEach(s=>{
     count[s.client] = (count[s.client]||0) + 1;
@@ -3831,7 +3883,7 @@ function baRenderClientes(){
   // só entram na lista clientes que são deste barbeiro E que ele já atendeu de fato
   const searchEl = document.getElementById('ba-cli-search');
   const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
-  const clients = baMyClients();
+  const clients = await baFetchMyCrmClients();
   let names = clients.map(c=>c.name).filter(name=>last[name]);
   if(q){
     names = names.filter(name=>{
@@ -3856,9 +3908,9 @@ function baRenderClientes(){
 }
 
 async function baOpenClientDetail(name){
-  const client = baMyClients().find(c=>c.name===name);
+  const client = (await baFetchMyCrmClients()).find(c=>c.name===name);
   if(!client) return; // proteção: barbeiro não pode abrir cliente que não é dele
-  const sales = baMySales().filter(s=>s.client===name).sort((a,b)=> b.date.localeCompare(a.date));
+  const sales = (await baFetchClientSales(name)).sort((a,b)=> b.date.localeCompare(a.date));
   const lastSale = sales[0];
   document.getElementById('ba-cli-nome').textContent = client.name;
   document.getElementById('ba-cli-idade').textContent = client.age + ' anos';
@@ -3900,10 +3952,10 @@ function baRenderSumiu(client, lastSale){
     </div>`;
 }
 
-function baRenderBrinde(client){
+async function baRenderBrinde(client){
   const el = document.getElementById('ba-cli-brinde');
   if(!el) return;
-  const bSales = baMySales().filter(s=>s.client===client.name).length;
+  const bSales = (await baFetchClientSales(client.name)).length;
   if(!bSales || !primeIsBrindeEligible(client.name, bSales)){ el.innerHTML = ''; return; }
   const info = primeBrindeCutsInfo(client.name, bSales);
   const choice = client.email ? primeGetBrindeChoice(client.email) : null;
@@ -3921,10 +3973,10 @@ function baRenderBrinde(client){
       </div>
     </div>`;
 }
-function baMarkBrindeGiven(clientName){
-  const client = baMyClients().find(c=>c.name===clientName);
+async function baMarkBrindeGiven(clientName){
+  const client = (await baFetchMyCrmClients()).find(c=>c.name===clientName);
   if(!client) return;
-  const salesCount = baMySales().filter(s=>s.client===clientName).length;
+  const salesCount = (await baFetchClientSales(clientName)).length;
   primeMarkBrindeGiven(clientName, salesCount);
   if(client.email){
     primeMarkBrindeGiven(client.email, salesCount);
@@ -3975,29 +4027,30 @@ function baRenderReferralSection(client){
   }
   el.innerHTML = html;
 }
-function baMarkReferralGiftGiven(referralId, side){
+async function baMarkReferralGiftGiven(referralId, side){
   const list = primeGetReferrals();
   const r = list.find(x=>x.id===referralId);
   if(!r) return;
   if(side==='referrer') r.referrerGiftGiven = true; else r.referredGiftGiven = true;
   primeSaveReferrals(list);
   const name = document.getElementById('ba-cli-nome').textContent;
-  const client = baMyClients().find(c=>c.name===name);
+  const client = (await baFetchMyCrmClients()).find(c=>c.name===name);
   if(client) baRenderReferralSection(client);
   baRenderClientes();
 }
-function baRefSearchClient(referredName){
+async function baRefSearchClient(referredName){
   const q = document.getElementById('ba-ref-search').value.trim().toLowerCase();
   const box = document.getElementById('ba-ref-results');
   if(!q || q.length<2){ box.innerHTML=''; return; }
-  const matches = baMyClients().filter(c=>c.name!==referredName && c.name.toLowerCase().includes(q)).slice(0,5);
+  const matches = (await baFetchMyCrmClients()).filter(c=>c.name!==referredName && c.name.toLowerCase().includes(q)).slice(0,5);
   box.innerHTML = matches.length ? matches.map(c=>
     `<div class="ba-enc-result" onclick="baLinkReferral('${c.name.replace(/'/g,"\\'")}','${referredName.replace(/'/g,"\\'")}')">${c.name} <span class="enc-sub">${c.instagram||''}</span></div>`
   ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
 }
-function baLinkReferral(referrerName, referredName){
-  const referrer = baMyClients().find(c=>c.name===referrerName);
-  const referred = baMyClients().find(c=>c.name===referredName);
+async function baLinkReferral(referrerName, referredName){
+  const clients = await baFetchMyCrmClients();
+  const referrer = clients.find(c=>c.name===referrerName);
+  const referred = clients.find(c=>c.name===referredName);
   if(!referrer || !referred) return;
   primeCreateReferral(referrer.name, referrer.email||'', referred.name, referred.email||'');
   baRenderReferralSection(referred);
@@ -4027,10 +4080,37 @@ function baAddBrindeOpt(){
   baRenderBrindeConfig();
 }
 
-// ══ Catálogo de produtos (admin) — usado no carrinho ao vivo do atendimento ══
+// ══ Catálogo de produtos (Supabase, global/compartilhado) — usado no carrinho ao vivo do atendimento ══
 const PROD_LOW_STOCK = 5;
-function baGetProducts(){ try{ return JSON.parse(localStorage.getItem('barberProducts')||'[]'); }catch(e){ return []; } }
-function baSaveProducts(list){ localStorage.setItem('barberProducts', JSON.stringify(list)); }
+async function baFetchProducts(){
+  const { data, error } = await sb.from('products').select('*').order('name');
+  if(error){ console.error('baFetchProducts', error); return; }
+  baProductsCache = data||[];
+}
+function baGetProducts(){ return baProductsCache; }
+async function baAddProductRow(name, price, stock){
+  const { error } = await sb.from('products').insert({name, price, stock});
+  if(error){ console.error('baAddProductRow', error); return false; }
+  await baFetchProducts();
+  return true;
+}
+async function baRemoveProductRow(id){
+  const { error } = await sb.from('products').delete().eq('id', id);
+  if(error) console.error('baRemoveProductRow', error);
+  await baFetchProducts();
+}
+async function baRestockProductRow(id, qty){
+  const p = baGetProducts().find(x=>x.id===id);
+  if(!p) return;
+  const { error } = await sb.from('products').update({stock: p.stock + qty}).eq('id', id);
+  if(error){ console.error('baRestockProductRow', error); return; }
+  await baFetchProducts();
+}
+async function baDecrementStock(id, qty){
+  const { data, error } = await sb.rpc('decrement_product_stock', {p_id: id, p_qty: qty});
+  if(error){ console.error('baDecrementStock', error); return null; }
+  return data;
+}
 function baRenderProdutosConfig(){
   const products = baGetProducts();
   document.getElementById('ba-produtos-list').innerHTML = products.length ? products.map(p=>{
@@ -4048,7 +4128,7 @@ function baRenderProdutosConfig(){
     </div>`;
   }).join('') : '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum produto cadastrado.</p>';
 }
-function baAddProduct(){
+async function baAddProduct(){
   const nameEl = document.getElementById('ba-prod-nome');
   const priceEl = document.getElementById('ba-prod-preco');
   const stockEl = document.getElementById('ba-prod-estoque');
@@ -4056,25 +4136,19 @@ function baAddProduct(){
   const price = parseFloat(priceEl.value);
   const stock = parseInt(stockEl.value)||0;
   if(!name || !price || price<=0) return;
-  const products = baGetProducts();
-  products.push({id:primeNextId(), name, price, stock});
-  baSaveProducts(products);
+  await baAddProductRow(name, price, stock);
   nameEl.value=''; priceEl.value=''; stockEl.value='';
   baRenderProdutosConfig();
 }
-function baRemoveProduct(id){
-  baSaveProducts(baGetProducts().filter(p=>p.id!==id));
+async function baRemoveProduct(id){
+  await baRemoveProductRow(id);
   baRenderProdutosConfig();
 }
-function baRestockProduct(id){
+async function baRestockProduct(id){
   const qtyStr = prompt('Quantas unidades entraram no estoque?');
   const qty = parseInt(qtyStr);
   if(!qty || qty<=0) return;
-  const products = baGetProducts();
-  const p = products.find(x=>x.id===id);
-  if(!p) return;
-  p.stock += qty;
-  baSaveProducts(products);
+  await baRestockProductRow(id, qty);
   baRenderProdutosConfig();
 }
 // mesmos planos oferecidos no site pro cliente (definidos no script do app do cliente)
@@ -4111,39 +4185,36 @@ function baSyncPlanToClientAccount(client){
     if(typeof caRenderPlanCard==='function') caRenderPlanCard();
   }
 }
-function baAssignPlan(clientName, tierIndex){
-  const roster = baGetClients();
+async function baAssignPlan(clientName, tierIndex){
+  const roster = await baFetchMyCrmClients();
   const client = roster.find(c=>c.name===clientName);
   const tier = baPlanTiers()[tierIndex];
   if(!client || !tier) return;
   const d = new Date(); d.setMonth(d.getMonth()+1); d.setDate(1);
   client.plan = {name:tier.name, total:tier.cuts, used:0, renewsOn:`01/${String(d.getMonth()+1).padStart(2,'0')}`};
-  localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(roster));
+  await baUpdateCrmClientPlan(client.id, client.plan);
   baSyncPlanToClientAccount(client);
   // atribuir plano gera uma venda pro barbeiro (comissão sobre o valor do plano)
   if(tier.value){
-    const today = primeLocalDate();
-    const sales = baGetSales();
-    sales.unshift({client:client.name, service:`Assinatura — ${tier.name}`, value:tier.value, date:today, barber:baCurrentBarber});
-    localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
+    await baInsertSales([{barberId: baCurrentBarberId, client: client.name, service:`Assinatura — ${tier.name}`, value:tier.value, date:primeLocalDate()}]);
   }
   baRenderClientPlan(client);
 }
-function baRegisterCut(clientName){
-  const roster = baGetClients();
+async function baRegisterCut(clientName){
+  const roster = await baFetchMyCrmClients();
   const client = roster.find(c=>c.name===clientName);
   if(!client || !client.plan) return;
   if(client.plan.total===Infinity || client.plan.used < client.plan.total) client.plan.used = (client.plan.used||0) + 1;
-  localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(roster));
+  await baUpdateCrmClientPlan(client.id, client.plan);
   baSyncPlanToClientAccount(client);
   baRenderClientPlan(client);
 }
-function baCancelClientPlan(clientName){
-  const roster = baGetClients();
+async function baCancelClientPlan(clientName){
+  const roster = await baFetchMyCrmClients();
   const client = roster.find(c=>c.name===clientName);
   if(!client) return;
   client.plan = null;
-  localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(roster));
+  await baUpdateCrmClientPlan(client.id, client.plan);
   baSyncPlanToClientAccount(client);
   baRenderClientPlan(client);
 }
@@ -4200,16 +4271,16 @@ async function baAcceptAppt(id){
 }
 function baFinishAppt(id){ openFeedback(id, 'barbeiro'); }
 
-// ══ Carrinho ao vivo — atendimento em andamento ══
+// ══ Carrinho ao vivo — atendimento em andamento (Supabase, tabela cart_items) ══
 function baElapsedMin(ts){ return Math.max(0, Math.floor((Date.now()-ts)/60000)); }
-function baGetActiveCarts(){ try{ return JSON.parse(localStorage.getItem('primeActiveCarts')||'{}'); }catch(e){ return {}; } }
-function baSaveActiveCarts(c){ localStorage.setItem('primeActiveCarts', JSON.stringify(c)); }
+async function baFetchCartItems(apptId){
+  const { data, error } = await sb.from('cart_items').select('*').eq('appointment_id', apptId);
+  if(error){ console.error('baFetchCartItems', error); return []; }
+  return data||[];
+}
 
 async function baIniciarAtendimento(apptId){
   await primeUpdateAppointment(apptId, {iniciadoEm: Date.now()});
-  const carts = baGetActiveCarts();
-  if(!carts[apptId]) carts[apptId] = [];
-  baSaveActiveCarts(carts);
   baOpenCarrinho(apptId);
 }
 
@@ -4240,36 +4311,33 @@ function baCartSearchProduct(){
     `<div class="ba-enc-result" onclick="baCartAddProduct(${p.id})">${p.name} <span class="enc-sub">${baFormatMoney(p.price)} · ${p.stock} un.</span></div>`
   ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum produto disponível</div>';
 }
-function baCartAddProduct(productId){
-  const carts = baGetActiveCarts();
-  const items = carts[baCarrinhoApptId] || (carts[baCarrinhoApptId] = []);
-  const existing = items.find(i=>i.productId===productId);
+async function baCartAddProduct(productId){
   const product = baGetProducts().find(p=>p.id===productId);
   if(!product) return;
+  const items = await baFetchCartItems(baCarrinhoApptId);
+  const existing = items.find(i=>i.product_id===productId);
   const currentQty = existing ? existing.qty : 0;
   if(currentQty+1 > product.stock) return;
-  if(existing) existing.qty++;
-  else items.push({productId, qty:1});
-  baSaveActiveCarts(carts);
+  if(existing) await sb.from('cart_items').update({qty: existing.qty+1}).eq('id', existing.id);
+  else await sb.from('cart_items').insert({appointment_id: baCarrinhoApptId, barber_id: baCurrentBarberId, product_id: productId, qty: 1});
   document.getElementById('cart-prod-search').value = '';
   document.getElementById('cart-prod-results').innerHTML = '';
   baRenderCartItems();
 }
-function baCartChangeQty(productId, delta){
-  const carts = baGetActiveCarts();
-  const items = carts[baCarrinhoApptId] || [];
-  const item = items.find(i=>i.productId===productId);
+async function baCartChangeQty(productId, delta){
+  const items = await baFetchCartItems(baCarrinhoApptId);
+  const item = items.find(i=>i.product_id===productId);
   if(!item) return;
   const product = baGetProducts().find(p=>p.id===productId);
   const maxStock = product ? product.stock : item.qty;
-  item.qty = Math.max(1, Math.min(maxStock, item.qty+delta));
-  baSaveActiveCarts(carts);
+  const newQty = Math.max(1, Math.min(maxStock, item.qty+delta));
+  await sb.from('cart_items').update({qty:newQty}).eq('id', item.id);
   baRenderCartItems();
 }
-function baCartRemoveItem(productId){
-  const carts = baGetActiveCarts();
-  carts[baCarrinhoApptId] = (carts[baCarrinhoApptId]||[]).filter(i=>i.productId!==productId);
-  baSaveActiveCarts(carts);
+async function baCartRemoveItem(productId){
+  const items = await baFetchCartItems(baCarrinhoApptId);
+  const item = items.find(i=>i.product_id===productId);
+  if(item) await sb.from('cart_items').delete().eq('id', item.id);
   baRenderCartItems();
 }
 async function baRenderCartItems(){
@@ -4277,12 +4345,11 @@ async function baRenderCartItems(){
   if(!appt) return;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
   const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
-  const carts = baGetActiveCarts();
-  const items = carts[baCarrinhoApptId] || [];
+  const items = await baFetchCartItems(baCarrinhoApptId);
   const products = baGetProducts();
   const enriched = items.map(i=>{
-    const p = products.find(x=>x.id===i.productId);
-    return { productId:i.productId, qty:i.qty, name: p?p.name:'Produto removido', price: p?p.price:0 };
+    const p = products.find(x=>x.id===i.product_id);
+    return { productId:i.product_id, qty:i.qty, name: p?p.name:'Produto removido', price: p?p.price:0 };
   });
   document.getElementById('cart-items-list').innerHTML = enriched.length ? enriched.map(i=>`
     <div class="cart-item-row">
@@ -4307,27 +4374,25 @@ async function baFinalizarCarrinho(){
   if(!appt) return;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
   const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
-  const carts = baGetActiveCarts();
-  const items = carts[baCarrinhoApptId] || [];
+  const items = await baFetchCartItems(baCarrinhoApptId);
   const products = baGetProducts();
   const notaId = primeNextId();
   const today = primeLocalDate();
   const now = new Date().toTimeString().slice(0,5);
-  const sales = baGetSales();
 
-  sales.unshift({client: appt.name||'Cliente', service: svcs.join(' + ')||'Serviço', value: svcValue, date: today, time: now, barber: baCurrentBarber, notaId});
+  const rows = [{barberId: baCurrentBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
+    service: svcs.join(' + ')||'Serviço', value: svcValue, date: today, time: now, notaId}];
+  for(const item of items){
+    const p = products.find(x=>x.id===item.product_id);
+    if(!p) continue;
+    rows.push({barberId: baCurrentBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
+      service: p.name, value: p.price*item.qty, qty: item.qty, date: today, time: now, notaId, type:'produto'});
+    await baDecrementStock(p.id, item.qty);
+  }
+  await baInsertSales(rows);
+  await baFetchProducts(); // refresh do cache pós-decremento
 
-  items.forEach(item=>{
-    const p = products.find(x=>x.id===item.productId);
-    if(!p) return;
-    sales.unshift({client: appt.name||'Cliente', service: p.name, value: p.price*item.qty, qty: item.qty, date: today, time: now, barber: baCurrentBarber, notaId, type:'produto'});
-    p.stock = Math.max(0, p.stock - item.qty);
-  });
-
-  localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
-  baSaveProducts(products);
-  delete carts[baCarrinhoApptId];
-  baSaveActiveCarts(carts);
+  await sb.from('cart_items').delete().eq('appointment_id', baCarrinhoApptId);
 
   const finishedId = baCarrinhoApptId;
   baCarrinhoApptId = null;
@@ -4632,21 +4697,22 @@ if(baAtClientSegEl) baAtClientSegEl.addEventListener('click', e=>{
   document.getElementById('at-novo-block').style.display = baAtMode==='novo' ? 'block' : 'none';
 });
 
-function baAtSearchClient(){
+let baAtSearchResults = [];
+async function baAtSearchClient(){
   const q = document.getElementById('at-search').value.trim().toLowerCase();
   const box = document.getElementById('at-search-results');
   if(!q || q.length < 2){ box.innerHTML=''; return; }
-  const matches = baGetClients().filter(c=>
+  baAtSearchResults = (await baFetchMyCrmClients()).filter(c=>
     c.name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q)
   ).slice(0,5);
-  box.innerHTML = matches.length ? matches.map(c=>
+  box.innerHTML = baAtSearchResults.length ? baAtSearchResults.map(c=>
     `<div class="ba-enc-result" onclick="baAtSelectClient('${c.name.replace(/'/g,"\\'")}')">
       ${c.name} <span class="enc-sub">${c.instagram||''} · ${c.email||''}</span>
     </div>`
   ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
 }
 function baAtSelectClient(name){
-  const client = baGetClients().find(c=>c.name===name);
+  const client = baAtSearchResults.find(c=>c.name===name);
   if(!client) return;
   baAtSelectedClient = client;
   document.getElementById('at-search').value = '';
@@ -4738,26 +4804,24 @@ function baAtRenderCart(){
   document.getElementById('at-sum-total').textContent = baFormatMoney(servico+produtos);
 }
 
-function baAtRegistrar(){
+async function baAtRegistrar(){
   const errEl = document.getElementById('at-err');
   const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; document.getElementById('at-success').style.display='none'; };
   errEl.style.display='none';
 
-  let clientName, clientEmail = null;
+  let clientName;
   if(baAtMode==='buscar'){
     if(!baAtSelectedClient) return fail('Selecione um cliente.');
     clientName = baAtSelectedClient.name;
-    clientEmail = baAtSelectedClient.email || null;
   } else {
     const name = document.getElementById('at-new-name').value.trim();
     const phoneRaw = document.getElementById('at-new-phone').value.trim();
     if(!name) return fail('Digite o nome do cliente.');
     if(phoneRaw.replace(/\D/g,'').length<10) return fail('Digite um telefone válido.');
     const phone = baAtNormalizePhone(phoneRaw);
-    const clients = baGetClients();
-    if(clients.some(c=>c.name.toLowerCase()===name.toLowerCase() && c.barber===baCurrentBarber)) return fail('Já existe um cliente com esse nome na sua carteira.');
-    clients.push({name, phone, barber:baCurrentBarber});
-    localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(clients));
+    const clients = await baFetchMyCrmClients();
+    if(clients.some(c=>c.name.toLowerCase()===name.toLowerCase())) return fail('Já existe um cliente com esse nome na sua carteira.');
+    await baCreateCrmClient({name, phone});
     clientName = name;
   }
 
@@ -4770,20 +4834,20 @@ function baAtRegistrar(){
   const time = document.getElementById('at-time').value;
   if(!time) return fail('Informe o horário.');
 
-  const sales = baGetSales();
   const products = baGetProducts();
   const notaId = primeNextId();
+  const rows = [];
   if(svcs.length){
-    sales.unshift({client:clientName, service:svcs.join(' + '), value:svcValue, date, time, barber:baCurrentBarber, notaId});
+    rows.push({barberId: baCurrentBarberId, client:clientName, service:svcs.join(' + '), value:svcValue, date, time, notaId});
   }
-  baAtCart.forEach(item=>{
+  for(const item of baAtCart){
     const p = products.find(x=>x.id===item.productId);
-    if(!p) return;
-    sales.unshift({client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, barber:baCurrentBarber, notaId, type:'produto'});
-    p.stock = Math.max(0, p.stock - item.qty);
-  });
-  localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
-  baSaveProducts(products);
+    if(!p) continue;
+    rows.push({barberId: baCurrentBarberId, client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, notaId, type:'produto'});
+    await baDecrementStock(p.id, item.qty);
+  }
+  await baInsertSales(rows);
+  await baFetchProducts();
 
   baAtResetFields();
   const successEl = document.getElementById('at-success');
@@ -4797,9 +4861,7 @@ function baEnter(barber){
   baCurrentRole = barber.role;
   baCurrentBarberEmail = barber.email;
   baCurrentBarberId = barber.id;
-  baSeedSales();
-  baMigrateSales();
-  baSeedClients();
+  baFetchProducts();
   const isAdmin = barber.role==='admin';
   document.getElementById('ba-link-gestao').style.display = isAdmin ? '' : 'none';
   document.getElementById('ba-tabicon-gestao').style.display = isAdmin ? '' : 'none';
@@ -5020,13 +5082,8 @@ async function baSaveEditBarber(i){
 
   roster[i] = { ...b, name:newName, role:newRole, isBarber:newIsBarber, commissionPct:newCommPct/100, monthlyGoal:newGoal, hours:hoursVal||undefined };
 
-  if(nameChanged){
-    const sales = baGetSales().map(s=> s.barber===oldName ? {...s, barber:newName} : s);
-    localStorage.setItem(BARBER_KEYS.sales, JSON.stringify(sales));
-    const clients = baGetClients().map(c=> c.barber===oldName ? {...c, barber:newName} : c);
-    localStorage.setItem(BARBER_KEYS.clients, JSON.stringify(clients));
-    // agendamentos não precisam de propagação — a tabela guarda barber_id (FK), o nome é resolvido ao vivo via apBarberName()
-  }
+  // vendas, agendamentos e carteira de clientes não precisam mais de propagação — todos guardam
+  // barber_id (FK), o nome é resolvido ao vivo via apBarberName()/baSaleBarberName()
   if(isSelf){
     baCurrentBarber = newName;
     baCurrentRole = newRole;

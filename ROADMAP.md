@@ -139,12 +139,23 @@
 - [x] Testado ponta a ponta: reserva completa, RLS negativo (barbeiro não vê agenda de outro, cliente não acessa agendamento alheio), fluxo aceitar→iniciar→concluir→avaliar, cancelamento preservando histórico, encaixe com e sem conta vinculada, renomear barbeiro sem precisar propagar em `appointments`
 - Banco começou zerado; sem policy de DELETE em `appointments`/`clients` (decisão deliberada — só dá pra apagar via SQL Editor/service_role, nunca pelo app)
 
-### Fase C/D — Próximos passos (ainda não iniciados)
-- [ ] Migrar vendas/financeiro (`barberSales`, despesas, produtos/estoque) — maior tabela, dados sensíveis de faturamento
+### Fase C — Vendas, despesas, produtos e carteira de clientes ✅ *(concluída 2026-07-11)*
+- [x] Tabelas `sales`, `expenses`, `products`, `crm_clients`, `cart_items` no Postgres — zero dado de negócio sobrando em localStorage
+- [x] Vendas com `barber_id` (FK real, não mais nome em texto) e `appointment_id` opcional (liga a venda ao agendamento de origem, corrige um dedup frágil por nome+data que existia)
+- [x] Estoque de produtos continua único/compartilhado entre barbeiros; decremento no checkout agora é atômico via função `decrement_product_stock` (RPC `security definer`) — testado sob concorrência, sem estoque negativo nem decremento duplicado
+- [x] Carteira de clientes do barbeiro (`crm_clients`) fundida conceitualmente com a tabela real `clients`: cada barbeiro mantém sua própria carteira privada (RLS), mas com `client_id` opcional linkando pra conta real quando existe — resolve a duplicação de identidade sem quebrar o modelo "cada barbeiro só vê os próprios clientes"
+- [x] Carrinho ativo (`cart_items`) também migrado — atendimento em andamento agora sincroniza entre aparelhos
+- [x] Dashboard financeiro (gráficos, ranking, lucro líquido, relatório PDF) migrado com padrão "busca uma vez por período, agrega em memória" — evita 1 fetch por dia/mês dentro dos gráficos
+- [x] Despesas e criação de produtos são admin-only por RLS de verdade (antes só escondido na UI, qualquer um podia chamar a função direto)
+- [x] Testado ponta a ponta: checkout completo (venda + baixa de estoque + limpeza do carrinho), venda avulsa/balcão, atribuição de plano, corrida de estoque (RPC atômica segura), RLS negativo (vendas/despesas/carteira de outro barbeiro bloqueadas), renomear barbeiro sem propagar nome em nenhuma tabela nova
+- Banco começou zerado; `sales`/`crm_clients` seguem sem policy de DELETE pelo app, mesma decisão da Fase B
+
+### Fase D — Próximos passos (ainda não iniciados)
 - [ ] Migrar achievements, indicações e brindes (gamificação da Fase 1/3) — hoje ainda em localStorage, chaveado por e-mail
-- [ ] Migrar carteira de clientes do barbeiro (`barberClients`) e carrinho ativo (`primeActiveCarts`) pro banco
+- [ ] Migrar notificações (`primeNotifs`) pro banco
 - [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
 - [ ] Backup automático / histórico não se perde ao limpar o navegador
+- [ ] Drift de preço histórico no app do cliente (`caHistItemHtml` mostra o preço atual da tabela, não o valor realmente cobrado na época) — precisaria de uma coluna de preço na tabela `appointments`
 
 ### Hospedagem & Custos *(discutido 2026-07-08 — plano, nada contratado ainda)*
 - [ ] Banco de dados: **Supabase** (grátis pra começar — 500MB cobre bem o volume de uma barbearia; se crescer muito, plano pago é ~US$25/mês). Zero administração de servidor — Supabase cuida de backup, segurança e atualização.
@@ -183,4 +194,4 @@
 
 ---
 
-*Última atualização: 2026-07-11 (Fase 6B concluída)*
+*Última atualização: 2026-07-11 (Fase 6C concluída)*
