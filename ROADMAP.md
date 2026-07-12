@@ -157,10 +157,10 @@
 - [x] Política de privacidade ✅ *(2026-07-11)* — modal acessível pelo rodapé, cobre dados coletados, finalidade/base legal (art. 7º), compartilhamento (Supabase como operadora), retenção, direitos do titular (art. 18) e canal de contato. Baseada em pesquisa da Lei 13.709/2018 e Resolução CD/ANPD nº 2/2022 (regras simplificadas pra pequeno porte) — **rascunho informado, não é parecer jurídico; recomendo revisão de um advogado antes de tratar como definitiva**, principalmente se o negócio crescer ou passar a processar pagamento no site
 - [x] Consentimento explícito no cadastro do cliente ✅ *(2026-07-11)* — checkbox próprio e destacado (não embutido em outro texto), obrigatório pra criar conta, conforme art. 9º
 - [x] Minimização de dados — já coletamos só o essencial (nome, telefone, e opcionalmente idade/e-mail/Instagram); sem CPF, endereço completo ou dado sensível
-- [ ] Direito do cliente a solicitar exportação e exclusão dos próprios dados — hoje só via canal de contato manual (WhatsApp/Instagram), não self-service no app
+- [x] Direito do cliente a solicitar exportação e exclusão dos próprios dados ✅ *(2026-07-11)* — no Perfil: "Exportar meus dados" baixa um JSON com perfil+agendamentos (self-service real, via RLS); "Solicitar exclusão da conta" formaliza o pedido por WhatsApp (exclusão em si continua manual — tabelas não têm policy de DELETE de propósito, decisão da Fase 6B pra preservar histórico)
 - [x] Controle de acesso — RLS real no banco desde a Fase 6A/6B: cada barbeiro só lê/edita os próprios agendamentos; cliente só os próprios dados. *(nota: a policy `clients_readable_by_barbers` ainda deixa qualquer barbeiro logado ler o perfil de qualquer cliente, não só os que ele atendeu — considerar restringir numa fase futura)*
 - [x] Criptografia em trânsito e em repouso — padrão do Supabase (TLS + AES-256), nenhuma configuração adicional necessária
-- [ ] Plano básico de resposta a incidente (o que fazer se vazar dado)
+- [x] Plano básico de resposta a incidente ✅ *(2026-07-11)* — ver `PLANO-RESPOSTA-INCIDENTE.md`: passo a passo de contenção, avaliação, comunicação a titulares/ANPD, e checklist de prevenção
 
 ---
 
