@@ -75,6 +75,9 @@
     'https://yojvzwkvtedxqlohpuug.supabase.co',
     'sb_publishable_Sr6YB54aCIQVdvhdrNWlSA_PMjlAdMG'
   );
+  // Fase 5 — notificações push. Chave pública VAPID, segura de expor (só prova que o servidor certo assinou o pedido).
+  const VAPID_PUBLIC_KEY = 'BEFao3ekLM3-fgQXKvnuiNhcE33TrPTlqyELLko5w1XOEQ6UjZ1N0GGJFep1Z21EE87xoAVR0zCueKDq87MLOU4';
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' });
 </script>
 
 <style>
@@ -862,7 +865,7 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
   const acc = primeGetAccount();
   const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email});
   // notifica o barbeiro sobre o novo pedido de agendamento
-  primeAddNotif({forRole:'barber', target:state.barber, type:'novo', apptId:savedAppt.id,
+  await primeAddNotif({forRole:'barber', recipientBarberId:state.barberId, type:'novo', apptId:savedAppt.id,
     text:`Novo agendamento de ${name} — ${state.dayLabel} às ${state.time} (${state.services.join(' + ')})`});
   if(acc && !acc.favoriteBarber){ acc.favoriteBarber = state.barber; primeSaveAccount(acc); }
   if(acc && acc.email) await primeCheckAchievements({bookedTime: state.time, bookedDay: state.day});
@@ -1275,6 +1278,10 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-slabel" style="margin-top:2.2rem">Barbeiro favorito</div>
         <div class="chips" id="ca-pf-barbeiros"></div>
 
+        <div class="ca-slabel" style="margin-top:2.2rem">Notificações</div>
+        <p style="color:var(--prata-dim);font-size:.82rem;margin-bottom:.9rem;line-height:1.5">Receba um aviso no celular quando seu barbeiro confirmar o horário ou pedir pra você avaliar o corte.</p>
+        <button class="ca-btn ghost" onclick="subscribeToPush()">Ativar notificações</button>
+
         <div class="ca-slabel" style="margin-top:2.2rem">Seus dados e privacidade</div>
         <p style="color:var(--prata-dim);font-size:.82rem;margin-bottom:.9rem;line-height:1.5">Você pode baixar uma cópia de tudo que guardamos sobre você, ou pedir a exclusão da sua conta, conforme a <a href="#" onclick="openPrivacyModal();return false" style="color:var(--verde-neon)">Política de Privacidade</a>.</p>
         <button class="ca-btn ghost" onclick="caExportMyData()">Exportar meus dados</button>
@@ -1413,7 +1420,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 
 <script>
 // ══ Persistência (localStorage) ══
-const PRIME_KEYS = {notifs:'primeNotifs', seq:'primeSeq'};
+const PRIME_KEYS = {seq:'primeSeq'};
 let primeAccountCache = null; // mirror em memória da linha do cliente logado na tabela `clients` do Supabase
 function primeIsLoggedIn(){ return !!primeAccountCache; }
 function primeSetLoggedIn(v){ /* no-op — login state vem da sessão do Supabase Auth agora */ }
@@ -1519,11 +1526,55 @@ async function baFetchReviews(){
   return (data||[]).map(primeApptFromRow);
 }
 
-// ══ Notificações (sino) ══
-// forRole: 'barber' → target = nome do barbeiro | 'client' → target = e-mail do cliente
-function primeGetNotifs(){ try{ return JSON.parse(localStorage.getItem(PRIME_KEYS.notifs)||'[]'); }catch(e){ return []; } }
-function primeSaveNotifs(list){ localStorage.setItem(PRIME_KEYS.notifs, JSON.stringify(list)); }
-function primeAddNotif(n){ const list=primeGetNotifs(); n.id=primeNextId(); n.read=false; list.unshift(n); primeSaveNotifs(list); }
+// ══ Notificações (sino + push, Supabase) ══
+// forRole: 'barber' → recipientBarberId (uuid) | 'client' → recipientClientId (uuid)
+async function primeAddNotif(n){
+  const row = {
+    for_role: n.forRole, type: n.type, appt_id: n.apptId ?? null, text: n.text,
+    recipient_barber_id: n.forRole==='barber' ? n.recipientBarberId : null,
+    recipient_client_id: n.forRole==='client' ? n.recipientClientId : null
+  };
+  if(n.forRole==='barber' && !row.recipient_barber_id) return; // sem destinatário real, não insere
+  if(n.forRole==='client' && !row.recipient_client_id) return;
+  const { error } = await sb.from('notifications').insert(row);
+  if(error) console.error('primeAddNotif', error);
+}
+
+// ══ Push — inscrição do navegador atual ══
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+async function subscribeToPush(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    alert('Notificações push não são suportadas neste navegador.'); return;
+  }
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted'){ alert('Permissão negada.'); return; }
+
+  const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+  });
+  const j = sub.toJSON();
+
+  const isBarber = typeof baIsLoggedIn==='function' && baIsLoggedIn();
+  let row;
+  if(isBarber){
+    row = { owner_type:'barber', barber_id: baCurrentBarberId, client_id: null, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth };
+  } else {
+    const acc = primeGetAccount();
+    if(!acc || !acc.id){ alert('Entre na sua conta primeiro.'); return; }
+    row = { owner_type:'client', barber_id: null, client_id: acc.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth };
+  }
+
+  const { error } = await sb.from('push_subscriptions').upsert(row, { onConflict: 'endpoint' });
+  if(error){ console.error('subscribeToPush', error); alert('Não foi possível ativar as notificações.'); }
+  else alert('Notificações ativadas!');
+}
 
 // ══ Sistema de indicação ══
 function primeGetReferralCodes(){ try{ return JSON.parse(localStorage.getItem('primeReferralCodes')||'{}'); }catch(e){ return {}; } }
@@ -1547,8 +1598,19 @@ function primeCreateReferral(referrerName, referrerEmail, referredName, referred
   list.unshift({id:primeNextId(), referrerName, referrerEmail, referredName, referredEmail, date:primeLocalDate(), referrerGiftGiven:false, referredGiftGiven:false});
   primeSaveReferrals(list);
 }
-function primeNotifsFor(role, target){ return primeGetNotifs().filter(n=>n.forRole===role && n.target===target); }
-function primeMarkAllNotifsRead(role, target){ const list=primeGetNotifs(); list.forEach(n=>{ if(n.forRole===role && n.target===target) n.read=true; }); primeSaveNotifs(list); }
+async function primeNotifsFor(role, recipientId){
+  if(!recipientId) return [];
+  const col = role==='barber' ? 'recipient_barber_id' : 'recipient_client_id';
+  const { data, error } = await sb.from('notifications').select('*').eq('for_role', role).eq(col, recipientId).order('created_at', {ascending:false});
+  if(error){ console.error('primeNotifsFor', error); return []; }
+  return (data||[]).map(n=>({ id:n.id, read:n.read, forRole:n.for_role, type:n.type, apptId:n.appt_id, text:n.text }));
+}
+async function primeMarkAllNotifsRead(role, recipientId){
+  if(!recipientId) return;
+  const col = role==='barber' ? 'recipient_barber_id' : 'recipient_client_id';
+  const { error } = await sb.from('notifications').update({read:true}).eq('for_role', role).eq(col, recipientId).eq('read', false);
+  if(error) console.error('primeMarkAllNotifsRead', error);
+}
 
 // ══ Prime Club — Conquistas e níveis ══
 // estado por cliente (e-mail): { unlocked: {id: 'YYYY-MM-DD'}, pending: [ids ainda não vistos na UI] }
@@ -1600,7 +1662,7 @@ async function primeClientLevel(){
   for(const l of CLUB_LEVELS){ if(cuts >= l.min) level = l; else { next = l; break; } }
   return {level, next, cuts};
 }
-function primeUnlockAch(email, id){
+async function primeUnlockAch(email, id){
   if(!email) return false;
   const all = primeGetAchAll();
   const st = all[email] || (all[email] = {unlocked:{}, pending:[]});
@@ -1609,7 +1671,8 @@ function primeUnlockAch(email, id){
   st.pending.push(id);
   primeSaveAchAll(all);
   const ach = ACH_CATALOG.find(a=>a.id===id);
-  if(ach) primeAddNotif({forRole:'client', target:email, type:'conquista', text:`🏆 Conquista desbloqueada: ${ach.nome}!`});
+  const acc = primeGetAccount();
+  if(ach && acc && acc.id) await primeAddNotif({forRole:'client', recipientClientId:acc.id, type:'conquista', text:`🏆 Conquista desbloqueada: ${ach.nome}!`});
   return true;
 }
 // roda todas as regras pro cliente logado; ctx = {bookedTime, bookedDay} quando chamado na criação de agendamento
@@ -1619,24 +1682,24 @@ async function primeCheckAchievements(ctx){
   if(!email) return [];
   const done = await primeClientCuts();
   const newly = [];
-  const un = id => { if(primeUnlockAch(email, id)) newly.push(id); };
-  if(done.length >= 1) un('primeiro-corte');
-  if(done.length >= 5) un('fiel');
+  const un = async id => { if(await primeUnlockAch(email, id)) newly.push(id); };
+  if(done.length >= 1) await un('primeiro-corte');
+  if(done.length >= 5) await un('fiel');
   if(ctx && ctx.bookedTime && ctx.bookedDay){
     const dow = new Date(ctx.bookedDay+'T12:00:00').getDay();
     const h = HORARIOS[dow];
-    if(h && ctx.bookedTime === h[0]) un('madrugador');
+    if(h && ctx.bookedTime === h[0]) await un('madrugador');
   }
-  if(done.some(a=>{ const s=a.services||[]; return s.includes('Barbaterapia') && (s.includes('Corte + Barba') || (s.includes('Corte') && s.includes('Barba'))); })) un('combo-master');
+  if(done.some(a=>{ const s=a.services||[]; return s.includes('Barbaterapia') && (s.includes('Corte + Barba') || (s.includes('Corte') && s.includes('Barba'))); })) await un('combo-master');
   if(done.length){
     const first = done.map(a=>a.day).sort()[0];
-    if(first && (Date.now() - new Date(first+'T12:00:00').getTime()) >= 365*24*60*60*1000) un('veterano');
+    if(first && (Date.now() - new Date(first+'T12:00:00').getTime()) >= 365*24*60*60*1000) await un('veterano');
   }
   const allMine = await primeFetchClientAppointments();
   const rated = allMine.filter(a=>a.ratingBy==='cliente').length;
-  if(rated >= 5) un('nota-10');
-  if((await primeClientLevel()).level.min >= 15) un('vip');
-  if(primeGetReferrals().some(r=>r.referrerEmail===email)) un('embaixador');
+  if(rated >= 5) await un('nota-10');
+  if((await primeClientLevel()).level.min >= 15) await un('vip');
+  if(primeGetReferrals().some(r=>r.referrerEmail===email)) await un('embaixador');
   return newly;
 }
 // consome a fila de conquistas ainda não vistas (a UI chama pra exibir a animação)
@@ -1839,7 +1902,7 @@ async function caDoCancel(id){
   const ap = await primeFetchAppointmentById(id);
   await primeUpdateAppointment(id, {status:'cancelado'});
   if(ap){
-    primeAddNotif({forRole:'barber', target:apBarberName(ap), type:'cancelado', apptId:id,
+    await primeAddNotif({forRole:'barber', recipientBarberId:ap.barberId, type:'cancelado', apptId:id,
       text:`${ap.name||'Cliente'} cancelou o horário de ${ap.dayLabel} às ${ap.time}`});
   }
   caRenderNextAppointment();
@@ -1849,7 +1912,7 @@ async function caReagendar(id){
   const ap = await primeFetchAppointmentById(id);
   await primeUpdateAppointment(id, {status:'cancelado'});
   if(ap){
-    primeAddNotif({forRole:'barber', target:apBarberName(ap), type:'cancelado', apptId:id,
+    await primeAddNotif({forRole:'barber', recipientBarberId:ap.barberId, type:'cancelado', apptId:id,
       text:`${ap.name||'Cliente'} vai reagendar o horário de ${ap.dayLabel} às ${ap.time}`});
   }
   caRenderNextAppointment();
@@ -1923,10 +1986,10 @@ document.getElementById('feedbackSubmit').addEventListener('click', async ()=>{
   // notifica a outra parte
   if(ap){
     if(feedbackWho==='cliente'){
-      primeAddNotif({forRole:'barber', target:apBarberName(ap), type:'avaliacao', apptId:ap.id,
+      await primeAddNotif({forRole:'barber', recipientBarberId:ap.barberId, type:'avaliacao', apptId:ap.id,
         text:`${ap.name||'Cliente'} avaliou o atendimento de ${ap.dayLabel}: ${feedbackStars}★`});
-    } else if(feedbackWho==='barbeiro' && ap.clientEmail){
-      primeAddNotif({forRole:'client', target:ap.clientEmail, type:'pedido-avaliacao', apptId:ap.id,
+    } else if(feedbackWho==='barbeiro' && ap.clientId){
+      await primeAddNotif({forRole:'client', recipientClientId:ap.clientId, type:'pedido-avaliacao', apptId:ap.id,
         text:`⭐ Como foi seu atendimento de ${ap.dayLabel}? Toque aqui pra avaliar.`});
     }
   }
@@ -1981,9 +2044,9 @@ function updateNavAuthUI(){
   document.getElementById('nav-account-item').style.display = loggedIn ? '' : 'none';
 }
 // ── Sino de notificações do cliente ──
-function caClientTarget(){ const acc=primeGetAccount(); return acc && acc.email; }
-function caRenderNotifs(){
-  const email = caClientTarget();
+function caClientTarget(){ const acc=primeGetAccount(); return acc && acc.id; }
+async function caRenderNotifs(){
+  const clientId = caClientTarget();
   const countEl = document.getElementById('ca-bell-count');
   const avatarEl = document.getElementById('ca-home-avatar');
   const helloEl = document.getElementById('ca-home-hello');
@@ -1992,7 +2055,7 @@ function caRenderNotifs(){
     if(helloEl) helloEl.textContent = 'Olá, ' + (acc.name ? acc.name.split(' ')[0] : 'Cliente');
     if(avatarEl) avatarEl.textContent = (acc.name||'C').charAt(0).toUpperCase();
   }
-  const notifs = email ? primeNotifsFor('client', email) : [];
+  const notifs = clientId ? await primeNotifsFor('client', clientId) : [];
   const unread = notifs.filter(n=>!n.read).length;
   ['ca-bell-count','ca-bell-count-d'].forEach(idc=>{
     const el = document.getElementById(idc);
@@ -2001,10 +2064,10 @@ function caRenderNotifs(){
   const panel = document.getElementById('ca-notif-panel');
   if(panel && panel.style.display!=='none') caRenderNotifPanel();
 }
-function caRenderNotifPanel(){
-  const email = caClientTarget();
+async function caRenderNotifPanel(){
+  const clientId = caClientTarget();
   const panel = document.getElementById('ca-notif-panel');
-  const notifs = email ? primeNotifsFor('client', email) : [];
+  const notifs = clientId ? await primeNotifsFor('client', clientId) : [];
   panel.innerHTML = notifs.length ? notifs.map(n=>{
     const clickable = n.type==='pedido-avaliacao' && n.apptId;
     const attrs = clickable ? `style="cursor:pointer" onclick="caHideNotifs();caFinishAppointment(${n.apptId})"` : '';
@@ -2013,16 +2076,16 @@ function caRenderNotifPanel(){
 }
 let caNotifTimer = null, caNotifFadeTimer = null;
 function caHideNotifs(){ const p=document.getElementById('ca-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(caNotifTimer); clearTimeout(caNotifFadeTimer); }
-function caToggleNotifs(){
+async function caToggleNotifs(){
   if(!document.getElementById('ca-screen-home').classList.contains('active')) caTab('home');
   const panel = document.getElementById('ca-notif-panel');
   const open = panel.style.display!=='none';
   clearTimeout(caNotifTimer); clearTimeout(caNotifFadeTimer); panel.classList.remove('fading');
   if(open){ panel.style.display='none'; return; }
-  caRenderNotifPanel();
+  await caRenderNotifPanel();
   panel.style.display='block';
-  const email = caClientTarget();
-  if(email){ primeMarkAllNotifsRead('client', email); setTimeout(caRenderNotifs, 1200); }
+  const clientId = caClientTarget();
+  if(clientId){ await primeMarkAllNotifsRead('client', clientId); await caRenderNotifs(); }
   // aos ~4s começa a sumir aos poucos; some de vez ao fim do fade
   caNotifTimer = setTimeout(()=>{ panel.classList.add('fading'); caNotifFadeTimer = setTimeout(caHideNotifs, 1200); }, 4000);
 }
@@ -3049,6 +3112,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <button class="ba-btn ghost" style="max-width:100%" onclick="baSendPasswordReset(baCurrentBarberEmail)">Trocar senha</button>
         </div>
 
+        <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem" onclick="subscribeToPush()">Ativar notificações</button>
         <button class="ba-btn ghost" style="max-width:100%;margin-bottom:.8rem;display:flex;align-items:center;justify-content:center;gap:.5rem" onclick="baOpenQRPrint()"><svg class="pi-icon" viewBox="0 0 24 24" style="width:16px;height:16px;flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M17 20h3"/></svg> QR Code pro balcão</button>
         <button class="ba-btn ghost" style="max-width:100%" onclick="baLogout()">Sair</button>
       </div>
@@ -3379,8 +3443,8 @@ async function baSaveReply(apptId){
   const input = document.getElementById('ba-reply-input-'+apptId);
   const text = input.value.trim();
   const ap = await primeUpdateAppointment(apptId, {barberReply: text || null});
-  if(ap && ap.clientEmail && text){
-    primeAddNotif({forRole:'client', target:ap.clientEmail, type:'avaliacao', apptId:ap.id,
+  if(ap && ap.clientId && text){
+    await primeAddNotif({forRole:'client', recipientClientId:ap.clientId, type:'avaliacao', apptId:ap.id,
       text:`${apBarberName(ap)} respondeu sua avaliação: "${text.slice(0,60)}${text.length>60?'…':''}"`});
   }
   baRenderReviews();
@@ -4261,8 +4325,8 @@ async function baRenderPending(){
 
 async function baAcceptAppt(id){
   const ap = await primeUpdateAppointment(id, {status:'confirmado'});
-  if(ap && ap.clientEmail){
-    primeAddNotif({forRole:'client', target:ap.clientEmail, type:'confirmado', apptId:id,
+  if(ap && ap.clientId){
+    await primeAddNotif({forRole:'client', recipientClientId:ap.clientId, type:'confirmado', apptId:id,
       text:`${apBarberName(ap)} confirmou seu horário de ${ap.dayLabel} às ${ap.time}. Te espero!`});
   }
   baRenderAgenda();
@@ -4401,8 +4465,8 @@ async function baFinalizarCarrinho(){
 }
 
 // ── Sino de notificações do barbeiro ──
-function baRenderNotifs(){
-  const notifs = primeNotifsFor('barber', baCurrentBarber);
+async function baRenderNotifs(){
+  const notifs = await primeNotifsFor('barber', baCurrentBarberId);
   const unread = notifs.filter(n=>!n.read).length;
   ['ba-bell-count','ba-bell-count-m'].forEach(idc=>{
     const el = document.getElementById(idc);
@@ -4411,25 +4475,25 @@ function baRenderNotifs(){
   const panel = document.getElementById('ba-notif-panel');
   if(panel && panel.style.display!=='none') baRenderNotifPanel();
 }
-function baRenderNotifPanel(){
+async function baRenderNotifPanel(){
   const panel = document.getElementById('ba-notif-panel');
-  const notifs = primeNotifsFor('barber', baCurrentBarber);
+  const notifs = await primeNotifsFor('barber', baCurrentBarberId);
   panel.innerHTML = notifs.length ? notifs.map(n=>
     `<div class="ca-notif-item ${n.read?'read':'unread'}"><span class="dot"></span><div>${n.text}</div></div>`
   ).join('') : '<div class="ca-notif-empty">Nenhuma notificação por aqui.</div>';
 }
 let baNotifTimer = null, baNotifFadeTimer = null;
 function baHideNotifs(){ const p=document.getElementById('ba-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(baNotifTimer); clearTimeout(baNotifFadeTimer); }
-function baToggleNotifs(){
+async function baToggleNotifs(){
   if(document.getElementById('ba-screen-agenda').classList.contains('active')===false) baTab('agenda');
   const panel = document.getElementById('ba-notif-panel');
   const open = panel.style.display!=='none';
   clearTimeout(baNotifTimer); clearTimeout(baNotifFadeTimer); panel.classList.remove('fading');
   if(open){ panel.style.display='none'; return; }
-  baRenderNotifPanel();
+  await baRenderNotifPanel();
   panel.style.display='block';
-  primeMarkAllNotifsRead('barber', baCurrentBarber);
-  setTimeout(baRenderNotifs, 1200);
+  await primeMarkAllNotifsRead('barber', baCurrentBarberId);
+  await baRenderNotifs();
   // aos ~4s começa a sumir aos poucos; some de vez ao fim do fade
   baNotifTimer = setTimeout(()=>{ panel.classList.add('fading'); baNotifFadeTimer = setTimeout(baHideNotifs, 1200); }, 4000);
 }
@@ -4635,8 +4699,8 @@ async function baSaveEncaixe(){
     barberId: baCurrentBarberId, status: 'confirmado', isEncaixe: true
   });
   if(!appt){ fail('Não foi possível salvar o encaixe. Tente de novo.'); return; }
-  if(notify && baEncSelectedClient.email){
-    primeAddNotif({forRole:'client', target:baEncSelectedClient.email, type:'encaixe', apptId:appt.id,
+  if(notify && baEncSelectedClient.id){
+    await primeAddNotif({forRole:'client', recipientClientId:baEncSelectedClient.id, type:'encaixe', apptId:appt.id,
       text:`${baCurrentBarber} encaixou você na agenda: ${svcs.join(' + ')} — ${dayLabel} às ${time}`});
   }
   baEncSelectedClient = null;
