@@ -1275,6 +1275,11 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-slabel" style="margin-top:2.2rem">Barbeiro favorito</div>
         <div class="chips" id="ca-pf-barbeiros"></div>
 
+        <div class="ca-slabel" style="margin-top:2.2rem">Seus dados e privacidade</div>
+        <p style="color:var(--prata-dim);font-size:.82rem;margin-bottom:.9rem;line-height:1.5">Você pode baixar uma cópia de tudo que guardamos sobre você, ou pedir a exclusão da sua conta, conforme a <a href="#" onclick="openPrivacyModal();return false" style="color:var(--verde-neon)">Política de Privacidade</a>.</p>
+        <button class="ca-btn ghost" onclick="caExportMyData()">Exportar meus dados</button>
+        <button class="ca-btn ghost" style="border-color:#8a3a2a;color:#E5574B;margin-top:.7rem" onclick="caRequestDataDeletion()">Solicitar exclusão da conta</button>
+
         <button class="ca-btn ghost" style="margin-top:1.4rem" onclick="caLogout()">Sair</button>
       </div>
     </div>
@@ -2256,6 +2261,39 @@ function caSavePerfil(){
   document.getElementById('ca-perfil-avatar').textContent = (acc.name || 'C').charAt(0).toUpperCase();
   document.getElementById('ca-perfil-saved').style.display = 'block';
   caRenderHomeBarbeiro();
+}
+// LGPD art. 18 — portabilidade: baixa uma cópia de tudo que guardamos sobre o cliente, num arquivo que ele pode abrir/guardar
+async function caExportMyData(){
+  const acc = primeGetAccount();
+  if(!acc) return;
+  const appts = await primeFetchClientAppointments();
+  const data = {
+    exportadoEm: new Date().toISOString(),
+    perfil: { nome: acc.name, email: acc.email, telefone: acc.phone, idade: acc.age, instagram: acc.instagram, barbeiroFavorito: acc.favoriteBarber, codigoIndicacao: acc.referralCode },
+    agendamentos: appts.map(a => ({
+      servicos: a.services, dia: a.day, horario: a.time, status: a.status,
+      suaAvaliacaoDoBarbeiro: a.rating || null, seuComentario: a.ratingComment || null,
+      avaliacaoDoBarbeiroSobreVoce: a.clientRating || null
+    }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `prime-barbearia-meus-dados-${primeLocalDate()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+// LGPD art. 18 — eliminação: como não apagamos registro direto pelo app (mantemos histórico de agendamento
+// por design), formaliza o pedido pelo canal de contato já informado na política de privacidade
+function caRequestDataDeletion(){
+  const acc = primeGetAccount();
+  if(!acc) return;
+  if(!confirm('Isso vai abrir o WhatsApp com um pedido de exclusão da sua conta e dados. A barbearia confirma e processa manualmente. Quer continuar?')) return;
+  const msg = `Olá! Sou ${acc.name||'cliente'} (${acc.email}) e quero solicitar a exclusão da minha conta e dos meus dados pessoais na Prime Barbearia, conforme a LGPD.`;
+  window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 async function caSignup(){
   const nome=document.getElementById('ca-su-nome'), email=document.getElementById('ca-su-email'), pass=document.getElementById('ca-su-pass'), phone=document.getElementById('ca-su-phone'), age=document.getElementById('ca-su-age'), ig=document.getElementById('ca-su-ig');
