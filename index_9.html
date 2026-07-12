@@ -4963,15 +4963,15 @@ async function baRedeemInvite(){
   if(pass.value.length<6){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
   if(!ok){ err.style.display='none'; return; }
   const codeVal = code.value.trim().toUpperCase();
-  const { data: invite } = await sb.from('barber_invites').select('*').eq('code', codeVal).is('used_at', null).maybeSingle();
+  const { data: invites } = await sb.rpc('redeem_barber_invite', { p_code: codeVal });
+  const invite = invites && invites[0];
   if(!invite){ err.textContent='Código inválido ou já utilizado.'; err.style.display='block'; return; }
   const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: pass.value });
   if(error){ err.textContent='Não foi possível criar a conta. Tente outro e-mail.'; err.style.display='block'; return; }
-  const { error: insertErr } = await sb.from('barbers').insert({
-    id: data.user.id, name: name.value.trim(), email: email.value.trim().toLowerCase(), role: invite.role, is_barber: true
+  const { error: completeErr } = await sb.rpc('complete_barber_invite', {
+    p_code: codeVal, p_name: name.value.trim(), p_email: email.value.trim().toLowerCase()
   });
-  if(insertErr){ err.textContent='Não foi possível concluir o cadastro.'; err.style.display='block'; return; }
-  await sb.from('barber_invites').update({ used_at: new Date().toISOString(), used_by: data.user.id }).eq('code', codeVal);
+  if(completeErr){ err.textContent='Não foi possível concluir o cadastro.'; err.style.display='block'; return; }
   err.style.display='none';
   await baLoadRoster();
   const match = baGetRoster().find(b=>b.id===data.user.id);
