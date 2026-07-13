@@ -1171,6 +1171,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-field" id="ca-f-pass"><label>Senha</label><input type="password" id="ca-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <button class="ca-btn" onclick="primeBtnLoading(this,400);caLogin()">Entrar</button>
         <p class="ca-login-err" id="ca-login-err" style="display:none;color:var(--erro);font-size:.82rem;margin-top:.8rem">E-mail ou senha incorretos.</p>
+        <p class="ca-signup"><a href="#" onclick="caSendPasswordReset();return false">Esqueceu a senha?</a></p>
         <p class="ca-signup">Ainda não tem conta? <a href="#" onclick="caShowSignup();return false">Criar conta</a></p>
       </div>
 
@@ -2207,6 +2208,13 @@ async function caLogin(){
     age:profile.age, instagram:profile.instagram, favoriteBarber:profile.favorite_barber, referralCode:profile.referral_code }
     : { id:data.user.id, email:data.user.email };
   caEnter();
+}
+async function caSendPasswordReset(){
+  const e = document.getElementById('ca-email'), fe = document.getElementById('ca-f-email');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.value)){ fe.classList.add('invalid'); alert('Digite seu e-mail no campo acima primeiro.'); return; }
+  fe.classList.remove('invalid');
+  const { error } = await sb.auth.resetPasswordForEmail(e.value.trim());
+  alert(error ? 'Não foi possível enviar o e-mail de redefinição.' : `Enviamos um link de redefinição pra ${e.value.trim()} (confira o spam também).`);
 }
 async function caRenderReferralCard(){
   const box = document.getElementById('ca-referral-card');
