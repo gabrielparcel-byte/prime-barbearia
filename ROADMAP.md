@@ -103,7 +103,7 @@
 
 ### vs AppBarber
 - [x] QR Code no balcão → botão "📱 QR Code pro balcão" no Perfil do barbeiro, gera uma página pra imprimir (logo, marca, QR) apontando pro link real do site (`location.origin`, funciona em qualquer domínio); usa a API gratuita do QR Server, sem precisar de biblioteca extra
-- [ ] Notificações push (via service worker)
+- [x] Notificações push (via service worker) ✅ *(2026-07-13)* — migração das notificações (`primeNotifs`) de `localStorage` pra tabelas `notifications`/`push_subscriptions` no Supabase (o bug original: notificação só existia no aparelho de quem disparou a ação, nunca chegava no aparelho do destinatário). Primeira Edge Function do projeto (`send-push`, Deno + `npm:web-push`), disparada por Database Webhook no INSERT de `notifications`. Botão "Ativar notificações" no Perfil (cliente e barbeiro); Service Worker (`sw.js`) registrado com escopo relativo (`./`, necessário por causa do subpath do GitHub Pages). Todos os 9 pontos de disparo migrados; RLS testada (dono lê/edita só a própria notificação/inscrição). *(Fase D, que já previa migrar notificações, foi puxada pra dentro desta tarefa.)*
 - [ ] Modo offline básico (ver agenda mesmo sem internet)
 - [ ] Compartilhar conquista nas redes sociais (story template)
 
@@ -150,9 +150,9 @@
 - [x] Testado ponta a ponta: checkout completo (venda + baixa de estoque + limpeza do carrinho), venda avulsa/balcão, atribuição de plano, corrida de estoque (RPC atômica segura), RLS negativo (vendas/despesas/carteira de outro barbeiro bloqueadas), renomear barbeiro sem propagar nome em nenhuma tabela nova
 - Banco começou zerado; `sales`/`crm_clients` seguem sem policy de DELETE pelo app, mesma decisão da Fase B
 
-### Fase D — Próximos passos (ainda não iniciados)
+### Fase D — Próximos passos
 - [ ] Migrar achievements, indicações e brindes (gamificação da Fase 1/3) — hoje ainda em localStorage, chaveado por e-mail
-- [ ] Migrar notificações (`primeNotifs`) pro banco
+- [x] Migrar notificações (`primeNotifs`) pro banco — feito junto com o push da Fase 5, ver acima
 - [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
 - [ ] Backup automático / histórico não se perde ao limpar o navegador
 - [ ] Drift de preço histórico no app do cliente (`caHistItemHtml` mostra o preço atual da tabela, não o valor realmente cobrado na época) — precisaria de uma coluna de preço na tabela `appointments`
@@ -172,6 +172,8 @@
 - [x] Controle de acesso — RLS real no banco desde a Fase 6A/6B: cada barbeiro só lê/edita os próprios agendamentos; cliente só os próprios dados. *(nota: a policy `clients_readable_by_barbers` ainda deixa qualquer barbeiro logado ler o perfil de qualquer cliente, não só os que ele atendeu — considerar restringir numa fase futura)*
 - [x] Criptografia em trânsito e em repouso — padrão do Supabase (TLS + AES-256), nenhuma configuração adicional necessária
 - [x] Plano básico de resposta a incidente ✅ *(2026-07-11)* — ver `PLANO-RESPOSTA-INCIDENTE.md`: passo a passo de contenção, avaliação, comunicação a titulares/ANPD, e checklist de prevenção
+- [x] **Vulnerabilidade corrigida** ✅ *(2026-07-12)* — a policy de leitura de `barber_invites` (`using (used_at is null)`) permitia que **qualquer visitante anônimo** listasse todos os convites em aberto via `select('*')` direto do console do navegador, incluindo o `code` e o `role` — expondo, entre outros, um convite de admin ainda não usado (risco de auto-registro como admin). Corrigido removendo a policy pública e trocando a validação client-side por uma RPC `security definer` (`redeem_barber_invite`) que só retorna `role`/`name_hint` pra um código exato, nunca lista a tabela. O convite exposto foi invalidado manualmente. Verificado depois: `select('*')` anônimo em `barber_invites` retorna 0 linhas.
+- [x] **Bug corrigido** ✅ *(2026-07-13)* — descoberto ao testar a correção acima: o cadastro via convite nunca tinha funcionado de verdade, porque a RLS de `barbers` só permite `INSERT` por admin, mas quem precisa inserir a própria linha nesse fluxo é o barbeiro recém-convidado. Corrigido com outra RPC `security definer` (`complete_barber_invite`) que valida o código e insere a linha atomicamente. Testado ponta a ponta (convite → cadastro → login automático).
 
 ---
 
@@ -194,4 +196,4 @@
 
 ---
 
-*Última atualização: 2026-07-11 (Fase 6C concluída)*
+*Última atualização: 2026-07-13 (Fase 5 — notificações push concluída; vulnerabilidade de convite corrigida)*
