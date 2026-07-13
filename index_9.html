@@ -2711,6 +2711,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .45rem;border-radius:3px;transition:all .15s;background:none;border:none}
 #barberApp .prod-actions .prod-restock:hover{color:var(--verde-neon);background:rgba(53,197,88,.1)}
 #barberApp .prod-actions .prod-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
+#barberApp .prod-actions .prod-remove-foto:hover{color:var(--alerta);background:rgba(217,164,65,.1)}
 #barberApp .prod-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;flex:none;background:var(--grafite-card)}
 #barberApp .prod-thumb-placeholder{display:flex;align-items:center;justify-content:center;color:var(--prata-dim)}
 #barberApp .prod-thumb-placeholder svg{width:18px;height:18px}
@@ -4366,6 +4367,15 @@ async function baRemoveProductRow(id){
   if(error) console.error('baRemoveProductRow', error);
   await baFetchProducts();
 }
+async function baRemoveProductPhoto(id){
+  const p = baGetProducts().find(x=>x.id===id);
+  if(!p || !p.image_url) return;
+  if(p.code) await sb.storage.from('product-images').remove([`${p.code}.jpg`]);
+  const { error } = await sb.from('products').update({image_url:null}).eq('id', id);
+  if(error){ console.error('baRemoveProductPhoto', error); return; }
+  await baFetchProducts();
+  baRenderProdutosConfig();
+}
 async function baRestockProductRow(id, qty){
   const p = baGetProducts().find(x=>x.id===id);
   if(!p) return;
@@ -4391,8 +4401,10 @@ function baProdSearchInput(v){
   baRenderProdutosConfig();
 }
 function baProdActions(p){
+  const removerFoto = p.image_url ? `<button class="prod-remove-foto" onclick="baRemoveProductPhoto(${p.id})">remover foto</button>` : '';
   return `<div class="prod-actions">
     <button class="prod-restock" onclick="baRestockProduct(${p.id})">repor</button>
+    ${removerFoto}
     <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
   </div>`;
 }
