@@ -1,5 +1,6 @@
-const SHELL_CACHE = 'prime-shell-v1';
-const SHELL_FILES = ['./', 'index_9.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const SHELL_CACHE = 'prime-shell-v2';
+const SHELL_FILES = ['./', 'index_9.html', 'manifest.json', 'icon-192.png', 'icon-512.png',
+  'splash-1170x2532.png', 'splash-1179x2556.png', 'splash-1284x2778.png', 'splash-1290x2796.png', 'splash-828x1792.png', 'splash-750x1334.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL_FILES)));
