@@ -1502,6 +1502,16 @@ async function primeFetchClientCuts(){
   if(error){ console.error('primeFetchClientCuts', error); return []; }
   return (data||[]).map(primeApptFromRow);
 }
+// preço realmente cobrado em cada corte (snapshot em `sales`, não o preço atual do catálogo) — RPC curada,
+// já que a RLS de `sales` não deixa cliente ler a tabela direto (é dado financeiro do barbeiro)
+async function primeFetchApptSaleValues(apptIds){
+  if(!apptIds || !apptIds.length) return {};
+  const { data, error } = await sb.rpc('get_my_appt_sale_values', { p_appt_ids: apptIds });
+  if(error){ console.error('primeFetchApptSaleValues', error); return {}; }
+  const map = {};
+  (data||[]).forEach(r=>{ if(map[r.appointment_id]===undefined) map[r.appointment_id] = r.value; });
+  return map;
+}
 async function primeFetchDayAppointments(day){
   const { data, error } = await sb.from('appointments').select('*').eq('day', day).neq('status','cancelado');
   if(error){ console.error('primeFetchDayAppointments', error); return []; }
@@ -1817,9 +1827,10 @@ async function renderMyAppointments(){
 }
 
 // ══ Timeline de cortes anteriores (histórico real, não mais placeholder) ══
-function caHistItemHtml(a){
+function caHistItemHtml(a, priceMap){
   const svcName = (a.services||[]).join(' + ');
-  const value = (a.services||[]).reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  // preço da época (sales.value via priceMap); cai pro cálculo pelo catálogo atual só se não achar o snapshot
+  const value = (priceMap && priceMap[a.id]!==undefined) ? priceMap[a.id] : (a.services||[]).reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
   const stars = a.rating ? `<div class="d" style="color:var(--dourado);margin-top:.15rem">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div>` : '';
   return `<div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">${svcName}</div><div class="d">${baFormatDate(a.day)} · ${apBarberName(a)}</div>${stars}</div><div class="val">R$ ${value}</div></div>`;
 }
@@ -1827,10 +1838,11 @@ async function caRenderHist(){
   const acc = primeGetAccount();
   const email = acc && acc.email;
   const cuts = email ? (await primeClientCuts()).sort((a,b)=> (b.day+b.time).localeCompare(a.day+a.time)) : [];
+  const priceMap = cuts.length ? await primeFetchApptSaleValues(cuts.map(c=>c.id)) : {};
   const listEl = document.getElementById('ca-hist-list');
-  if(listEl) listEl.innerHTML = cuts.length ? cuts.map(caHistItemHtml).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Você ainda não tem nenhum corte registrado.</p>';
+  if(listEl) listEl.innerHTML = cuts.length ? cuts.map(a=>caHistItemHtml(a, priceMap)).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Você ainda não tem nenhum corte registrado.</p>';
   const recentEl = document.getElementById('ca-home-recentes');
-  if(recentEl) recentEl.innerHTML = cuts.length ? cuts.slice(0,3).map(caHistItemHtml).join('') : '<p style="color:var(--prata-dim);font-size:.85rem;padding:.5rem 0">Nenhum corte ainda.</p>';
+  if(recentEl) recentEl.innerHTML = cuts.length ? cuts.slice(0,3).map(a=>caHistItemHtml(a, priceMap)).join('') : '<p style="color:var(--prata-dim);font-size:.85rem;padding:.5rem 0">Nenhum corte ainda.</p>';
 }
 
 // ══ Planos ══
@@ -4886,21 +4898,26 @@ if(baAtClientSegEl) baAtClientSegEl.addEventListener('click', e=>{
 });
 
 let baAtSearchResults = [];
+let baAtSearchToken = 0;
 async function baAtSearchClient(){
-  const q = document.getElementById('at-search').value.trim().toLowerCase();
+  const q = document.getElementById('at-search').value.trim();
   const box = document.getElementById('at-search-results');
   if(!q || q.length < 2){ box.innerHTML=''; return; }
-  baAtSearchResults = (await baFetchMyCrmClients()).filter(c=>
-    c.name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q)
-  ).slice(0,5);
+  const myToken = ++baAtSearchToken;
+  // busca na tabela real de clientes cadastrados (nome, @ ou e-mail), não só na carteira deste barbeiro
+  const { data, error } = await sb.from('clients').select('id,name,phone,email,instagram')
+    .or(`name.ilike.%${q}%,instagram.ilike.%${q}%,email.ilike.%${q}%`).limit(5);
+  if(myToken !== baAtSearchToken) return; // resultado desatualizado, uma busca mais nova já está em andamento
+  if(error){ console.error('baAtSearchClient', error); return; }
+  baAtSearchResults = data || [];
   box.innerHTML = baAtSearchResults.length ? baAtSearchResults.map(c=>
-    `<div class="ba-enc-result" onclick="baAtSelectClient('${c.name.replace(/'/g,"\\'")}')">
+    `<div class="ba-enc-result" onclick="baAtSelectClient('${c.id}')">
       ${c.name} <span class="enc-sub">${c.instagram||''} · ${c.email||''}</span>
     </div>`
   ).join('') : '<div style="padding:.4rem .6rem;color:var(--prata-dim);font-size:.82rem">Nenhum cliente encontrado</div>';
 }
-function baAtSelectClient(name){
-  const client = baAtSearchResults.find(c=>c.name===name);
+function baAtSelectClient(id){
+  const client = baAtSearchResults.find(c=>c.id===id);
   if(!client) return;
   baAtSelectedClient = client;
   document.getElementById('at-search').value = '';
@@ -5001,6 +5018,16 @@ async function baAtRegistrar(){
   if(baAtMode==='buscar'){
     if(!baAtSelectedClient) return fail('Selecione um cliente.');
     clientName = baAtSelectedClient.name;
+    // primeira vez que ESSE barbeiro atende esse cliente: cria o vínculo na carteira dele (crm_clients),
+    // já puxando o client_id real — sem isso o cliente não aparece na lista de Clientes desse barbeiro
+    const myClients = await baFetchMyCrmClients();
+    const already = myClients.some(c=> c.clientId === baAtSelectedClient.id || c.name.toLowerCase()===baAtSelectedClient.name.toLowerCase());
+    if(!already){
+      await baCreateCrmClient({
+        name: baAtSelectedClient.name, phone: baAtSelectedClient.phone||null,
+        email: baAtSelectedClient.email||null, instagram: baAtSelectedClient.instagram||null
+      });
+    }
   } else {
     const name = document.getElementById('at-new-name').value.trim();
     const phoneRaw = document.getElementById('at-new-phone').value.trim();
