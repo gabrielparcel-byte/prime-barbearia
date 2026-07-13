@@ -1181,7 +1181,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-field" id="ca-f-su-pass"><label>Senha</label><input type="password" id="ca-su-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <div class="ca-row">
           <div class="ca-field" id="ca-f-su-phone"><label>Telefone</label><input type="tel" id="ca-su-phone" placeholder="(44) 90000-0000"><span class="err">Telefone válido</span></div>
-          <div class="ca-field" id="ca-f-su-age"><label>Idade</label><input type="number" id="ca-su-age" placeholder="18" min="1" max="120"><span class="err">Idade válida</span></div>
+          <div class="ca-field" id="ca-f-su-age"><label>Idade</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ca-su-age" placeholder="18" min="1" max="120"><span class="err">Idade válida</span></div>
         </div>
         <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
         <div class="ca-field"><label>Código de indicação (opcional)</label><input type="text" id="ca-su-ref" placeholder="Ex: JOA4F9K" style="text-transform:uppercase"></div>
@@ -1286,7 +1286,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-field"><label>E-mail</label><input type="email" id="ca-pf-email" disabled style="opacity:.6;cursor:not-allowed"></div>
         <div style="display:flex;gap:.8rem">
           <div class="ca-field" style="flex:1"><label>Telefone</label><input type="tel" id="ca-pf-phone" placeholder="(44) 90000-0000"></div>
-          <div class="ca-field" style="flex:1"><label>Idade</label><input type="number" id="ca-pf-age" placeholder="18" min="1" max="120"></div>
+          <div class="ca-field" style="flex:1"><label>Idade</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ca-pf-age" placeholder="18" min="1" max="120"></div>
         </div>
         <div class="ca-field"><label>@ do Instagram</label><input type="text" id="ca-pf-ig" placeholder="@seuusuario"></div>
 
@@ -2955,7 +2955,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div id="at-novo-block" style="display:none">
           <div style="display:flex;gap:.6rem">
             <div class="ba-field" style="flex:1"><label>Nome</label><input type="text" id="at-new-name" placeholder="Nome completo"></div>
-            <div class="ba-field" style="flex:1"><label>Telefone</label><input type="text" id="at-new-phone" placeholder="(44) 90000-0000"></div>
+            <div class="ba-field" style="flex:1"><label>Telefone</label><input type="tel" id="at-new-phone" placeholder="(44) 90000-0000"></div>
           </div>
         </div>
 
@@ -3114,7 +3114,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div id="ba-dash-despesas-list"></div>
           <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
             <input type="text" id="ba-despesa-nome" class="add-input" placeholder="Nome da despesa..." style="flex:2;min-width:120px">
-            <input type="number" id="ba-despesa-valor" class="add-input" placeholder="R$" style="flex:1;min-width:70px">
+            <input type="text" inputmode="decimal" id="ba-despesa-valor" class="add-input" placeholder="R$" style="flex:1;min-width:70px">
             <input type="date" id="ba-despesa-data" class="add-input" style="flex:1;min-width:130px">
             <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
           </div>
@@ -3250,8 +3250,8 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div id="ba-produtos-list"></div>
           <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
             <input type="text" id="ba-prod-nome" class="add-input" placeholder="Nome do produto..." style="flex:2;min-width:110px">
-            <input type="number" id="ba-prod-preco" class="add-input" placeholder="R$" style="flex:1;min-width:60px">
-            <input type="number" id="ba-prod-estoque" class="add-input" placeholder="Qtd" style="flex:1;min-width:60px">
+            <input type="text" inputmode="decimal" id="ba-prod-preco" class="add-input" placeholder="R$" style="flex:1;min-width:60px">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-prod-estoque" class="add-input" placeholder="Qtd" style="flex:1;min-width:60px">
             <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddProduct()">Adicionar</button>
           </div>
         </div>
@@ -4774,7 +4774,7 @@ function baToggleEncaixe(){
       </div>
       <div class="ba-field" style="flex:1;min-width:100px;margin:0">
         <label>Duração (min)</label>
-        <input type="number" id="ba-enc-dur" value="45" min="15" max="180" step="15" style="width:100%">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-enc-dur" value="45" min="15" max="180" step="15" style="width:100%">
       </div>
     </div>
     <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--prata-dim);margin-bottom:.8rem;cursor:pointer">
@@ -5249,8 +5249,8 @@ function baBuildEditForm(b, i){
       <input type="checkbox" id="ba-edit-isbarber-${i}" ${b.isBarber?'checked':''} style="width:16px;height:16px;accent-color:var(--dourado)">
       Atende clientes como barbeiro
     </label>
-    <div class="ba-field"><label>Comissão (%)</label><input type="number" id="ba-edit-comm-${i}" min="0" max="100" value="${pct}"></div>
-    <div class="ba-field"><label>Meta mensal (R$)</label><input type="number" id="ba-edit-goal-${i}" min="0" step="50" placeholder="Ex: 6000" value="${b.monthlyGoal||''}"></div>
+    <div class="ba-field"><label>Comissão (%)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-edit-comm-${i}" min="0" max="100" value="${pct}"></div>
+    <div class="ba-field"><label>Meta mensal (R$)</label><input type="text" inputmode="decimal" id="ba-edit-goal-${i}" min="0" step="50" placeholder="Ex: 6000" value="${b.monthlyGoal||''}"></div>
     <div class="ba-slabel" style="margin-top:0">Escala semanal</div>
     ${scheduleRows}
     <p class="ba-err" id="ba-edit-err-${i}" style="display:none;margin-top:.4rem"></p>
