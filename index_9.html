@@ -3275,7 +3275,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
             <label class="ba-prod-foto-label" for="ba-prod-foto" title="Adicionar foto (opcional)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </label>
-            <input type="file" id="ba-prod-foto" accept="image/*" capture="environment" style="display:none" onchange="document.querySelector('.ba-prod-foto-label').classList.toggle('has-file', this.files.length>0)">
+            <input type="file" id="ba-prod-foto" accept="image/*" style="display:none" onchange="document.querySelector('.ba-prod-foto-label').classList.toggle('has-file', this.files.length>0)">
             <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddProduct()">Adicionar</button>
           </div>
         </div>
