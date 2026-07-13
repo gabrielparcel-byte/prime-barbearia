@@ -159,7 +159,8 @@
 - [x] Testado ponta a ponta: indicação completa (código → cadastro → vínculo), conquista "Embaixador" desbloqueada automaticamente, fila de conquistas pendentes consumida uma única vez, elegibilidade de brinde recalculada corretamente após marcar como dado, RLS negativo (cliente não lê/edita conquista ou brinde de outro), config de brindes (admin adiciona/remove opção)
 - [x] Filtro de clientes por período (semana/mês/intervalo) ✅ *(2026-07-13)* — chips "Essa semana"/"Esse mês"/"Período" na tela de Clientes, mesmo padrão visual dos filtros de Vendas (`baGetFilterRange`), filtrando pela data da última visita
 - [x] Backup automático / histórico não se perde ao limpar o navegador ✅ — já resolvido como efeito colateral das Fases A-D: com tudo no Supabase, limpar o navegador ou trocar de aparelho não apaga mais nada (o item ficou desatualizado no ROADMAP, não precisou de trabalho novo)
-- [ ] Drift de preço histórico no app do cliente (`caHistItemHtml` mostra o preço atual da tabela, não o valor realmente cobrado na época) — precisaria de uma coluna de preço na tabela `appointments`
+- [x] Drift de preço histórico no app do cliente ✅ *(2026-07-13)* — `caHistItemHtml` mostrava o preço **atual** do catálogo (`SVC_PRICES`) em vez do valor realmente cobrado na época. Corrigido sem mudar o schema de `appointments`: o valor exato já era gravado em `sales.value` no momento da finalização (`baFinalizarCarrinho`), só faltava ler de lá. Nova RPC `get_my_appt_sale_values` (`security definer`) porque a RLS de `sales` não deixa cliente ler a tabela direto (é dado financeiro do barbeiro) — retorna só o valor da linha de serviço (não de produto) pros próprios agendamentos do cliente. Testado: corte cobrado a R$ 40 continua mostrando R$ 40 no histórico mesmo depois do catálogo mudar pra R$ 45.
+- [x] Busca de cliente em "Registrar Atendimento" corrigida ✅ *(2026-07-13)* — buscava só na carteira (`crm_clients`) do barbeiro logado, por nome/@; um cliente já cadastrado no app mas nunca atendido por aquele barbeiro simplesmente não aparecia. Agora busca na tabela real `clients` (nome, @ ou e-mail, mesmo padrão do Encaixe da Fase B) e, ao selecionar um cliente achado assim, cria automaticamente o vínculo na carteira (`crm_clients` com `client_id` real) se ainda não existir.
 
 ### Hospedagem & Custos *(discutido 2026-07-08 — plano, nada contratado ainda)*
 - [ ] Banco de dados: **Supabase** (grátis pra começar — 500MB cobre bem o volume de uma barbearia; se crescer muito, plano pago é ~US$25/mês). Zero administração de servidor — Supabase cuida de backup, segurança e atualização.
@@ -200,4 +201,4 @@
 
 ---
 
-*Última atualização: 2026-07-13 (modo offline básico da Fase 5 concluído)*
+*Última atualização: 2026-07-13 (Fase D concluída por completo — filtro por período, backup automático, drift de preço; bug de busca de cliente no Atendimento corrigido)*
