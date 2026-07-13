@@ -3941,8 +3941,11 @@ async function baBuildReportData(){
   return { isAdmin:false, label, sales, total, comissao: total*pct, name: baCurrentBarber };
 }
 function baReportLogoSrc(){
-  const img = document.querySelector('.ca-logo');
-  return img ? img.getAttribute('src') : '';
+  // logo é um SVG desenhado inline (não uma <img>), então embutimos o SVG de verdade em vez de
+  // tentar tirar um "src" que nunca existiu — cor fixa clara pra aparecer no fundo escuro do selo
+  const svg = document.querySelector('.ca-logo .prime-emblem') || document.querySelector('.hero-emblem svg');
+  if(!svg) return '';
+  return svg.outerHTML.replace(/fill="currentColor"/g, 'fill="#EDEDE8"');
 }
 async function baRenderReportHTML(){
   const d = await baBuildReportData();
@@ -4000,7 +4003,7 @@ async function baRenderReportHTML(){
   }
   return `
     <div class="rp-head">
-      <div class="rp-logo-badge"><img src="${logo}"></div>
+      <div class="rp-logo-badge">${logo}</div>
       <div><div class="rp-brand">PRIME BARBEARIA</div><div class="sub">relatório mensal</div></div>
       <div class="rp-meta"><b>${d.label}</b>${d.isAdmin ? 'Relatório da equipe' : 'Relatório pessoal · '+d.name}<br>Gerado em ${geradoEm}</div>
     </div>
@@ -4017,7 +4020,7 @@ function baOpenQRPrint(){
   const siteUrl = location.origin + location.pathname;
   const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=0&data=${encodeURIComponent(siteUrl)}`;
   document.getElementById('ba-qr-print').innerHTML = `
-    <div class="qp-logo"><img src="${logo}"></div>
+    <div class="qp-logo">${logo}</div>
     <div class="qp-brand">PRIME BARBEARIA</div>
     <div class="qp-sub">balcão</div>
     <div class="qp-title">Aponte a câmera do seu celular aqui</div>
@@ -5665,7 +5668,7 @@ function renderTeamSection(){
 }
 #ba-report-print .rp-head{display:flex;align-items:center;gap:1rem;padding-bottom:1.2rem;border-bottom:2px solid var(--rp-dourado);margin-bottom:1.4rem}
 #ba-report-print .rp-logo-badge{width:56px;height:56px;border-radius:50%;background:#0B140D;display:flex;align-items:center;justify-content:center;flex:none}
-#ba-report-print .rp-logo-badge img{width:38px;height:38px}
+#ba-report-print .rp-logo-badge svg{width:38px;height:38px}
 #ba-report-print .rp-brand{font-family:'Cinzel',serif;font-size:1.3rem;letter-spacing:.06em;color:var(--rp-ink)}
 #ba-report-print .rp-brand .sub{font-family:'Jost',sans-serif;font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--rp-dourado-claro);margin-top:.15rem}
 #ba-report-print .rp-meta{margin-left:auto;text-align:right;font-size:.72rem;color:var(--rp-ink-dim)}
@@ -5698,7 +5701,7 @@ function renderTeamSection(){
 
 #ba-qr-print{background:#FBF9F3;color:#20241D;font-family:'Jost',sans-serif;text-align:center;padding:3rem 2rem;max-width:520px;margin:0 auto}
 #ba-qr-print .qp-logo{width:64px;height:64px;border-radius:50%;background:#0B140D;display:flex;align-items:center;justify-content:center;margin:0 auto 1.2rem}
-#ba-qr-print .qp-logo img{width:44px;height:44px}
+#ba-qr-print .qp-logo svg{width:44px;height:44px}
 #ba-qr-print .qp-brand{font-family:'Cinzel',serif;font-size:1.4rem;letter-spacing:.1em;color:#20241D;margin-bottom:.2rem}
 #ba-qr-print .qp-sub{font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:#8C6F2E;margin-bottom:2rem}
 #ba-qr-print .qp-title{font-family:'Cinzel',serif;font-size:1.15rem;color:#20241D;margin-bottom:.5rem}
