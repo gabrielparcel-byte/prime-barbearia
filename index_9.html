@@ -1632,7 +1632,7 @@ async function subscribeToPush(){
   }
 
   const { error } = await sb.from('push_subscriptions').upsert(row, { onConflict: 'endpoint' });
-  if(error){ console.error('subscribeToPush', error); alert('Não foi possível ativar as notificações.'); }
+  if(error){ console.error('subscribeToPush', error); alert('Não foi possível ativar as notificações.\n\n' + (error.message||error.code||'erro desconhecido')); }
   else alert('Notificações ativadas!');
 }
 
