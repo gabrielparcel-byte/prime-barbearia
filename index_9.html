@@ -1576,9 +1576,13 @@ async function subscribeToPush(){
   else alert('Notificações ativadas!');
 }
 
-// ══ Sistema de indicação ══
-function primeGetReferralCodes(){ try{ return JSON.parse(localStorage.getItem('primeReferralCodes')||'{}'); }catch(e){ return {}; } }
-function primeSaveReferralCodes(d){ localStorage.setItem('primeReferralCodes', JSON.stringify(d)); }
+// ══ Sistema de indicação (Supabase) ══
+async function primeFindReferralOwner(code){
+  if(!code) return null;
+  const { data, error } = await sb.rpc('find_referral_owner', { p_code: code.trim().toUpperCase() });
+  if(error){ console.error('primeFindReferralOwner', error); return null; }
+  return data && data[0];
+}
 function primeGetOrCreateReferralCode(acc){
   if(acc.referralCode) return acc.referralCode;
   const base = (acc.name||'PRIME').replace(/[^a-zA-Z]/g,'').toUpperCase().slice(0,4) || 'PRIME';
@@ -1586,17 +1590,12 @@ function primeGetOrCreateReferralCode(acc){
   const code = base + rand;
   acc.referralCode = code;
   primeSaveAccount(acc);
-  const codes = primeGetReferralCodes();
-  codes[code] = {name:acc.name, email:acc.email};
-  primeSaveReferralCodes(codes);
   return code;
 }
-function primeGetReferrals(){ try{ return JSON.parse(localStorage.getItem('primeReferrals')||'[]'); }catch(e){ return []; } }
-function primeSaveReferrals(list){ localStorage.setItem('primeReferrals', JSON.stringify(list)); }
-function primeCreateReferral(referrerName, referrerEmail, referredName, referredEmail){
-  const list = primeGetReferrals();
-  list.unshift({id:primeNextId(), referrerName, referrerEmail, referredName, referredEmail, date:primeLocalDate(), referrerGiftGiven:false, referredGiftGiven:false});
-  primeSaveReferrals(list);
+async function primeCreateReferral(referrerClientId, referredClientId){
+  if(!referrerClientId || !referredClientId || referrerClientId === referredClientId) return;
+  const { error } = await sb.from('referrals').insert({ referrer_client_id: referrerClientId, referred_client_id: referredClientId });
+  if(error) console.error('primeCreateReferral', error);
 }
 async function primeNotifsFor(role, recipientId){
   if(!recipientId) return [];
@@ -1652,9 +1651,14 @@ function primeAchMedal(achId){
   <circle cx="60" cy="60" r="49" fill="none" stroke="#C6A75E" stroke-width="1" opacity=".45"/>
   ${ACH_ICONS[achId]||''}</svg>`;
 }
-function primeGetAchAll(){ try{ return JSON.parse(localStorage.getItem('primeAchievements')||'{}'); }catch(e){ return {}; } }
-function primeSaveAchAll(a){ localStorage.setItem('primeAchievements', JSON.stringify(a)); }
-function primeGetAch(email){ const all=primeGetAchAll(); return all[email] || {unlocked:{}, pending:[]}; }
+async function primeGetAch(clientId){
+  if(!clientId) return {unlocked:{}};
+  const { data, error } = await sb.from('achievements').select('ach_id,unlocked_at').eq('client_id', clientId);
+  if(error){ console.error('primeGetAch', error); return {unlocked:{}}; }
+  const unlocked = {};
+  (data||[]).forEach(r=>{ unlocked[r.ach_id] = r.unlocked_at; });
+  return {unlocked};
+}
 async function primeClientCuts(){ return await primeFetchClientCuts(); }
 async function primeClientLevel(){
   const cuts = (await primeClientCuts()).length;
@@ -1662,27 +1666,25 @@ async function primeClientLevel(){
   for(const l of CLUB_LEVELS){ if(cuts >= l.min) level = l; else { next = l; break; } }
   return {level, next, cuts};
 }
-async function primeUnlockAch(email, id){
-  if(!email) return false;
-  const all = primeGetAchAll();
-  const st = all[email] || (all[email] = {unlocked:{}, pending:[]});
-  if(st.unlocked[id]) return false;
-  st.unlocked[id] = primeLocalDate();
-  st.pending.push(id);
-  primeSaveAchAll(all);
+async function primeUnlockAch(clientId, id){
+  if(!clientId) return false;
+  const { error } = await sb.from('achievements').insert({ client_id: clientId, ach_id: id });
+  if(error){
+    if(error.code !== '23505') console.error('primeUnlockAch', error); // 23505 = já desbloqueada, ignora
+    return false;
+  }
   const ach = ACH_CATALOG.find(a=>a.id===id);
-  const acc = primeGetAccount();
-  if(ach && acc && acc.id) await primeAddNotif({forRole:'client', recipientClientId:acc.id, type:'conquista', text:`🏆 Conquista desbloqueada: ${ach.nome}!`});
+  if(ach) await primeAddNotif({forRole:'client', recipientClientId:clientId, type:'conquista', text:`🏆 Conquista desbloqueada: ${ach.nome}!`});
   return true;
 }
 // roda todas as regras pro cliente logado; ctx = {bookedTime, bookedDay} quando chamado na criação de agendamento
 async function primeCheckAchievements(ctx){
   const acc = primeGetAccount();
-  const email = acc && acc.email;
-  if(!email) return [];
+  const clientId = acc && acc.id;
+  if(!clientId) return [];
   const done = await primeClientCuts();
   const newly = [];
-  const un = async id => { if(await primeUnlockAch(email, id)) newly.push(id); };
+  const un = async id => { if(await primeUnlockAch(clientId, id)) newly.push(id); };
   if(done.length >= 1) await un('primeiro-corte');
   if(done.length >= 5) await un('fiel');
   if(ctx && ctx.bookedTime && ctx.bookedDay){
@@ -1699,57 +1701,67 @@ async function primeCheckAchievements(ctx){
   const rated = allMine.filter(a=>a.ratingBy==='cliente').length;
   if(rated >= 5) await un('nota-10');
   if((await primeClientLevel()).level.min >= 15) await un('vip');
-  if(primeGetReferrals().some(r=>r.referrerEmail===email)) await un('embaixador');
+  const { count } = await sb.from('referrals').select('id', {count:'exact', head:true}).eq('referrer_client_id', clientId);
+  if(count) await un('embaixador');
   return newly;
 }
 // consome a fila de conquistas ainda não vistas (a UI chama pra exibir a animação)
-function primeTakePendingAchs(email){
-  const all = primeGetAchAll();
-  const st = all[email];
-  if(!st || !st.pending || !st.pending.length) return [];
-  const out = st.pending.slice();
-  st.pending = [];
-  primeSaveAchAll(all);
-  return out;
+async function primeTakePendingAchs(clientId){
+  if(!clientId) return [];
+  const { data, error } = await sb.from('achievements').select('id,ach_id').eq('client_id', clientId).eq('seen', false);
+  if(error){ console.error('primeTakePendingAchs', error); return []; }
+  if(!data || !data.length) return [];
+  const ids = data.map(r=>r.id);
+  await sb.from('achievements').update({seen:true}).in('id', ids);
+  return data.map(r=>r.ach_id);
 }
 const BRINDE_EVERY = 5;
-function primeGetBrindeAll(){ try{ return JSON.parse(localStorage.getItem('primeBrindeGifts')||'{}'); }catch(e){ return {}; } }
-function primeSaveBrindeAll(d){ localStorage.setItem('primeBrindeGifts', JSON.stringify(d)); }
-function primeIsBrindeEligible(key, cutCount){
-  if(!key || !cutCount || cutCount < BRINDE_EVERY) return false;
-  const all = primeGetBrindeAll();
-  const last = (all[key] && all[key].lastGiftAt) || 0;
+async function primeGetLoyaltyGiftRow(clientId){
+  if(!clientId) return null;
+  const { data, error } = await sb.from('loyalty_gifts').select('*').eq('client_id', clientId).maybeSingle();
+  if(error){ console.error('primeGetLoyaltyGiftRow', error); return null; }
+  return data;
+}
+async function primeIsBrindeEligible(clientId, cutCount){
+  if(!clientId || !cutCount || cutCount < BRINDE_EVERY) return false;
+  const row = await primeGetLoyaltyGiftRow(clientId);
+  const last = (row && row.last_gift_at) || 0;
   return cutCount >= last + BRINDE_EVERY;
 }
-function primeMarkBrindeGiven(key, cutCount){
-  if(!key) return;
-  const all = primeGetBrindeAll();
-  all[key] = { lastGiftAt: Math.floor(cutCount / BRINDE_EVERY) * BRINDE_EVERY, givenOn: primeLocalDate() };
-  primeSaveBrindeAll(all);
+async function primeMarkBrindeGiven(clientId, cutCount){
+  if(!clientId) return;
+  const { error } = await sb.from('loyalty_gifts').upsert({
+    client_id: clientId, last_gift_at: Math.floor(cutCount / BRINDE_EVERY) * BRINDE_EVERY, given_on: primeLocalDate(), choice: null
+  }, { onConflict: 'client_id' });
+  if(error) console.error('primeMarkBrindeGiven', error);
 }
-function primeBrindeCutsInfo(key, cutCount){
+async function primeBrindeCutsInfo(clientId, cutCount){
   const cuts = cutCount || 0;
-  const all = primeGetBrindeAll();
-  const last = (all[key] && all[key].lastGiftAt) || 0;
+  const row = await primeGetLoyaltyGiftRow(clientId);
+  const last = (row && row.last_gift_at) || 0;
   const nextAt = last + BRINDE_EVERY;
   return { cuts, lastGiftAt: last, nextAt, eligible: cuts >= nextAt };
 }
 const BRINDE_DEFAULT_OPTS = ['Sobrancelha','Limpeza de pele','Hidratação capilar','Massagem relaxante'];
-function primeGetBrindeOpts(){ try{ const v=JSON.parse(localStorage.getItem('primeBrindeOpts')||'null'); return v && v.length ? v : BRINDE_DEFAULT_OPTS; }catch(e){ return BRINDE_DEFAULT_OPTS; } }
-function primeSaveBrindeOpts(list){ localStorage.setItem('primeBrindeOpts', JSON.stringify(list)); }
-function primeGetBrindeChoice(email){ if(!email) return null; const all=primeGetBrindeAll(); return (all[email] && all[email].choice) || null; }
-function primeSetBrindeChoice(email, choice){
-  if(!email) return;
-  const all = primeGetBrindeAll();
-  if(!all[email]) all[email] = {};
-  all[email].choice = choice;
-  primeSaveBrindeAll(all);
+async function primeGetBrindeOpts(){
+  const { data, error } = await sb.from('loyalty_gift_options').select('label').order('sort_order');
+  if(error){ console.error('primeGetBrindeOpts', error); return BRINDE_DEFAULT_OPTS; }
+  return (data && data.length) ? data.map(r=>r.label) : BRINDE_DEFAULT_OPTS;
 }
-function primeClearBrindeChoice(email){
-  if(!email) return;
-  const all = primeGetBrindeAll();
-  if(all[email]) delete all[email].choice;
-  primeSaveBrindeAll(all);
+async function primeGetBrindeChoice(clientId){
+  if(!clientId) return null;
+  const row = await primeGetLoyaltyGiftRow(clientId);
+  return (row && row.choice) || null;
+}
+async function primeSetBrindeChoice(clientId, choice){
+  if(!clientId) return;
+  const { error } = await sb.from('loyalty_gifts').upsert({ client_id: clientId, choice }, { onConflict: 'client_id' });
+  if(error) console.error('primeSetBrindeChoice', error);
+}
+async function primeClearBrindeChoice(clientId){
+  if(!clientId) return;
+  const { error } = await sb.from('loyalty_gifts').update({ choice: null }).eq('client_id', clientId);
+  if(error) console.error('primeClearBrindeChoice', error);
 }
 // só retorna quem atende clientes de fato (barbeiros + admins vinculados como barbeiro, ex-dono/gerente fica de fora)
 function primeGetBarberRoster(){
@@ -2128,13 +2140,13 @@ async function caLogin(){
     : { id:data.user.id, email:data.user.email };
   caEnter();
 }
-function caRenderReferralCard(){
+async function caRenderReferralCard(){
   const box = document.getElementById('ca-referral-card');
   if(!box) return;
   const acc = primeGetAccount();
-  if(!acc || !acc.email){ box.innerHTML = ''; return; }
+  if(!acc || !acc.id){ box.innerHTML = ''; return; }
   const code = primeGetOrCreateReferralCode(acc);
-  const count = primeGetReferrals().filter(r=>r.referrerEmail===acc.email).length;
+  const { count } = await sb.from('referrals').select('id', {count:'exact', head:true}).eq('referrer_client_id', acc.id);
   box.innerHTML = `
     <div style="text-align:center;margin-bottom:.9rem">
       <div style="font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--prata-dim);margin-bottom:.4rem">Seu código</div>
@@ -2152,11 +2164,11 @@ function caShareReferral(){
 }
 async function caRenderClub(){
   const acc = primeGetAccount() || {};
-  const email = acc.email || '';
+  const clientId = acc.id || '';
   const lvlBox = document.getElementById('ca-club-level');
   const grid = document.getElementById('ca-club-grid');
   if(!lvlBox || !grid) return;
-  const st = primeGetAch(email);
+  const st = await primeGetAch(clientId);
   const {level, next, cuts} = await primeClientLevel();
   const pct = next ? Math.min(100, Math.round(((cuts - level.min) / (next.min - level.min)) * 100)) : 100;
   const unlockedCount = Object.keys(st.unlocked).length;
@@ -2167,10 +2179,10 @@ async function caRenderClub(){
     <div class="cl-next">${next ? `Faltam ${next.min - cuts} corte${next.min-cuts===1?'':'s'} pro nível ${next.nome}` : 'Nível máximo — lenda da Prime 💎'}</div>`;
   const brindeEl = document.getElementById('ca-club-brinde');
   if(brindeEl){
-    if(!primeIsBrindeEligible(email, cuts)){ brindeEl.innerHTML = ''; }
+    if(!(await primeIsBrindeEligible(clientId, cuts))){ brindeEl.innerHTML = ''; }
     else {
-      const giftOpts = primeGetBrindeOpts();
-      const chosen = primeGetBrindeChoice(email);
+      const giftOpts = await primeGetBrindeOpts();
+      const chosen = await primeGetBrindeChoice(clientId);
       if(chosen){
         brindeEl.innerHTML = `<div class="brinde-section"><div class="bs-header"><span class="emoji"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M3 9h18v4H3z"/><path d="M5 13h14v8H5z"/><path d="M12 9v12"/><path d="M12 9c-1.4-3-5-3.6-5-1 0 1.4 2 1 5 1z"/><path d="M12 9c1.4-3 5-3.6 5-1 0 1.4-2 1-5 1z"/></svg></span><span class="title">Brinde escolhido</span></div><div class="bs-sub" style="margin-bottom:0">Você escolheu <b style="color:var(--dourado-claro)">${chosen}</b>. Avise seu barbeiro na próxima visita!</div></div>`;
       } else {
@@ -2194,19 +2206,19 @@ function caSelectBrinde(i){
   const btn = document.getElementById('ca-brinde-btn');
   if(btn) btn.classList.add('enabled');
 }
-function caConfirmBrinde(){
+async function caConfirmBrinde(){
   if(caBrindeSelected===null) return;
   const acc = primeGetAccount();
-  if(!acc || !acc.email) return;
-  const opts = primeGetBrindeOpts();
-  primeSetBrindeChoice(acc.email, opts[caBrindeSelected]);
+  if(!acc || !acc.id) return;
+  const opts = await primeGetBrindeOpts();
+  await primeSetBrindeChoice(acc.id, opts[caBrindeSelected]);
   caBrindeSelected = null;
-  caRenderClub();
+  await caRenderClub();
 }
-function caOpenSticker(id){
+async function caOpenSticker(id){
   const a = ACH_CATALOG.find(x=>x.id===id);
   if(!a) return;
-  const st = primeGetAch((primeGetAccount()||{}).email||'');
+  const st = await primeGetAch((primeGetAccount()||{}).id||'');
   const un = st.unlocked[id];
   const medal = document.getElementById('clubStkMedal');
   medal.innerHTML = primeAchMedal(id);
@@ -2227,10 +2239,10 @@ function closePrivacyModal(){ document.getElementById('privacyModal').classList.
 // ══ Prime Club — celebração de desbloqueio ══
 let cuQueue = [];
 let cfAnim = null;
-function caCelebrateUnlocks(){
+async function caCelebrateUnlocks(){
   const acc = primeGetAccount();
-  if(!acc || !acc.email) return;
-  const pend = primeTakePendingAchs(acc.email);
+  if(!acc || !acc.id) return;
+  const pend = await primeTakePendingAchs(acc.id);
   if(!pend.length) return;
   cuQueue = pend;
   caShowUnlock(cuQueue.shift());
@@ -2382,10 +2394,9 @@ async function caSignup(){
   const refInput = document.getElementById('ca-su-ref');
   const refCode = refInput ? refInput.value.trim().toUpperCase() : '';
   if(refCode){
-    const codes = primeGetReferralCodes();
-    const owner = codes[refCode];
-    if(owner && owner.email.toLowerCase()!==newEmail.toLowerCase()){
-      primeCreateReferral(owner.name, owner.email, nome.value.trim(), newEmail);
+    const owner = await primeFindReferralOwner(refCode);
+    if(owner && owner.id !== acc.id){
+      await primeCreateReferral(owner.id, acc.id);
     }
   }
   caEnter();
@@ -3960,12 +3971,26 @@ async function baRenderClientes(){
   if(baCliFilter==='sumidos') names = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS);
   document.getElementById('ba-cli-list-label').textContent = baCliFilter==='sumidos' ? 'Clientes sumidos' : 'Todos os clientes';
   names.sort((a,b)=> last[b].date.localeCompare(last[a].date));
+
+  // brinde/indicação: só rastreável pra quem tem conta vinculada (clientId); busca em lote, não 1 query por linha
+  const idByName = {};
+  names.forEach(name=>{ const c = clients.find(x=>x.name===name); if(c && c.clientId) idByName[name] = c.clientId; });
+  const ids = Object.values(idByName);
+  let giftMap = {}, refRows = [];
+  if(ids.length){
+    const { data: gifts } = await sb.from('loyalty_gifts').select('*').in('client_id', ids);
+    (gifts||[]).forEach(g=>{ giftMap[g.client_id] = g; });
+    const { data: refs } = await sb.from('referrals').select('*').or(`referrer_client_id.in.(${ids.join(',')}),referred_client_id.in.(${ids.join(',')})`);
+    refRows = refs||[];
+  }
+
   document.getElementById('ba-clientes-list').innerHTML = names.length ? names.map(name=>{
-    const c = clients.find(x=>x.name===name) || {};
-    const giftDot = primeIsBrindeEligible(name, count[name]) ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
+    const cid = idByName[name];
+    const gift = cid ? giftMap[cid] : null;
+    const giftEligible = cid && count[name] >= ((gift && gift.last_gift_at) || 0) + BRINDE_EVERY;
+    const giftDot = giftEligible ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
     const sumiuDot = baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS ? ' <span class="sumiu-dot" title="Não vem há 30+ dias"></span>' : '';
-    const {asReferred, asReferrer} = baFindReferralsFor(c);
-    const refPending = asReferrer.some(r=>!r.referrerGiftGiven) || (asReferred && !asReferred.referredGiftGiven);
+    const refPending = cid && refRows.some(r=> (r.referrer_client_id===cid && !r.referrer_gift_given) || (r.referred_client_id===cid && !r.referred_gift_given));
     const referralDot = refPending ? ' <span class="referral-dot" title="Elegível a mimo de indicação"></span>' : '';
     return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${giftDot}${sumiuDot}${referralDot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
   }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.')}</p>`;
@@ -4019,10 +4044,11 @@ function baRenderSumiu(client, lastSale){
 async function baRenderBrinde(client){
   const el = document.getElementById('ba-cli-brinde');
   if(!el) return;
+  if(!client.clientId){ el.innerHTML = ''; return; } // sem conta vinculada, não dá pra rastrear brinde
   const bSales = (await baFetchClientSales(client.name)).length;
-  if(!bSales || !primeIsBrindeEligible(client.name, bSales)){ el.innerHTML = ''; return; }
-  const info = primeBrindeCutsInfo(client.name, bSales);
-  const choice = client.email ? primeGetBrindeChoice(client.email) : null;
+  if(!bSales || !(await primeIsBrindeEligible(client.clientId, bSales))){ el.innerHTML = ''; return; }
+  const info = await primeBrindeCutsInfo(client.clientId, bSales);
+  const choice = await primeGetBrindeChoice(client.clientId);
   const choiceHtml = choice
     ? `<div style="font-size:.75rem;color:var(--dourado);margin-bottom:.7rem;display:flex;align-items:center;gap:.3rem">✦ Cliente escolheu: <b style="margin-left:.2rem">${choice}</b></div>`
     : `<p style="font-size:.72rem;color:var(--prata-dim);margin-bottom:.7rem;font-style:italic;opacity:.7">Cliente ainda não escolheu o brinde.</p>`;
@@ -4033,47 +4059,53 @@ async function baRenderBrinde(client){
       ${choiceHtml}
       <div class="bc-actions">
         <button class="bc-btn ghost" onclick="this.closest('.brinde-card').remove()">Lembrar depois</button>
-        <button class="bc-btn primary" onclick="baMarkBrindeGiven('${client.name.replace(/'/g,"\\'")}')">Marcar como dado</button>
+        <button class="bc-btn primary" onclick="baMarkBrindeGiven('${client.clientId}')">Marcar como dado</button>
       </div>
     </div>`;
 }
-async function baMarkBrindeGiven(clientName){
-  const client = (await baFetchMyCrmClients()).find(c=>c.name===clientName);
+async function baMarkBrindeGiven(clientId){
+  const client = (await baFetchMyCrmClients()).find(c=>c.clientId===clientId);
   if(!client) return;
-  const salesCount = (await baFetchClientSales(clientName)).length;
-  primeMarkBrindeGiven(clientName, salesCount);
-  if(client.email){
-    primeMarkBrindeGiven(client.email, salesCount);
-    primeClearBrindeChoice(client.email);
-  }
-  baRenderBrinde(client);
+  const salesCount = (await baFetchClientSales(client.name)).length;
+  await primeMarkBrindeGiven(clientId, salesCount);
+  await baRenderBrinde(client);
   baRenderClientes();
 }
 
 // ══ Indicação (barbeiro) ══
-function baFindReferralsFor(client){
-  const all = primeGetReferrals();
-  const emailMatch = (a,b) => a && b && a.toLowerCase()===b.toLowerCase();
-  const asReferred = all.find(r=>r.referredName===client.name || emailMatch(r.referredEmail, client.email));
-  const asReferrer = all.filter(r=>r.referrerName===client.name || emailMatch(r.referrerEmail, client.email));
+async function baFindReferralsFor(client){
+  if(!client.clientId) return {asReferred:null, asReferrer:[]};
+  const { data, error } = await sb.from('referrals').select('*').or(`referrer_client_id.eq.${client.clientId},referred_client_id.eq.${client.clientId}`);
+  if(error){ console.error('baFindReferralsFor', error); return {asReferred:null, asReferrer:[]}; }
+  const asReferred = (data||[]).find(r=>r.referred_client_id===client.clientId) || null;
+  const asReferrer = (data||[]).filter(r=>r.referrer_client_id===client.clientId);
   return {asReferred, asReferrer};
 }
-function baRenderReferralSection(client){
+async function baRenderReferralSection(client){
   const el = document.getElementById('ba-cli-referral');
   if(!el) return;
-  const {asReferred, asReferrer} = baFindReferralsFor(client);
+  if(!client.clientId){ el.innerHTML = ''; return; } // sem conta vinculada, não dá pra rastrear indicação
+  const {asReferred, asReferrer} = await baFindReferralsFor(client);
+  const nameIds = new Set();
+  if(asReferred) nameIds.add(asReferred.referrer_client_id);
+  asReferrer.forEach(r=>nameIds.add(r.referred_client_id));
+  let nameMap = {};
+  if(nameIds.size){
+    const { data } = await sb.from('clients').select('id,name').in('id', Array.from(nameIds));
+    (data||[]).forEach(c=>{ nameMap[c.id]=c.name; });
+  }
   let html = '';
   if(asReferred){
-    html += `<div class="ba-card" style="margin-bottom:.6rem"><div class="ba-cli-row"><span class="lbl">Indicado por</span><span class="val">${asReferred.referrerName}</span></div></div>`;
+    html += `<div class="ba-card" style="margin-bottom:.6rem"><div class="ba-cli-row"><span class="lbl">Indicado por</span><span class="val">${nameMap[asReferred.referrer_client_id]||'—'}</span></div></div>`;
   }
   if(asReferrer.length){
-    html += `<div class="ba-card" style="margin-bottom:.6rem"><div class="ba-cli-row"><span class="lbl">Já indicou</span><span class="val">${asReferrer.map(r=>r.referredName).join(', ')}</span></div></div>`;
+    html += `<div class="ba-card" style="margin-bottom:.6rem"><div class="ba-cli-row"><span class="lbl">Já indicou</span><span class="val">${asReferrer.map(r=>nameMap[r.referred_client_id]||'—').join(', ')}</span></div></div>`;
   }
-  const pendingAsReferrer = asReferrer.find(r=>!r.referrerGiftGiven);
-  const pending = pendingAsReferrer || (asReferred && !asReferred.referredGiftGiven ? asReferred : null);
+  const pendingAsReferrer = asReferrer.find(r=>!r.referrer_gift_given);
+  const pending = pendingAsReferrer || (asReferred && !asReferred.referred_gift_given ? asReferred : null);
   if(pending){
     const isReferrer = pending===pendingAsReferrer;
-    const otherName = isReferrer ? pending.referredName : pending.referrerName;
+    const otherName = isReferrer ? nameMap[pending.referred_client_id] : nameMap[pending.referrer_client_id];
     html += `<div class="referral-card">
       <div class="bc-row"><span style="font-size:1.1rem;line-height:1">🤝</span><span class="bc-title">Elegível a mimo de indicação</span></div>
       <p class="bc-desc">${isReferrer ? `${client.name.split(' ')[0]} indicou ${otherName}` : `${client.name.split(' ')[0]} foi indicado por ${otherName}`}. Combine o mimo com ele.</p>
@@ -4092,14 +4124,12 @@ function baRenderReferralSection(client){
   el.innerHTML = html;
 }
 async function baMarkReferralGiftGiven(referralId, side){
-  const list = primeGetReferrals();
-  const r = list.find(x=>x.id===referralId);
-  if(!r) return;
-  if(side==='referrer') r.referrerGiftGiven = true; else r.referredGiftGiven = true;
-  primeSaveReferrals(list);
+  const field = side==='referrer' ? 'referrer_gift_given' : 'referred_gift_given';
+  const { error } = await sb.from('referrals').update({[field]: true}).eq('id', referralId);
+  if(error){ console.error('baMarkReferralGiftGiven', error); return; }
   const name = document.getElementById('ba-cli-nome').textContent;
   const client = (await baFetchMyCrmClients()).find(c=>c.name===name);
-  if(client) baRenderReferralSection(client);
+  if(client) await baRenderReferralSection(client);
   baRenderClientes();
 }
 async function baRefSearchClient(referredName){
@@ -4116,30 +4146,36 @@ async function baLinkReferral(referrerName, referredName){
   const referrer = clients.find(c=>c.name===referrerName);
   const referred = clients.find(c=>c.name===referredName);
   if(!referrer || !referred) return;
-  primeCreateReferral(referrer.name, referrer.email||'', referred.name, referred.email||'');
-  baRenderReferralSection(referred);
+  if(!referrer.clientId || !referred.clientId){ alert('Os dois clientes precisam ter conta no app pra vincular uma indicação.'); return; }
+  await primeCreateReferral(referrer.clientId, referred.clientId);
+  await baRenderReferralSection(referred);
   baRenderClientes();
 }
-function baRenderBrindeConfig(){
-  const opts = primeGetBrindeOpts();
-  document.getElementById('ba-brinde-list').innerHTML = opts.map((g,i)=>
-    `<div class="gift-item"><span class="gi-name">${g}</span><span class="gi-remove" onclick="baRemoveBrindeOpt(${i})">remover</span></div>`
+async function baFetchBrindeOpts(){
+  const { data, error } = await sb.from('loyalty_gift_options').select('*').order('sort_order');
+  if(error){ console.error('baFetchBrindeOpts', error); return []; }
+  return data||[];
+}
+async function baRenderBrindeConfig(){
+  const opts = await baFetchBrindeOpts();
+  document.getElementById('ba-brinde-list').innerHTML = opts.map(o=>
+    `<div class="gift-item"><span class="gi-name">${o.label}</span><span class="gi-remove" onclick="baRemoveBrindeOpt(${o.id})">remover</span></div>`
   ).join('') || '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum brinde cadastrado.</p>';
 }
-function baRemoveBrindeOpt(i){
-  const opts = primeGetBrindeOpts();
-  opts.splice(i,1);
-  primeSaveBrindeOpts(opts);
+async function baRemoveBrindeOpt(id){
+  const { error } = await sb.from('loyalty_gift_options').delete().eq('id', id);
+  if(error) console.error('baRemoveBrindeOpt', error);
   baRenderBrindeConfig();
 }
-function baAddBrindeOpt(){
+async function baAddBrindeOpt(){
   const input = document.getElementById('ba-brinde-new');
   const val = input.value.trim();
   if(!val) return;
-  const opts = primeGetBrindeOpts();
-  if(opts.some(g=>g.toLowerCase()===val.toLowerCase())) return;
-  opts.push(val);
-  primeSaveBrindeOpts(opts);
+  const opts = await baFetchBrindeOpts();
+  if(opts.some(o=>o.label.toLowerCase()===val.toLowerCase())) return;
+  const maxOrder = opts.reduce((m,o)=>Math.max(m, o.sort_order||0), 0);
+  const { error } = await sb.from('loyalty_gift_options').insert({ label: val, sort_order: maxOrder+1 });
+  if(error) console.error('baAddBrindeOpt', error);
   input.value = '';
   baRenderBrindeConfig();
 }

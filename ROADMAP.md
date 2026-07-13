@@ -150,9 +150,13 @@
 - [x] Testado ponta a ponta: checkout completo (venda + baixa de estoque + limpeza do carrinho), venda avulsa/balcão, atribuição de plano, corrida de estoque (RPC atômica segura), RLS negativo (vendas/despesas/carteira de outro barbeiro bloqueadas), renomear barbeiro sem propagar nome em nenhuma tabela nova
 - Banco começou zerado; `sales`/`crm_clients` seguem sem policy de DELETE pelo app, mesma decisão da Fase B
 
-### Fase D — Próximos passos
-- [ ] Migrar achievements, indicações e brindes (gamificação da Fase 1/3) — hoje ainda em localStorage, chaveado por e-mail
+### Fase D — Achievements, indicações e brindes ✅ *(concluída 2026-07-13)*
 - [x] Migrar notificações (`primeNotifs`) pro banco — feito junto com o push da Fase 5, ver acima
+- [x] Migrar achievements, indicações e brindes (gamificação da Fase 1/3) pro Supabase — última fatia de dado de negócio que ainda vivia em `localStorage`; mesmo bug de sincronização entre aparelhos que as fases anteriores corrigiram. Tabelas `achievements`/`referrals`/`loyalty_gifts`/`loyalty_gift_options`, RLS "dono vê/edita o próprio + barbeiro vê/edita qualquer um" (mesma postura de `clients`/`notifications`)
+- [x] Corrigidas duas inconsistências que só apareceram ao migrar: achievements e indicações eram chaveados por **e-mail** (agora `client_id` uuid, como o resto do app); brindes eram chaveados **duas vezes** (nome no lado do barbeiro, e-mail no lado do cliente, com escrita duplicada pra manter sincronia) — agora uma única linha por `client_id`
+- [x] Nova RPC `find_referral_owner` (`security definer`) — descoberta em teste ponta a ponta: cliente não consegue ler o perfil de outro cliente por RLS, então a busca do dono de um código de indicação (cliente lendo dado de outro cliente) precisava de uma função com privilégio elevado, mesmo padrão do `redeem_barber_invite` da Fase A
+- [x] Brinde/indicação só são rastreáveis pra clientes com conta vinculada (`crm_clients.client_id` não nulo) — cliente de encaixe sem cadastro simplesmente não participa, mesma decisão já tomada pra notificações na Fase 5
+- [x] Testado ponta a ponta: indicação completa (código → cadastro → vínculo), conquista "Embaixador" desbloqueada automaticamente, fila de conquistas pendentes consumida uma única vez, elegibilidade de brinde recalculada corretamente após marcar como dado, RLS negativo (cliente não lê/edita conquista ou brinde de outro), config de brindes (admin adiciona/remove opção)
 - [ ] Filtro de clientes por período (semana/mês/intervalo) — hoje limitado pelo que dá pra fazer client-side; com banco fica trivial via query
 - [ ] Backup automático / histórico não se perde ao limpar o navegador
 - [ ] Drift de preço histórico no app do cliente (`caHistItemHtml` mostra o preço atual da tabela, não o valor realmente cobrado na época) — precisaria de uma coluna de preço na tabela `appointments`
@@ -196,4 +200,4 @@
 
 ---
 
-*Última atualização: 2026-07-13 (Fase 5 — notificações push concluída; vulnerabilidade de convite corrigida)*
+*Última atualização: 2026-07-13 (Fase D concluída — app 100% no Supabase, zero dado de negócio em localStorage)*
