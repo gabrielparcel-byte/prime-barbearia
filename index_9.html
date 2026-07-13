@@ -3247,11 +3247,16 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 
         <div class="ba-card" id="ba-produtos-config" style="display:none">
           <div class="ba-slabel" style="margin-top:0">Catálogo de produtos</div>
+          <div id="ba-produtos-toolbar"></div>
           <div id="ba-produtos-list"></div>
-          <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+          <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap;align-items:center">
             <input type="text" id="ba-prod-nome" class="add-input" placeholder="Nome do produto..." style="flex:2;min-width:110px">
             <input type="text" inputmode="decimal" id="ba-prod-preco" class="add-input" placeholder="R$" style="flex:1;min-width:60px">
             <input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-prod-estoque" class="add-input" placeholder="Qtd" style="flex:1;min-width:60px">
+            <label class="ba-prod-foto-label" for="ba-prod-foto" title="Adicionar foto (opcional)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </label>
+            <input type="file" id="ba-prod-foto" accept="image/*" capture="environment" style="display:none" onchange="document.querySelector('.ba-prod-foto-label').classList.toggle('has-file', this.files.length>0)">
             <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:0;font-size:.68rem" onclick="baAddProduct()">Adicionar</button>
           </div>
         </div>
@@ -4279,15 +4284,62 @@ async function baAddBrindeOpt(){
 
 // ══ Catálogo de produtos (Supabase, global/compartilhado) — usado no carrinho ao vivo do atendimento ══
 const PROD_LOW_STOCK = 5;
+// código de registro: aleatório, fixo, sem caracteres ambíguos (0/O, 1/I/L) — pra colar numa etiqueta física
+function primeGenProductCode(){
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  return Array.from({length:5}, ()=> chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+async function primeCompressImage(file, maxWidth=800, quality=0.8){
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxWidth / bitmap.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+}
+async function primeUploadProductImage(productCode, file){
+  const blob = await primeCompressImage(file);
+  const path = `${productCode}.jpg`;
+  const { error } = await sb.storage.from('product-images').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if(error){ console.error('primeUploadProductImage', error); return null; }
+  return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;
+}
 async function baFetchProducts(){
   const { data, error } = await sb.from('products').select('*').order('name');
   if(error){ console.error('baFetchProducts', error); return; }
   baProductsCache = data||[];
+  // produtos legados sem código (cadastrados antes dessa feature) ganham um na primeira vez que aparecem
+  const semCodigo = baProductsCache.filter(p=>!p.code);
+  for(const p of semCodigo){
+    const code = await baAssignProductCode(p.id);
+    if(code) p.code = code;
+  }
+}
+async function baAssignProductCode(id){
+  for(let i=0;i<5;i++){
+    const code = primeGenProductCode();
+    const { error } = await sb.from('products').update({code}).eq('id', id);
+    if(!error) return code;
+    if(error.code !== '23505'){ console.error('baAssignProductCode', error); return null; } // erro que não é conflito de código repetido, desiste
+  }
+  return null;
 }
 function baGetProducts(){ return baProductsCache; }
-async function baAddProductRow(name, price, stock){
-  const { error } = await sb.from('products').insert({name, price, stock});
-  if(error){ console.error('baAddProductRow', error); return false; }
+async function baAddProductRow(name, price, stock, file){
+  let code, inserted, insertError;
+  for(let i=0;i<5;i++){
+    code = primeGenProductCode();
+    const res = await sb.from('products').insert({name, price, stock, code}).select().single();
+    if(!res.error){ inserted = res.data; break; }
+    insertError = res.error;
+    if(res.error.code !== '23505'){ console.error('baAddProductRow', res.error); return false; }
+  }
+  if(!inserted){ console.error('baAddProductRow', insertError); return false; }
+  if(file){
+    const url = await primeUploadProductImage(code, file);
+    if(url) await sb.from('products').update({image_url:url}).eq('id', inserted.id);
+  }
   await baFetchProducts();
   return true;
 }
@@ -4308,33 +4360,82 @@ async function baDecrementStock(id, qty){
   if(error){ console.error('baDecrementStock', error); return null; }
   return data;
 }
+const PROD_PLACEHOLDER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
+let baProdView = localStorage.getItem('primeProdView') || 'list';
+let baProdSearch = '';
+function baSetProdView(v){
+  baProdView = v;
+  localStorage.setItem('primeProdView', v);
+  baRenderProdutosConfig();
+}
+function baProdSearchInput(v){
+  baProdSearch = v.trim().toLowerCase();
+  baRenderProdutosConfig();
+}
+function baProdActions(p){
+  return `<div class="prod-actions">
+    <button class="prod-restock" onclick="baRestockProduct(${p.id})">repor</button>
+    <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
+  </div>`;
+}
 function baRenderProdutosConfig(){
-  const products = baGetProducts();
-  document.getElementById('ba-produtos-list').innerHTML = products.length ? products.map(p=>{
-    const low = p.stock<=PROD_LOW_STOCK;
-    return `<div class="prod-row">
-      <div class="prod-info">
+  const all = baGetProducts();
+  const products = baProdSearch
+    ? all.filter(p => p.name.toLowerCase().includes(baProdSearch) || (p.code||'').toLowerCase().includes(baProdSearch))
+    : all;
+  const toggle = `<div class="prod-view-toggle">
+    <button class="${baProdView==='list'?'active':''}" onclick="baSetProdView('list')" aria-label="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+    <button class="${baProdView==='grid'?'active':''}" onclick="baSetProdView('grid')" aria-label="Grade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg></button>
+  </div>`;
+  const search = `<div class="ba-field" style="max-width:100%;margin-bottom:.6rem"><input type="text" placeholder="🔍 Buscar por nome ou código..." value="${baProdSearch}" oninput="baProdSearchInput(this.value)"></div>`;
+  document.getElementById('ba-produtos-toolbar').innerHTML = search + toggle;
+
+  if(!products.length){
+    document.getElementById('ba-produtos-list').innerHTML = `<p style="color:var(--prata-dim);font-size:.78rem">${baProdSearch ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}</p>`;
+    return;
+  }
+  if(baProdView==='grid'){
+    document.getElementById('ba-produtos-list').innerHTML = `<div class="prod-grid">${products.map(p=>{
+      const low = p.stock<=PROD_LOW_STOCK;
+      const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<div class="prod-card-placeholder">${PROD_PLACEHOLDER_SVG}</div>`;
+      return `<div class="prod-card">
+        <div class="prod-card-photo">${photo}</div>
         <div class="prod-name">${p.name}</div>
+        <div class="prod-code">#${p.code||'—'}</div>
+        <div class="prod-price">${baFormatMoney(p.price)}</div>
         <div class="prod-meta${low?' low':''}">${p.stock} em estoque${p.stock===0?' · esgotado':(low?' · acabando':'')}</div>
-      </div>
-      <div class="prod-price">${baFormatMoney(p.price)}</div>
-      <div class="prod-actions">
-        <button class="prod-restock" onclick="baRestockProduct(${p.id})">repor</button>
-        <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
-      </div>
-    </div>`;
-  }).join('') : '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum produto cadastrado.</p>';
+        ${baProdActions(p)}
+      </div>`;
+    }).join('')}</div>`;
+  } else {
+    document.getElementById('ba-produtos-list').innerHTML = products.map(p=>{
+      const low = p.stock<=PROD_LOW_STOCK;
+      const thumb = p.image_url ? `<img class="prod-thumb" src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<div class="prod-thumb prod-thumb-placeholder">${PROD_PLACEHOLDER_SVG}</div>`;
+      return `<div class="prod-row">
+        ${thumb}
+        <div class="prod-info">
+          <div class="prod-name">${p.name}</div>
+          <div class="prod-code">#${p.code||'—'}</div>
+          <div class="prod-meta${low?' low':''}">${p.stock} em estoque${p.stock===0?' · esgotado':(low?' · acabando':'')}</div>
+        </div>
+        <div class="prod-price">${baFormatMoney(p.price)}</div>
+        ${baProdActions(p)}
+      </div>`;
+    }).join('');
+  }
 }
 async function baAddProduct(){
   const nameEl = document.getElementById('ba-prod-nome');
   const priceEl = document.getElementById('ba-prod-preco');
   const stockEl = document.getElementById('ba-prod-estoque');
+  const fotoEl = document.getElementById('ba-prod-foto');
   const name = nameEl.value.trim();
   const price = parseFloat(priceEl.value);
   const stock = parseInt(stockEl.value)||0;
   if(!name || !price || price<=0) return;
-  await baAddProductRow(name, price, stock);
-  nameEl.value=''; priceEl.value=''; stockEl.value='';
+  const file = fotoEl.files && fotoEl.files[0] ? fotoEl.files[0] : null;
+  await baAddProductRow(name, price, stock, file);
+  nameEl.value=''; priceEl.value=''; stockEl.value=''; fotoEl.value='';
   baRenderProdutosConfig();
 }
 async function baRemoveProduct(id){
