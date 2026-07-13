@@ -3111,6 +3111,13 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="period-chips" id="ba-cli-filter" style="margin-bottom:.8rem">
           <button class="period-chip active" data-filter="todos" onclick="baSetCliFilter('todos')">Todos</button>
           <button class="period-chip" data-filter="sumidos" onclick="baSetCliFilter('sumidos')">Sumidos (<span id="ba-cli-sumidos-count">0</span>)</button>
+          <button class="period-chip" data-filter="semana" onclick="baSetCliFilter('semana')">Essa semana</button>
+          <button class="period-chip" data-filter="mes" onclick="baSetCliFilter('mes')">Esse mês</button>
+          <button class="period-chip" data-filter="custom" onclick="baSetCliFilter('custom')">Período</button>
+        </div>
+        <div class="ba-vf-dates" id="ba-cli-vf-dates" style="display:none">
+          <input type="date" id="ba-cli-vf-from"> <span style="color:var(--prata-dim)">até</span> <input type="date" id="ba-cli-vf-to">
+          <button class="ba-btn" style="padding:.4rem .9rem;font-size:.72rem" onclick="baRenderClientes()">Filtrar</button>
         </div>
         <div class="ba-slabel" style="margin-top:.6rem" id="ba-cli-list-label">Todos os clientes</div>
         <div id="ba-clientes-list"></div>
@@ -3984,7 +3991,23 @@ let baCliFilter = 'todos';
 function baSetCliFilter(f){
   baCliFilter = f;
   document.querySelectorAll('#ba-cli-filter .period-chip').forEach(c=>c.classList.toggle('active', c.dataset.filter===f));
+  document.getElementById('ba-cli-vf-dates').style.display = f==='custom' ? 'flex' : 'none';
   baRenderClientes();
+}
+function baGetCliFilterRange(){
+  const now = new Date();
+  const todayStr = primeLocalDate(now);
+  if(baCliFilter==='semana'){
+    const d = new Date(now); d.setDate(d.getDate()-d.getDay());
+    return [primeLocalDate(d), todayStr];
+  }
+  if(baCliFilter==='mes'){
+    return [todayStr.slice(0,8)+'01', todayStr];
+  }
+  const from = document.getElementById('ba-cli-vf-from').value;
+  const to = document.getElementById('ba-cli-vf-to').value;
+  if(from && to) return [from, to];
+  return [todayStr.slice(0,8)+'01', todayStr];
 }
 async function baRenderClientes(){
   const sales = await baFetchAllMySales();
@@ -4006,8 +4029,14 @@ async function baRenderClientes(){
   }
   const sumidosCount = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS).length;
   document.getElementById('ba-cli-sumidos-count').textContent = sumidosCount;
-  if(baCliFilter==='sumidos') names = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS);
-  document.getElementById('ba-cli-list-label').textContent = baCliFilter==='sumidos' ? 'Clientes sumidos' : 'Todos os clientes';
+  const cliLabels = { todos:'Todos os clientes', sumidos:'Clientes sumidos', semana:'Vieram essa semana', mes:'Vieram esse mês', custom:'Vieram no período' };
+  if(baCliFilter==='sumidos'){
+    names = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS);
+  } else if(baCliFilter==='semana' || baCliFilter==='mes' || baCliFilter==='custom'){
+    const [from, to] = baGetCliFilterRange();
+    names = names.filter(name=> last[name].date >= from && last[name].date <= to);
+  }
+  document.getElementById('ba-cli-list-label').textContent = cliLabels[baCliFilter] || 'Todos os clientes';
   names.sort((a,b)=> last[b].date.localeCompare(last[a].date));
 
   // brinde/indicação: só rastreável pra quem tem conta vinculada (clientId); busca em lote, não 1 query por linha
@@ -4031,7 +4060,7 @@ async function baRenderClientes(){
     const refPending = cid && refRows.some(r=> (r.referrer_client_id===cid && !r.referrer_gift_given) || (r.referred_client_id===cid && !r.referred_gift_given));
     const referralDot = refPending ? ' <span class="referral-dot" title="Elegível a mimo de indicação"></span>' : '';
     return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${giftDot}${sumiuDot}${referralDot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
-  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (q?'Nenhum cliente encontrado.':'Nenhum cliente ainda.')}</p>`;
+  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q ? 'Nenhum cliente encontrado.' : baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (baCliFilter==='semana'||baCliFilter==='mes'||baCliFilter==='custom') ? 'Nenhum cliente veio nesse período.' : 'Nenhum cliente ainda.'}</p>`;
 }
 
 async function baOpenClientDetail(name){
