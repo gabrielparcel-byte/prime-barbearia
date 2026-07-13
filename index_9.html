@@ -1376,6 +1376,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <h3 id="clubStkName" style="letter-spacing:.1em;font-size:1.2rem"></h3>
     <p id="clubStkLabel" style="font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;margin:.5rem 0 .4rem"></p>
     <p id="clubStkDesc" style="color:var(--prata-dim);font-size:.92rem;line-height:1.55;margin-bottom:1.4rem"></p>
+    <button class="btn btn-primary" id="clubStkShareBtn" style="width:100%;margin-bottom:.6rem;display:none" onclick="caShareAchievement(clubStkCurrentId)">Compartilhar 📤</button>
     <button class="btn btn-ghost" style="width:100%" onclick="closeClubSticker()">Fechar</button>
   </div>
 </div>
@@ -1455,6 +1456,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <div class="cu-sup">Conquista desbloqueada</div>
     <div class="cu-name" id="cuName"></div>
     <div class="cu-desc" id="cuDesc"></div>
+    <button class="btn btn-ghost cu-btn" style="margin-bottom:.6rem" onclick="caShareAchievement(cuCurrentId)">Compartilhar 📤</button>
     <button class="btn btn-primary cu-btn" id="cuBtn" onclick="caNextUnlock()">Aêêê! 🎉</button>
   </div>
 </div>
@@ -2313,11 +2315,13 @@ async function caConfirmBrinde(){
   caBrindeSelected = null;
   await caRenderClub();
 }
+let clubStkCurrentId = null;
 async function caOpenSticker(id){
   const a = ACH_CATALOG.find(x=>x.id===id);
   if(!a) return;
   const st = await primeGetAch((primeGetAccount()||{}).id||'');
   const un = st.unlocked[id];
+  clubStkCurrentId = id;
   const medal = document.getElementById('clubStkMedal');
   medal.innerHTML = primeAchMedal(id);
   medal.style.filter = un ? '' : 'grayscale(1) brightness(.6)';
@@ -2327,9 +2331,88 @@ async function caOpenSticker(id){
   lab.textContent = un ? `✔ Conquistado em ${un.split('-').reverse().join('/')}` : '🔒 Como desbloquear';
   lab.style.color = un ? 'var(--verde-neon)' : 'var(--dourado)';
   document.getElementById('clubStkDesc').textContent = un ? a.desc : a.dica;
+  document.getElementById('clubStkShareBtn').style.display = un ? 'block' : 'none';
   document.getElementById('clubStickerModal').classList.add('open');
 }
 function closeClubSticker(){ document.getElementById('clubStickerModal').classList.remove('open'); }
+
+// ══ Compartilhar conquista (gera uma imagem tipo story e usa o share nativo do celular) ══
+async function caShareAchievement(id){
+  const a = ACH_CATALOG.find(x=>x.id===id);
+  if(!a) return;
+  try{ await document.fonts.ready; }catch(e){}
+
+  const medalSvg = primeAchMedal(id).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+  const medalBlob = new Blob([medalSvg], {type:'image/svg+xml'});
+  const medalUrl = URL.createObjectURL(medalBlob);
+  const medalImg = new Image();
+  await new Promise((res,rej)=>{ medalImg.onload=res; medalImg.onerror=rej; medalImg.src=medalUrl; });
+
+  const w = 1080, h = 1920;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0B140D';
+  ctx.fillRect(0,0,w,h);
+  const glow = ctx.createRadialGradient(w/2, h*0.38, 40, w/2, h*0.38, 480);
+  glow.addColorStop(0, 'rgba(53,197,88,.30)');
+  glow.addColorStop(1, 'rgba(53,197,88,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0,0,w,h);
+
+  const medalSize = 460;
+  ctx.drawImage(medalImg, (w-medalSize)/2, h*0.38 - medalSize/2, medalSize, medalSize);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#C6A75E';
+  ctx.font = '600 30px Jost, sans-serif';
+  ctx.fillText('C O N Q U I S T A   D E S B L O Q U E A D A', w/2, h*0.38 + medalSize/2 + 90);
+
+  ctx.fillStyle = '#E8D5A4';
+  ctx.font = '600 68px Cinzel, serif';
+  wrapCanvasText(ctx, a.nome.toUpperCase(), w/2, h*0.38 + medalSize/2 + 170, w-160, 78);
+
+  ctx.fillStyle = '#9BA39C';
+  ctx.font = '400 34px Jost, sans-serif';
+  wrapCanvasText(ctx, a.desc, w/2, h*0.38 + medalSize/2 + 290, w-220, 46);
+
+  ctx.fillStyle = '#EDEDE8';
+  ctx.font = '600 56px Cinzel, serif';
+  ctx.fillText('P R I M E', w/2, h*0.86);
+  ctx.fillStyle = '#9BA39C';
+  ctx.font = '600 24px Jost, sans-serif';
+  ctx.fillText('B A R B E A R I A', w/2, h*0.86 + 44);
+  ctx.fillStyle = 'rgba(237,237,232,.6)';
+  ctx.font = '400 26px Jost, sans-serif';
+  ctx.fillText('Agende o seu corte também', w/2, h*0.94);
+
+  URL.revokeObjectURL(medalUrl);
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+  const file = new File([blob], `prime-conquista-${id}.png`, {type:'image/png'});
+  const shareText = `Desbloqueei a conquista "${a.nome}" na Prime Barbearia! 🏆`;
+
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:'Prime Barbearia', text:shareText}); return; }catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `prime-conquista-${id}.png`;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight){
+  const words = text.split(' ');
+  let line = '', lines = [];
+  for(const word of words){
+    const test = line ? line+' '+word : word;
+    if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = word; }
+    else line = test;
+  }
+  if(line) lines.push(line);
+  const startY = y - (lines.length-1)*lineHeight/2;
+  lines.forEach((l,i)=> ctx.fillText(l, x, startY + i*lineHeight));
+}
 
 function openPrivacyModal(){ document.getElementById('privacyModal').classList.add('open'); }
 function closePrivacyModal(){ document.getElementById('privacyModal').classList.remove('open'); }
@@ -2345,9 +2428,11 @@ async function caCelebrateUnlocks(){
   cuQueue = pend;
   caShowUnlock(cuQueue.shift());
 }
+let cuCurrentId = null;
 function caShowUnlock(id){
   const a = ACH_CATALOG.find(x=>x.id===id);
   if(!a){ caNextUnlock(); return; }
+  cuCurrentId = id;
   const medal = document.getElementById('cuMedal');
   medal.innerHTML = primeAchMedal(id);
   medal.style.animation = 'none'; void medal.offsetWidth; medal.style.animation = '';
