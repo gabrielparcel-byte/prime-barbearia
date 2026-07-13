@@ -109,7 +109,7 @@
 - [ ] Compartilhar conquista nas redes sociais (story template)
 
 ### Marketing
-- [ ] Landing page com depoimentos reais
+- [x] Landing page com depoimentos reais ✅ *(2026-07-13)* — 3 elogios reais do perfil do Google Maps (Caio Henrique, Hildine Nascimento Silva, Gustavo Rocha), link "Ver todas no Google Maps" apontando pro perfil real
 - [ ] Seção "Galeria" com fotos de cortes realizados
 - [ ] Instagram feed integrado (embed posts)
 - [x] SEO técnico otimizado — 1 `<h1>` só por página (antes tinha 2), dados estruturados Schema.org (`HairSalon`, endereço, horário, telefone — aparece no card local do Google), Open Graph + Twitter Card (link bonito ao compartilhar no WhatsApp/Instagram), `robots.txt` + `sitemap.xml`, link canônico *(o resto do SEO — Google Meu Negócio, depoimentos reais, conteúdo — depende de ação fora do código ou de material que ainda não temos)*
