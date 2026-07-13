@@ -1622,16 +1622,22 @@ async function subscribeToPush(){
   const j = sub.toJSON();
 
   const isBarber = typeof baIsLoggedIn==='function' && baIsLoggedIn();
-  let row;
+  let ownerType, barberId=null, clientId=null;
   if(isBarber){
-    row = { owner_type:'barber', barber_id: baCurrentBarberId, client_id: null, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth };
+    ownerType='barber'; barberId=baCurrentBarberId;
   } else {
     const acc = primeGetAccount();
     if(!acc || !acc.id){ alert('Entre na sua conta primeiro.'); return; }
-    row = { owner_type:'client', barber_id: null, client_id: acc.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth };
+    ownerType='client'; clientId=acc.id;
   }
 
-  const { error } = await sb.from('push_subscriptions').upsert(row, { onConflict: 'endpoint' });
+  // RPC em vez de upsert direto: o mesmo aparelho pode já ter uma inscrição registrada por outra
+  // conta (ex: testou como cliente, ativa depois como barbeiro) — o navegador reusa o mesmo endpoint,
+  // e a RLS de dono bloquearia a troca. A RPC troca o dono com segurança (só pra si mesmo).
+  const { error } = await sb.rpc('upsert_push_subscription', {
+    p_owner_type: ownerType, p_barber_id: barberId, p_client_id: clientId,
+    p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth
+  });
   if(error){ console.error('subscribeToPush', error); alert('Não foi possível ativar as notificações.\n\n' + (error.message||error.code||'erro desconhecido')); }
   else alert('Notificações ativadas!');
 }
