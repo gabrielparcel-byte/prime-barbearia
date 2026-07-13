@@ -85,7 +85,17 @@
   );
   // Fase 5 — notificações push. Chave pública VAPID, segura de expor (só prova que o servidor certo assinou o pedido).
   const VAPID_PUBLIC_KEY = 'BEFao3ekLM3-fgQXKvnuiNhcE33TrPTlqyELLko5w1XOEQ6UjZ1N0GGJFep1Z21EE87xoAVR0zCueKDq87MLOU4';
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' });
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js', { scope: './' });
+    // quando uma versão nova do SW assume o controle da página, recarrega sozinho — sem isso o app
+    // fica preso na versão antiga até o usuário fechar e abrir de novo manualmente
+    let primeSwRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(primeSwRefreshing) return;
+      primeSwRefreshing = true;
+      window.location.reload();
+    });
+  }
 </script>
 
 <style>

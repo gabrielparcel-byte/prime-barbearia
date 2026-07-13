@@ -20,9 +20,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // fontes/CDN do Supabase seguem direto pra rede, sem cache
 
-  // network-first pro shell: sempre tenta rede primeiro (pra pegar atualizações), cai pro cache se offline
+  // network-first pro shell: sempre tenta rede primeiro (pra pegar atualizações), cai pro cache se offline.
+  // cache:'no-store' é essencial aqui — sem isso o navegador pode responder com o HTTP cache dele mesmo,
+  // e a gente nunca saberia se pegou uma versão nova de verdade ou uma antiga "requentada"
   event.respondWith(
-    fetch(req).then(res => {
+    fetch(req, { cache: 'no-store' }).then(res => {
       const copy = res.clone();
       caches.open(SHELL_CACHE).then(cache => cache.put(req, copy));
       return res;
