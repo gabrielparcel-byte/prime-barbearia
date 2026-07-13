@@ -2572,7 +2572,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-vendas-hoje .vh-title{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--verde-neon);margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem}
 #barberApp .ba-vendas-hoje .vh-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem}
 #barberApp .ba-vendas-hoje .vh-row:last-child{margin-bottom:0}
-#barterApp .ba-vendas-hoje .vh-lbl,#barberApp .ba-vendas-hoje .vh-lbl{font-size:.78rem;color:var(--prata-dim)}
+#barberApp .ba-vendas-hoje .vh-lbl{font-size:.78rem;color:var(--prata-dim)}
 #barberApp .ba-vendas-hoje .vh-val{font-family:var(--font-display);font-size:1.1rem;color:var(--prata)}
 #barberApp .ba-vendas-hoje .vh-val.destaque{color:var(--verde-neon);font-size:1.3rem}
 #barberApp .ba-vfiltros{display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap}
@@ -3018,7 +3018,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <div class="screen" id="ba-screen-vendas">
       <div class="ba-head"><div><div class="hi">Suas vendas</div><div class="name">Vendas</div></div></div>
       <div class="ba-body">
-        <div id="ba-vendas-hoje"></div>
+        <div id="ba-vendas-hoje" class="ba-vendas-hoje"></div>
         <div class="ba-vfiltros" id="ba-vendas-filtros">
           <button class="ba-vf active" data-vf="hoje" onclick="baSetVendasFilter('hoje')">Hoje</button>
           <button class="ba-vf" data-vf="semana" onclick="baSetVendasFilter('semana')">Semana</button>
