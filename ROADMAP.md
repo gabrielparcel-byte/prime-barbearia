@@ -93,6 +93,7 @@
 - [x] Controle de despesas básico (nome, valor, data — cadastro e remoção, só admin, no Dashboard)
 - [x] Lucro líquido estimado (faturamento de toda a equipe − comissões de cada barbeiro − despesas, só admin)
 - [x] Catálogo de produtos com estoque (cerveja, cremes, gel, etc.) — só admin cadastra/edita/repõe, alerta de estoque baixo
+- [x] Foto, código de registro e visualização em grade/lista no catálogo ✅ *(2026-07-13)* — primeira integração do projeto com Supabase Storage (bucket `product-images`, leitura pública/escrita admin-only). Cada produto ganha um código aleatório fixo de 5 caracteres na criação (sem `0/O/1/I/L`, pra colar numa etiqueta física e achar o produto certo mesmo com estoque zerado); foto opcional com captura direto da câmera, comprimida no navegador antes de subir (máx 800px, JPEG 80%). Busca por nome/código + alternância lista/grade (preferência salva por aparelho).
 - [x] Carrinho ao vivo durante o atendimento — barbeiro clica "Iniciar" num agendamento confirmado, adiciona produtos à vontade enquanto atende, e "Finaliza" gerando uma nota única (serviço + produtos) com desconto automático de estoque
 - [x] Auto-início do atendimento — se o barbeiro esquecer de clicar "Iniciar", o sistema inicia sozinho 6 minutos após o horário agendado (registra o início no horário marcado, não no momento da detecção)
 - [x] Corrigido: agendamentos feitos pelo cliente no site agora **geram venda de verdade** ao serem finalizados (antes só a aba "Atendimento" avulsa registrava vendas — todo o histórico de agendamento "sumia" financeiramente)
