@@ -8,7 +8,7 @@ while ($listener.IsListening) {
     $req = $context.Request
     $res = $context.Response
     $path = $req.Url.LocalPath
-    if ($path -eq "/") { $path = "/index_9.html" }
+    if ($path -eq "/") { $path = "/index.html" }
     $filePath = Join-Path $root $path.TrimStart("/")
     if (Test-Path $filePath -PathType Leaf) {
         $bytes = [System.IO.File]::ReadAllBytes($filePath)

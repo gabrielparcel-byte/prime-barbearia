@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'prime-shell-v2';
-const SHELL_FILES = ['./', 'index_9.html', 'manifest.json', 'icon-192.png', 'icon-512.png',
+const SHELL_CACHE = 'prime-shell-v3';
+const SHELL_FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png',
   'splash-1170x2532.png', 'splash-1179x2556.png', 'splash-1284x2778.png', 'splash-1290x2796.png', 'splash-828x1792.png', 'splash-750x1334.png'];
 
 self.addEventListener('install', (event) => {
@@ -28,7 +28,7 @@ self.addEventListener('fetch', (event) => {
       const copy = res.clone();
       caches.open(SHELL_CACHE).then(cache => cache.put(req, copy));
       return res;
-    }).catch(() => caches.match(req).then(cached => cached || caches.match('index_9.html')))
+    }).catch(() => caches.match(req).then(cached => cached || caches.match('index.html')))
   );
 });
 
@@ -46,8 +46,8 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) { if (c.url.includes('index_9.html') && 'focus' in c) return c.focus(); }
-      return clients.openWindow('index_9.html');
+      for (const c of list) { if (new URL(c.url).origin === self.location.origin && 'focus' in c) return c.focus(); }
+      return clients.openWindow('./');
     })
   );
 });

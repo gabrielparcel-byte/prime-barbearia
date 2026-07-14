@@ -2,7 +2,7 @@
   "name": "Prime Barbearia",
   "short_name": "Prime",
   "description": "Barbearia em Maringá — agendamento, clube de fidelidade e área do barbeiro.",
-  "start_url": "./index_9.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
