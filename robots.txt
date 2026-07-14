@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://gabrielparcel-byte.github.io/prime-barbearia/sitemap.xml
+Sitemap: https://primebarbearia.app.br/sitemap.xml
