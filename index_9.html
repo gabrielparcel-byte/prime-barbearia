@@ -2211,7 +2211,7 @@ function caTab(tab){
   if(tab==='hist'){
     primeSkeletonThen(['ca-hist-list'], [[4,64]], ()=>{ renderMyAppointments(); caRenderHist(); });
   }
-  if(tab==='perfil')caRenderPerfil();
+  if(tab==='perfil'){ caRenderPerfil(); caCelebrateUnlocks(); }
   if(tab==='home'){
     caRenderHomeBarbeiro(); caRenderPlanCard(); caRenderNotifs();
     primeSkeletonThen(['ca-next-area','ca-home-recentes'], [[1,88],[3,60]], ()=>{ caRenderNextAppointment(); caRenderHist(); });
