@@ -5410,6 +5410,7 @@ async function baLogin(){
   if(!ok){ err.style.display='none'; return; }
   const { data, error } = await sb.auth.signInWithPassword({ email: e.value.trim(), password: p.value });
   if(error){ err.style.display='block'; return; }
+  await baLoadRoster(); // sempre busca a lista fresca — senão login falha com senha certa se a equipe mudou desde a última carga
   const match = baGetRoster().find(b=> b.id===data.user.id);
   if(match){ err.style.display='none'; baEnter(match); } else { err.style.display='block'; await sb.auth.signOut(); }
 }
