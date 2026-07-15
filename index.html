@@ -1173,6 +1173,7 @@ render();
 <div id="clientApp">
   <div class="phone">
     <button class="ca-close" onclick="caClose()" aria-label="Fechar">✕</button>
+    <div class="ca-notif-panel" id="ca-notif-panel" style="display:none"></div>
 
     <!-- TOPBAR (desktop) -->
     <div class="ca-topbar" id="ca-topbar">
@@ -1280,7 +1281,6 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div class="ca-avatar" id="ca-home-avatar">C</div>
         </div>
       </div>
-      <div class="ca-notif-panel" id="ca-notif-panel" style="display:none"></div>
       <div class="ca-body">
         <div class="ca-grid">
           <div class="ca-col-left">
@@ -2271,7 +2271,6 @@ async function caRenderNotifPanel(){
 let caNotifTimer = null, caNotifFadeTimer = null;
 function caHideNotifs(){ const p=document.getElementById('ca-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(caNotifTimer); clearTimeout(caNotifFadeTimer); }
 async function caToggleNotifs(){
-  if(!document.getElementById('ca-screen-home').classList.contains('active')) caTab('home');
   const panel = document.getElementById('ca-notif-panel');
   const open = panel.style.display!=='none';
   clearTimeout(caNotifTimer); clearTimeout(caNotifFadeTimer); panel.classList.remove('fading');
@@ -3054,6 +3053,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 <div id="barberApp">
   <button class="ba-close" onclick="baClose()" aria-label="Fechar">✕</button>
   <div class="phone">
+    <div class="ca-notif-panel" id="ba-notif-panel" style="display:none"></div>
 
     <div class="ba-topbar" id="ba-topbar">
       <div class="ba-brand" onclick="baTab('agenda')">PRIME <span style="color:var(--prata-dim);font-family:var(--font-body);letter-spacing:.1em;font-size:.72rem;text-transform:uppercase">staff</span></div>
@@ -3147,7 +3147,6 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
       <div class="ba-head"><div><div class="hi">Sua agenda</div><div class="name">Agenda</div></div>
         <button class="ca-bell" onclick="baToggleNotifs()" aria-label="Notificações"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 3.4 1 5.4 2 7H4c1-1.6 2-3.6 2-7z"/><path d="M9.5 19a2.5 2.5 0 005 0"/></svg><span class="ca-bell-count" id="ba-bell-count-m" style="display:none">0</span></button>
       </div>
-      <div class="ca-notif-panel" id="ba-notif-panel" style="display:none"></div>
       <div class="ba-body">
         <div id="ba-offline-banner" class="offline-banner" style="display:none">
           <svg class="pi-icon" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55"/><path d="M5 12.55a10.94 10.94 0 015.17-2.39"/><path d="M10.71 5.05A16 16 0 0122.58 9"/><path d="M1.42 9a15.91 15.91 0 014.7-2.88"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
@@ -4998,7 +4997,6 @@ async function baOpenClientDetailByEmail(email){
 let baNotifTimer = null, baNotifFadeTimer = null;
 function baHideNotifs(){ const p=document.getElementById('ba-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(baNotifTimer); clearTimeout(baNotifFadeTimer); }
 async function baToggleNotifs(){
-  if(document.getElementById('ba-screen-agenda').classList.contains('active')===false) baTab('agenda');
   const panel = document.getElementById('ba-notif-panel');
   const open = panel.style.display!=='none';
   clearTimeout(baNotifTimer); clearTimeout(baNotifFadeTimer); panel.classList.remove('fading');
