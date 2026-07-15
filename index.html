@@ -3429,7 +3429,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ba-field" style="max-width:100%;margin-bottom:.6rem"><input type="text" id="ba-cli-search" placeholder="🔍 Buscar cliente por nome, @ ou e-mail" oninput="baRenderClientes()"></div>
         <div class="period-chips" id="ba-cli-filter" style="margin-bottom:.8rem">
           <button class="period-chip active" data-filter="todos" onclick="baSetCliFilter('todos')">Todos</button>
-          <button class="period-chip" data-filter="sumidos" onclick="baSetCliFilter('sumidos')">Sumidos (<span id="ba-cli-sumidos-count">0</span>)</button>
+          <button class="period-chip" data-filter="sumidos" onclick="baSetCliFilter('sumidos')">Sem corte 15d+ (<span id="ba-cli-sumidos-count">0</span>)</button>
           <button class="period-chip" data-filter="semana" onclick="baSetCliFilter('semana')">Essa semana</button>
           <button class="period-chip" data-filter="mes" onclick="baSetCliFilter('mes')">Esse mês</button>
           <button class="period-chip" data-filter="custom" onclick="baSetCliFilter('custom')">Período</button>
@@ -4522,10 +4522,46 @@ if(baDashLineChipsEl) baDashLineChipsEl.addEventListener('click', e=>{
   baRenderDashLine(baDashLineMonths);
 });
 
-const CLIENTE_SUMIU_DAYS = 30;
 function baDaysSince(dateStr){
   const d = new Date(dateStr+'T12:00:00');
   return Math.floor((Date.now() - d.getTime()) / (1000*60*60*24));
+}
+// ══ Clientes sem corte há 15+ dias (substitui o antigo "Sumidos") ══
+// a tabela haircut_followups é mantida por uma rotina agendada no banco (roda sozinha todo dia),
+// que já resolve o barbeiro responsável (favorito do cliente, ou quem mais atendeu se não tiver favorito)
+async function baFetchMyFollowups(){
+  const { data, error } = await sb.from('haircut_followups').select('*').eq('barber_id', baCurrentBarberId).order('last_cut_date');
+  if(error){ console.error('baFetchMyFollowups', error); return []; }
+  return data||[];
+}
+function baFollowupWhatsAppMsg(name){
+  const first = (name||'').trim().split(' ')[0] || 'aí';
+  return `Opa, ${first}! Aqui é da Prime Barbearia 💈 Faz um tempinho que você não vem dar um trato no visual — bora marcar um horário? Responde aqui que já te ajudo a encaixar!`;
+}
+async function baMarkFollowupContacted(clientName){
+  const { error } = await sb.from('haircut_followups').update({ contacted_at: new Date().toISOString() }).eq('client_name', clientName).eq('barber_id', baCurrentBarberId);
+  if(error) console.error('baMarkFollowupContacted', error);
+  baRenderClientes();
+}
+async function baRenderSemCorteList(){
+  const followups = await baFetchMyFollowups();
+  document.getElementById('ba-cli-sumidos-count').textContent = followups.length;
+  document.getElementById('ba-cli-list-label').textContent = 'Sem cortar há 15+ dias';
+  document.getElementById('ba-clientes-list').innerHTML = followups.length ? followups.map(f=>{
+    const days = baDaysSince(f.last_cut_date);
+    const msg = encodeURIComponent(baFollowupWhatsAppMsg(f.client_name));
+    const contactBtn = f.contacted_at
+      ? `<span style="color:var(--verde-neon);font-size:.72rem">✓ Mensagem enviada em ${baFormatDate(f.contacted_at.slice(0,10))}</span>`
+      : `<button class="ba-btn ghost" style="width:auto;max-width:none;padding:.35rem .7rem;margin:0;font-size:.68rem" onclick="event.stopPropagation();baMarkFollowupContacted('${f.client_name.replace(/'/g,"\\'")}')">Já mandei mensagem</button>`;
+    return `<div class="ba-item" style="cursor:pointer;flex-wrap:wrap" onclick="baOpenClientDetail('${f.client_name.replace(/'/g,"\\'")}')">
+      <div class="ic">${f.client_name.charAt(0)}</div>
+      <div class="info"><div class="n">${f.client_name}</div><div class="d">Sem cortar há ${days} dias · último corte ${baFormatDate(f.last_cut_date)}</div></div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem;width:100%;justify-content:flex-end">
+        <a href="https://wa.me/${(f.client_phone||'').replace(/\D/g,'')}?text=${msg}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="ba-btn" style="width:auto;max-width:none;padding:.35rem .7rem;margin:0;font-size:.68rem">Mandar mensagem no WhatsApp</a>
+        ${contactBtn}
+      </div>
+    </div>`;
+  }).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Ninguém passou de 15 dias sem cortar — todo mundo em dia!</p>';
 }
 let baCliFilter = 'todos';
 function baSetCliFilter(f){
@@ -4549,7 +4585,11 @@ function baGetCliFilterRange(){
   if(from && to) return [from, to];
   return [todayStr.slice(0,8)+'01', todayStr];
 }
+const SEM_CORTE_DAYS = 15;
 async function baRenderClientes(){
+  const { count: followupCount } = await sb.from('haircut_followups').select('id', {count:'exact', head:true}).eq('barber_id', baCurrentBarberId);
+  document.getElementById('ba-cli-sumidos-count').textContent = followupCount||0;
+  if(baCliFilter==='sumidos'){ await baRenderSemCorteList(); return; }
   const sales = await baFetchAllMySales();
   const last = {}, count = {};
   sales.forEach(s=>{
@@ -4567,12 +4607,8 @@ async function baRenderClientes(){
       return name.toLowerCase().includes(q) || (c.instagram||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q);
     });
   }
-  const sumidosCount = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS).length;
-  document.getElementById('ba-cli-sumidos-count').textContent = sumidosCount;
-  const cliLabels = { todos:'Todos os clientes', sumidos:'Clientes sumidos', semana:'Vieram essa semana', mes:'Vieram esse mês', custom:'Vieram no período' };
-  if(baCliFilter==='sumidos'){
-    names = names.filter(name=>baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS);
-  } else if(baCliFilter==='semana' || baCliFilter==='mes' || baCliFilter==='custom'){
+  const cliLabels = { todos:'Todos os clientes', semana:'Vieram essa semana', mes:'Vieram esse mês', custom:'Vieram no período' };
+  if(baCliFilter==='semana' || baCliFilter==='mes' || baCliFilter==='custom'){
     const [from, to] = baGetCliFilterRange();
     names = names.filter(name=> last[name].date >= from && last[name].date <= to);
   }
@@ -4596,11 +4632,11 @@ async function baRenderClientes(){
     const gift = cid ? giftMap[cid] : null;
     const giftEligible = cid && count[name] >= ((gift && gift.last_gift_at) || 0) + BRINDE_EVERY;
     const giftDot = giftEligible ? ' <span class="gift-dot" title="Elegível a brinde"></span>' : '';
-    const sumiuDot = baDaysSince(last[name].date) >= CLIENTE_SUMIU_DAYS ? ' <span class="sumiu-dot" title="Não vem há 30+ dias"></span>' : '';
+    const sumiuDot = baDaysSince(last[name].date) >= SEM_CORTE_DAYS ? ' <span class="sumiu-dot" title="Sem cortar há 15+ dias"></span>' : '';
     const refPending = cid && refRows.some(r=> (r.referrer_client_id===cid && !r.referrer_gift_given) || (r.referred_client_id===cid && !r.referred_gift_given));
     const referralDot = refPending ? ' <span class="referral-dot" title="Elegível a mimo de indicação"></span>' : '';
     return `<div class="ba-item" style="cursor:pointer" onclick="baOpenClientDetail('${name.replace(/'/g,"\\'")}')"><div class="ic">${name.charAt(0)}</div><div class="info"><div class="n">${name}${giftDot}${sumiuDot}${referralDot}</div><div class="d">Último corte: ${last[name].service} · ${baFormatDate(last[name].date)}</div></div><div class="val" style="color:var(--prata-dim);font-size:.75rem">${count[name]}x</div></div>`;
-  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q ? 'Nenhum cliente encontrado.' : baCliFilter==='sumidos' ? 'Nenhum cliente sumido — todo mundo tá aparecendo!' : (baCliFilter==='semana'||baCliFilter==='mes'||baCliFilter==='custom') ? 'Nenhum cliente veio nesse período.' : 'Nenhum cliente ainda.'}</p>`;
+  }).join('') : `<p style="color:var(--prata-dim);padding:1rem 0">${q ? 'Nenhum cliente encontrado.' : (baCliFilter==='semana'||baCliFilter==='mes'||baCliFilter==='custom') ? 'Nenhum cliente veio nesse período.' : 'Nenhum cliente ainda.'}</p>`;
 }
 
 async function baOpenClientDetail(name){
@@ -4639,7 +4675,7 @@ function baRenderSumiu(client, lastSale){
   if(!el) return;
   if(!lastSale){ el.innerHTML = ''; return; }
   const days = baDaysSince(lastSale.date);
-  if(days < CLIENTE_SUMIU_DAYS){ el.innerHTML = ''; return; }
+  if(days < SEM_CORTE_DAYS){ el.innerHTML = ''; return; }
   el.innerHTML = `
     <div class="sumiu-banner">
       <div class="sb-row"><span style="display:inline-flex;color:var(--alerta)"><svg class="pi-icon" viewBox="0 0 24 24" style="width:18px;height:18px"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5"/><path d="M17 10h4"/></svg></span><span class="sb-title">Não vem há ${days} dias</span></div>
