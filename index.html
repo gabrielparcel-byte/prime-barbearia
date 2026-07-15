@@ -710,6 +710,12 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
         <button class="chip" data-v="Barba Express">Barba Express</button>
         <button class="chip" data-v="Barbaterapia">Barbaterapia</button>
         <button class="chip" data-v="Sobrancelha">Sobrancelha</button>
+        <div style="width:100%;margin:.6rem 0 .2rem;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dourado)">Ou escolha um combo</div>
+        <button class="chip" data-v="Corte e Sobrancelha">Corte e Sobrancelha</button>
+        <button class="chip" data-v="Corte e Barba">Corte e Barba</button>
+        <button class="chip" data-v="Corte, Barba e Sobrancelha">Corte, Barba e Sobrancelha</button>
+        <button class="chip" data-v="Social e Barba">Social e Barba</button>
+        <button class="chip" data-v="Raspado e Barba">Raspado e Barba</button>
       </div>
     </div>
 
@@ -762,8 +768,8 @@ const HORARIOS = {
   4: ["09:00","20:00"], 5: ["09:00","20:00"], 6: ["09:00","18:00"]
 };
 const SLOT_MIN = 45;
-const SVC_PRICES = {'Corte Social':30,'Corte Degradê':45,'Corte Raspado':20,'Corte Infantil':35,'Acabamento':15,'Barba Express':25,'Barbaterapia':45,'Sobrancelha':20};
-const SVC_COLORS = {'Corte Social':'#C6A75E','Corte Degradê':'#D9A566','Corte Raspado':'#8FA6C7','Corte Infantil':'#7FBF8A','Acabamento':'#A0A4AE','Barba Express':'#6E8CA0','Barbaterapia':'#9B7EDE','Sobrancelha':'#D98C7A'};
+const SVC_PRICES = {'Corte Social':30,'Corte Degradê':45,'Corte Raspado':20,'Corte Infantil':35,'Acabamento':15,'Barba Express':25,'Barbaterapia':45,'Sobrancelha':20,'Corte e Sobrancelha':60,'Corte e Barba':85,'Corte, Barba e Sobrancelha':95,'Social e Barba':70,'Raspado e Barba':60};
+const SVC_COLORS = {'Corte Social':'#C6A75E','Corte Degradê':'#D9A566','Corte Raspado':'#8FA6C7','Corte Infantil':'#7FBF8A','Acabamento':'#A0A4AE','Barba Express':'#6E8CA0','Barbaterapia':'#9B7EDE','Sobrancelha':'#D98C7A','Corte e Sobrancelha':'#C9986B','Corte e Barba':'#4E9B8F','Corte, Barba e Sobrancelha':'#B98CC9','Social e Barba':'#7A9E6E','Raspado e Barba':'#9E8A6E'};
 // data local no formato YYYY-MM-DD — NUNCA usar toISOString().slice(0,10) pra isso: converte pra UTC
 // e "quebra" o dia (fica um dia à frente) em fusos negativos como o do Brasil, entre ~21h e meia-noite.
 function primeLocalDate(d){
