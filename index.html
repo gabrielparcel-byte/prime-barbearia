@@ -1256,7 +1256,8 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div class="ca-field" id="ca-f-su-email"><label>E-mail</label><input type="email" id="ca-su-email" placeholder="seu@email.com" autocomplete="off"><span class="err">Digite um e-mail válido</span></div>
         <div class="ca-field" id="ca-f-su-pass"><label>Senha</label><input type="password" id="ca-su-pass" placeholder="••••••••"><span class="err">Mínimo de 6 caracteres</span></div>
         <div class="ca-row">
-          <div class="ca-field" id="ca-f-su-phone"><label>Telefone</label><input type="tel" id="ca-su-phone" placeholder="(44) 90000-0000"><span class="err">Telefone válido</span></div>
+          <div class="ca-field" id="ca-f-su-phone"><label>Telefone</label><input type="tel" id="ca-su-phone" placeholder="(44) 90000-0000" onblur="caCheckPrecadastro()"><span class="err">Telefone válido</span></div>
+          <p id="ca-su-precadastro" style="display:none;background:rgba(53,197,88,.12);border:1px solid var(--verde-neon);border-radius:6px;padding:.7rem .9rem;font-size:.8rem;color:var(--prata);margin:-.4rem 0 1rem;line-height:1.5">📋 Encontramos um atendimento anterior com esse telefone — termina o cadastro que a gente já traz seu histórico pra sua conta.</p>
           <div class="ca-field" id="ca-f-su-age"><label>Idade</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ca-su-age" placeholder="18" min="1" max="120"><span class="err">Idade válida</span></div>
         </div>
         <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
@@ -2641,6 +2642,19 @@ function caRequestDataDeletion(){
   const msg = `Olá! Sou ${acc.name||'cliente'} (${acc.email}) e quero solicitar a exclusão da minha conta e dos meus dados pessoais na Prime Barbearia, conforme a LGPD.`;
   window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
 }
+let caPrecadastroFound = false;
+// cliente que já foi atendido como encaixe (pré-cadastro do barbeiro, sem conta) mostra um aviso
+// quando o telefone bate com um crm_clients ainda sem client_id — vincula o histórico depois do cadastro
+async function caCheckPrecadastro(){
+  const phone = document.getElementById('ca-su-phone');
+  const banner = document.getElementById('ca-su-precadastro');
+  const digits = phone.value.replace(/\D/g,'');
+  if(digits.length < 10){ banner.style.display='none'; caPrecadastroFound=false; return; }
+  const { data, error } = await sb.rpc('check_precadastro', { p_phone: digits });
+  if(error){ console.error('caCheckPrecadastro', error); return; }
+  caPrecadastroFound = !!data;
+  banner.style.display = data ? 'block' : 'none';
+}
 async function caSignup(){
   const nome=document.getElementById('ca-su-nome'), email=document.getElementById('ca-su-email'), pass=document.getElementById('ca-su-pass'), phone=document.getElementById('ca-su-phone'), age=document.getElementById('ca-su-age'), ig=document.getElementById('ca-su-ig');
   const fn=document.getElementById('ca-f-su-nome'), fe=document.getElementById('ca-f-su-email'), fpass=document.getElementById('ca-f-su-pass'), fp=document.getElementById('ca-f-su-phone'), fa=document.getElementById('ca-f-su-age'), fi=document.getElementById('ca-f-su-ig'), err=document.getElementById('ca-signup-err');
@@ -2662,6 +2676,8 @@ async function caSignup(){
   const acc = { id:data.user.id, name:nome.value.trim(), email:newEmail, phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim() };
   await sb.from('clients').insert({ id:acc.id, email:acc.email, name:acc.name, phone:acc.phone, age:acc.age, instagram:acc.instagram });
   primeAccountCache = acc;
+  const { data: linkedCount } = await sb.rpc('link_precadastro');
+  if(linkedCount) alert('Encontramos seu histórico de atendimentos anteriores e já vinculamos à sua conta! 🎉');
   const refInput = document.getElementById('ca-su-ref');
   const refCode = refInput ? refInput.value.trim().toUpperCase() : '';
   if(refCode){
