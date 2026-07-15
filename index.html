@@ -3344,6 +3344,17 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
             <input type="text" id="ba-despesa-nome" class="add-input" placeholder="Nome da despesa..." style="flex:2;min-width:120px">
             <input type="text" inputmode="decimal" id="ba-despesa-valor" class="add-input" placeholder="R$" style="flex:1;min-width:70px">
             <input type="date" id="ba-despesa-data" class="add-input" style="flex:1;min-width:130px">
+            <select id="ba-despesa-categoria" class="add-input" style="flex:1;min-width:150px">
+              <option value="aluguel">Aluguel</option>
+              <option value="energia">Energia</option>
+              <option value="agua_internet">Água / Internet</option>
+              <option value="salarios">Salários administrativos</option>
+              <option value="produtos">Produtos e materiais</option>
+              <option value="marketing">Marketing</option>
+              <option value="software">Software / sistema</option>
+              <option value="taxa_maquininha">Taxa de maquininha</option>
+              <option value="outros" selected>Outros</option>
+            </select>
             <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
           </div>
         </div>
@@ -3357,6 +3368,16 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <div style="display:flex;gap:.6rem;flex-wrap:wrap">
           <button class="ba-btn" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baExportReportPDF()">🖨 Exportar PDF</button>
           <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baShareReportWhatsApp()">📤 Compartilhar no WhatsApp</button>
+        </div>
+
+        <div id="ba-dre-wrap" style="display:none">
+          <div class="ba-slabel">DRE gerencial (mês fechado)</div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
+            <select id="ba-dre-mes" class="add-input" style="flex:1;min-width:170px"></select>
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baRenderDREScreen()">Calcular DRE</button>
+            <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baExportDREPDF()">🖨 Exportar PDF</button>
+          </div>
+          <div id="ba-dre-body"></div>
         </div>
       </div>
     </div>
@@ -3832,6 +3853,8 @@ async function baRenderDashboard(){
   if(isAdmin) baRenderDespesas();
   document.getElementById('ba-dash-lucro-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderLucro();
+  document.getElementById('ba-dre-wrap').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin) baPopulateDREMonths();
 }
 
 async function baRenderDashMeta(){
@@ -4010,11 +4033,15 @@ async function baFetchExpenses(from, to){
   if(error){ console.error('baFetchExpenses', error); return []; }
   return data||[];
 }
-async function baAddExpenseRow(name, value, date){
-  const { data, error } = await sb.from('expenses').insert({name, value, date}).select().single();
+async function baAddExpenseRow(name, value, date, category){
+  const { data, error } = await sb.from('expenses').insert({name, value, date, category: category||'outros'}).select().single();
   if(error){ console.error('baAddExpenseRow', error); return null; }
   return data;
 }
+const BA_EXPENSE_CATEGORY_LABEL = {
+  aluguel:'Aluguel', energia:'Energia', agua_internet:'Água/Internet', salarios:'Salários',
+  produtos:'Produtos e materiais', marketing:'Marketing', software:'Software', taxa_maquininha:'Taxa de maquininha', outros:'Outros'
+};
 async function baRemoveExpenseRow(id){
   const { error } = await sb.from('expenses').delete().eq('id', id);
   if(error) console.error('baRemoveExpenseRow', error);
@@ -4032,7 +4059,7 @@ async function baRenderDespesas(){
   totalEl.textContent = baFormatMoney(total);
   listEl.innerHTML = month.length ? month.map(e=>
     `<div class="expense-row">
-      <div class="exp-info"><div class="exp-name">${e.name}</div><div class="exp-date">${baFormatDate(e.date)}</div></div>
+      <div class="exp-info"><div class="exp-name">${e.name} <span style="color:var(--prata-dim);font-size:.68rem">· ${BA_EXPENSE_CATEGORY_LABEL[e.category]||'Outros'}</span></div><div class="exp-date">${baFormatDate(e.date)}</div></div>
       <div class="exp-value">${baFormatMoney(e.value)}</div>
       <button class="exp-remove" onclick="baRemoveExpense(${e.id})">remover</button>
     </div>`
@@ -4042,11 +4069,12 @@ async function baAddExpense(){
   const nameEl = document.getElementById('ba-despesa-nome');
   const valorEl = document.getElementById('ba-despesa-valor');
   const dataEl = document.getElementById('ba-despesa-data');
+  const catEl = document.getElementById('ba-despesa-categoria');
   const name = nameEl.value.trim();
   const value = parseFloat(valorEl.value);
   const date = dataEl.value || primeLocalDate();
   if(!name || !value || value<=0) return;
-  await baAddExpenseRow(name, value, date);
+  await baAddExpenseRow(name, value, date, catEl ? catEl.value : 'outros');
   nameEl.value=''; valorEl.value=''; dataEl.value='';
   baRenderDespesas();
 }
@@ -4081,6 +4109,139 @@ async function baRenderLucro(){
     <div class="row"><span class="lbl">Comissões repassadas</span><span class="val small">${baFormatMoney(f.comissoes)}</span></div>
     <div class="row"><span class="lbl">Despesas</span><span class="val small">${baFormatMoney(f.despesas)}</span></div>
     <div class="row"><span class="lbl">Lucro líquido</span><span class="val">${baFormatMoney(f.lucro)}</span></div>`;
+}
+
+// ══ DRE gerencial (mês fechado) — cascata Receita → Lucro Bruto → Lucro Líquido ══
+// regime de competência: cada venda entra no mês em que o atendimento/venda aconteceu (sales.date), não no mês do pagamento
+async function baComputeDRE(year, month){
+  const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
+  const d = new Date(year, month+1, 0);
+  const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const sales = await baFetchShopSales(from, to);
+  const roster = baGetRoster();
+  const receitaServicos = sales.filter(s=>s.type!=='produto' && s.type!=='assinatura').reduce((s,x)=>s+x.value,0);
+  const receitaProdutos = sales.filter(s=>s.type==='produto').reduce((s,x)=>s+x.value,0);
+  const receitaAssinaturas = sales.filter(s=>s.type==='assinatura').reduce((s,x)=>s+x.value,0);
+  const receitaTotal = receitaServicos + receitaProdutos + receitaAssinaturas;
+  const comissoes = sales.reduce((s,x)=>{
+    const b = roster.find(r=>r.id===x.barberId);
+    const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
+    return s + x.value*pct;
+  },0);
+  const expenses = await baFetchExpenses(from, to);
+  const taxaMaquininha = expenses.filter(e=>e.category==='taxa_maquininha').reduce((s,e)=>s+e.value,0);
+  const custoDireto = comissoes + taxaMaquininha;
+  const lucroBruto = receitaTotal - custoDireto;
+  const despesasOperacionais = expenses.filter(e=>e.category!=='taxa_maquininha');
+  const totalDespesas = despesasOperacionais.reduce((s,e)=>s+e.value,0);
+  const lucroLiquido = lucroBruto - totalDespesas;
+  const margem = receitaTotal ? (lucroLiquido/receitaTotal) : 0;
+  return { year, month, receitaServicos, receitaProdutos, receitaAssinaturas, receitaTotal,
+    comissoes, taxaMaquininha, custoDireto, lucroBruto, despesasOperacionais, totalDespesas, lucroLiquido, margem };
+}
+const BA_DRE_MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function baPopulateDREMonths(){
+  const sel = document.getElementById('ba-dre-mes');
+  if(!sel || sel.options.length) return; // só popula uma vez
+  const today = new Date();
+  let opts = '';
+  // começa no mês passado (o mais recente já "fechado") e volta 12 meses
+  for(let i=1; i<=12; i++){
+    const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+    opts += `<option value="${d.getFullYear()}-${d.getMonth()}">${BA_DRE_MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}</option>`;
+  }
+  sel.innerHTML = opts;
+}
+function baDREPctChange(cur, prev){
+  if(!prev) return null;
+  return ((cur-prev)/Math.abs(prev))*100;
+}
+function baDREVarLabel(cur, prev){
+  const pct = baDREPctChange(cur, prev);
+  if(pct===null) return '';
+  const arrow = pct>=0 ? '↑' : '↓';
+  const color = pct>=0 ? 'var(--verde-neon)' : 'var(--erro)';
+  return `<span style="color:${color};font-size:.72rem;margin-left:.4rem">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
+}
+async function baRenderDREScreen(){
+  const sel = document.getElementById('ba-dre-mes');
+  const body = document.getElementById('ba-dre-body');
+  if(!sel || !sel.value || !body) return;
+  const [year, month] = sel.value.split('-').map(Number);
+  body.innerHTML = '<p style="color:var(--prata-dim);font-size:.85rem;padding:.6rem 0">Calculando…</p>';
+  const dre = await baComputeDRE(year, month);
+  const prevDate = new Date(year, month-1, 1);
+  const prev = await baComputeDRE(prevDate.getFullYear(), prevDate.getMonth());
+  const semDados = dre.receitaTotal===0 && dre.totalDespesas===0;
+  if(semDados){
+    body.innerHTML = `<p style="color:var(--prata-dim);font-size:.85rem;padding:1rem 0">Nenhum lançamento neste período — sem dados suficientes pra calcular o DRE de ${BA_DRE_MONTH_NAMES[month]} de ${year}.</p>`;
+    return;
+  }
+  body.innerHTML = `
+    <div class="ba-comm" style="margin-bottom:.9rem">
+      <div class="row"><span class="lbl">Serviços avulsos</span><span class="val small">${baFormatMoney(dre.receitaServicos)}</span></div>
+      <div class="row"><span class="lbl">Assinaturas</span><span class="val small">${baFormatMoney(dre.receitaAssinaturas)}</span></div>
+      <div class="row"><span class="lbl">Produtos vendidos</span><span class="val small">${baFormatMoney(dre.receitaProdutos)}</span></div>
+      <div class="row"><span class="lbl"><b>Receita total</b></span><span class="val">${baFormatMoney(dre.receitaTotal)}${baDREVarLabel(dre.receitaTotal, prev.receitaTotal)}</span></div>
+    </div>
+    <div class="ba-comm" style="margin-bottom:.9rem">
+      <div class="row"><span class="lbl">Comissão dos barbeiros</span><span class="val small">− ${baFormatMoney(dre.comissoes)}</span></div>
+      <div class="row"><span class="lbl">Taxa de maquininha</span><span class="val small">− ${baFormatMoney(dre.taxaMaquininha)}</span></div>
+      <div class="row"><span class="lbl"><b>Lucro bruto</b></span><span class="val">${baFormatMoney(dre.lucroBruto)}${baDREVarLabel(dre.lucroBruto, prev.lucroBruto)}</span></div>
+    </div>
+    <div class="ba-comm" style="margin-bottom:.9rem">
+      ${dre.despesasOperacionais.length ? dre.despesasOperacionais.map(e=>
+        `<div class="row"><span class="lbl">${e.name} <span style="color:var(--prata-dim);font-size:.68rem">· ${BA_EXPENSE_CATEGORY_LABEL[e.category]||'Outros'}</span></span><span class="val small">− ${baFormatMoney(e.value)}</span></div>`
+      ).join('') : '<div class="row"><span class="lbl">Nenhuma despesa lançada</span><span class="val small">R$ 0,00</span></div>'}
+      <div class="row"><span class="lbl"><b>Total despesas</b></span><span class="val small">− ${baFormatMoney(dre.totalDespesas)}</span></div>
+    </div>
+    <div class="ba-comm">
+      <div class="row"><span class="lbl" style="font-size:.95rem"><b>Lucro líquido</b></span><span class="val" style="font-size:1.15rem">${baFormatMoney(dre.lucroLiquido)}${baDREVarLabel(dre.lucroLiquido, prev.lucroLiquido)}</span></div>
+      <div class="row"><span class="lbl">Margem líquida</span><span class="val small">${(dre.margem*100).toFixed(1)}%</span></div>
+    </div>
+    <p style="color:var(--prata-dim);font-size:.7rem;margin-top:.8rem">Regime de competência (conta no mês do atendimento/venda, não do pagamento). Comparado com ${BA_DRE_MONTH_NAMES[prevDate.getMonth()]} de ${prevDate.getFullYear()}.</p>`;
+  baLastDRE = dre;
+}
+let baLastDRE = null;
+async function baExportDREPDF(){
+  if(!baLastDRE){ await baRenderDREScreen(); if(!baLastDRE) return; }
+  const d = baLastDRE;
+  const logo = baReportLogoSrc();
+  const geradoEm = baFormatDate(primeLocalDate());
+  const despesasRows = d.despesasOperacionais.map(e=>`<tr><td>${e.name}</td><td class="muted">${BA_EXPENSE_CATEGORY_LABEL[e.category]||'Outros'}</td><td class="num">${baFormatMoney(e.value)}</td></tr>`).join('');
+  document.getElementById('ba-report-print').innerHTML = `
+    <div class="rp-head">
+      <div class="rp-logo-badge">${logo}</div>
+      <div><div class="rp-brand">PRIME BARBEARIA</div><div class="sub">DRE gerencial</div></div>
+      <div class="rp-meta"><b>${BA_DRE_MONTH_NAMES[d.month]} de ${d.year}</b>Regime de competência<br>Gerado em ${geradoEm}</div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-slabel">Receita</div>
+      <table class="rp-table"><tbody>
+        <tr><td>Serviços avulsos</td><td class="num">${baFormatMoney(d.receitaServicos)}</td></tr>
+        <tr><td>Assinaturas</td><td class="num">${baFormatMoney(d.receitaAssinaturas)}</td></tr>
+        <tr><td>Produtos vendidos</td><td class="num">${baFormatMoney(d.receitaProdutos)}</td></tr>
+      </tbody><tfoot><tr><td>Receita total</td><td class="num">${baFormatMoney(d.receitaTotal)}</td></tr></tfoot></table>
+    </div>
+    <div class="rp-section">
+      <div class="rp-slabel">Custos diretos</div>
+      <table class="rp-table"><tbody>
+        <tr><td>Comissão dos barbeiros</td><td class="num">${baFormatMoney(d.comissoes)}</td></tr>
+        <tr><td>Taxa de maquininha</td><td class="num">${baFormatMoney(d.taxaMaquininha)}</td></tr>
+      </tbody><tfoot><tr><td>Lucro bruto</td><td class="num">${baFormatMoney(d.lucroBruto)}</td></tr></tfoot></table>
+    </div>
+    <div class="rp-section">
+      <div class="rp-slabel">Despesas</div>
+      ${d.despesasOperacionais.length ? `<table class="rp-table"><thead><tr><th>Descrição</th><th>Categoria</th><th class="num">Valor</th></tr></thead><tbody>${despesasRows}</tbody><tfoot><tr><td colspan="2">Total despesas</td><td class="num">${baFormatMoney(d.totalDespesas)}</td></tr></tfoot></table>` : '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhuma despesa lançada.</p>'}
+    </div>
+    <div class="rp-section">
+      <div class="rp-grid">
+        <div class="rp-stat highlight"><div class="lbl">Lucro líquido</div><div class="val">${baFormatMoney(d.lucroLiquido)}</div></div>
+        <div class="rp-stat"><div class="lbl">Margem líquida</div><div class="val">${(d.margem*100).toFixed(1)}%</div></div>
+      </div>
+    </div>
+    <div class="rp-foot">PRIME BARBEARIA · Av. Pedro Taques, 2824 — Maringá · PR<br>DRE gerado automaticamente pelo sistema Prime · sem cálculo de impostos</div>`;
+  window.print();
 }
 
 // ══ Relatório mensal exportável (PDF via impressão + resumo WhatsApp) ══
@@ -4737,7 +4898,7 @@ async function baAssignPlan(clientName, tierIndex){
   baSyncPlanToClientAccount(client);
   // atribuir plano gera uma venda pro barbeiro (comissão sobre o valor do plano)
   if(tier.value){
-    await baInsertSales([{barberId: baCurrentBarberId, client: client.name, service:`Assinatura — ${tier.name}`, value:tier.value, date:primeLocalDate()}]);
+    await baInsertSales([{barberId: baCurrentBarberId, client: client.name, service:`Assinatura — ${tier.name}`, value:tier.value, date:primeLocalDate(), type:'assinatura'}]);
   }
   baRenderClientPlan(client);
 }
