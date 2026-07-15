@@ -5422,6 +5422,11 @@ async function baRedeemInvite(){
     p_code: codeVal, p_name: name.value.trim(), p_email: email.value.trim().toLowerCase()
   });
   if(completeErr){ err.textContent='Não foi possível concluir o cadastro.'; err.style.display='block'; return; }
+  // equipe da Prime também é cliente — cria o perfil de cliente automaticamente com a mesma conta
+  await sb.from('clients').upsert(
+    { id:data.user.id, email:email.value.trim().toLowerCase(), name:name.value.trim() },
+    { onConflict:'id', ignoreDuplicates:true }
+  );
   err.style.display='none';
   await baLoadRoster();
   const match = baGetRoster().find(b=>b.id===data.user.id);
