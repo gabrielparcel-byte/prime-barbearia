@@ -564,9 +564,11 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 <div class="modal-backdrop" id="plansModal" role="dialog" aria-modal="true" style="z-index:1200">
   <div class="modal" style="max-width:520px">
     <button class="close" aria-label="Fechar" onclick="closePlansModal()">✕</button>
-    <h3>Planos Prime</h3>
-    <p style="color:var(--prata-dim);margin:.6rem 0 1.6rem">Escolha o plano que combina com sua rotina — cancele quando quiser.</p>
+    <h3 id="plans-title">Planos Prime</h3>
+    <p style="color:var(--prata-dim);margin:.6rem 0 1.6rem" id="plans-sub">Escolha o plano que combina com sua rotina — o barbeiro confirma a assinatura pra você.</p>
     <div id="plans-list" style="display:flex;flex-direction:column;gap:1rem"></div>
+    <div id="plans-barber-list" style="display:none;flex-direction:column;gap:.7rem"></div>
+    <p id="plans-back" style="display:none;text-align:center;margin-top:1.2rem"><a href="#" onclick="renderPlansList();return false" style="color:var(--dourado);font-size:.85rem">← Escolher outro plano</a></p>
   </div>
 </div>
 
@@ -1681,7 +1683,8 @@ async function primeAddNotif(n){
   const row = {
     for_role: n.forRole, type: n.type, appt_id: n.apptId ?? null, text: n.text,
     recipient_barber_id: n.forRole==='barber' ? n.recipientBarberId : null,
-    recipient_client_id: n.forRole==='client' ? n.recipientClientId : null
+    recipient_client_id: n.forRole==='client' ? n.recipientClientId : null,
+    payload: n.payload ?? null
   };
   if(n.forRole==='barber' && !row.recipient_barber_id) return; // sem destinatário real, não insere
   if(n.forRole==='client' && !row.recipient_client_id) return;
@@ -1757,7 +1760,7 @@ async function primeNotifsFor(role, recipientId){
   const col = role==='barber' ? 'recipient_barber_id' : 'recipient_client_id';
   const { data, error } = await sb.from('notifications').select('*').eq('for_role', role).eq(col, recipientId).order('created_at', {ascending:false});
   if(error){ console.error('primeNotifsFor', error); return []; }
-  return (data||[]).map(n=>({ id:n.id, read:n.read, forRole:n.for_role, type:n.type, apptId:n.appt_id, text:n.text }));
+  return (data||[]).map(n=>({ id:n.id, read:n.read, forRole:n.for_role, type:n.type, apptId:n.appt_id, text:n.text, payload:n.payload }));
 }
 async function primeMarkAllNotifsRead(role, recipientId){
   if(!recipientId) return;
@@ -1971,6 +1974,11 @@ function primeNextMonthFirst(){
 function openPlansModal(){ renderPlansList(); document.getElementById('plansModal').classList.add('open'); }
 function closePlansModal(){ document.getElementById('plansModal').classList.remove('open'); }
 function renderPlansList(){
+  document.getElementById('plans-title').textContent = 'Planos Prime';
+  document.getElementById('plans-sub').textContent = 'Escolha o plano que combina com sua rotina — o barbeiro confirma a assinatura pra você.';
+  document.getElementById('plans-list').style.display = 'flex';
+  document.getElementById('plans-barber-list').style.display = 'none';
+  document.getElementById('plans-back').style.display = 'none';
   const acc = primeGetAccount() || {};
   const current = acc.plan && acc.plan.name;
   document.getElementById('plans-list').innerHTML = PLAN_TIERS.map((t,i)=>`
@@ -1979,18 +1987,35 @@ function renderPlansList(){
       <h4>${t.name}</h4>
       <div class="price">${t.price}</div>
       <p>${t.desc}</p>
-      <button class="btn btn-primary" style="width:100%" onclick="caSubscribePlan(${i})" ${t.name===current?'disabled':''}>${t.name===current?'Plano atual':'Assinar este plano'}</button>
+      <button class="btn btn-primary" style="width:100%" onclick="caChoosePlanBarber(${i})" ${t.name===current?'disabled':''}>${t.name===current?'Plano atual':'Solicitar este plano'}</button>
     </div>
   `).join('');
 }
-function caSubscribePlan(i){
-  const tier = PLAN_TIERS[i];
-  const acc = primeGetAccount() || {};
-  acc.plan = {name:tier.name, total:tier.cuts, used:0, renewsOn:primeNextMonthFirst()};
-  primeSaveAccount(acc);
-  renderPlansList();
-  caRenderPlanCard();
+function caChoosePlanBarber(tierIndex){
+  const tier = PLAN_TIERS[tierIndex];
+  const roster = primeGetBarberRoster();
+  document.getElementById('plans-title').textContent = tier.name;
+  document.getElementById('plans-sub').textContent = 'Com qual barbeiro você quer esse plano? O pedido vai direto pra ele confirmar.';
+  document.getElementById('plans-list').style.display = 'none';
+  document.getElementById('plans-back').style.display = 'block';
+  const list = document.getElementById('plans-barber-list');
+  list.style.display = 'flex';
+  list.innerHTML = roster.length ? roster.map(b=>`
+    <button class="btn btn-ghost" style="width:100%;text-align:left" onclick="caRequestPlan(${tierIndex},'${b.id}')">${b.name}</button>
+  `).join('') : '<p style="color:var(--prata-dim);font-size:.9rem">Nenhum barbeiro disponível no momento.</p>';
+}
+async function caRequestPlan(tierIndex, barberId){
+  const tier = PLAN_TIERS[tierIndex];
+  const acc = primeGetAccount();
+  const barber = primeGetBarberRoster().find(b=>b.id===barberId);
+  if(!tier || !acc || !barber) return;
+  await primeAddNotif({
+    forRole:'barber', recipientBarberId: barberId, type:'plano-solicitado',
+    text: `${acc.name} quer assinar o ${tier.name} (${tier.price}).`,
+    payload: { clientEmail: acc.email, tierIndex }
+  });
   closePlansModal();
+  alert(`Pedido enviado! ${barber.name} vai confirmar seu ${tier.name} em breve.`);
 }
 function caRenderPlanCard(){
   const acc = primeGetAccount();
@@ -4952,9 +4977,23 @@ async function baRenderNotifs(){
 async function baRenderNotifPanel(){
   const panel = document.getElementById('ba-notif-panel');
   const notifs = await primeNotifsFor('barber', baCurrentBarberId);
-  panel.innerHTML = notifs.length ? notifs.map(n=>
-    `<div class="ca-notif-item ${n.read?'read':'unread'}"><span class="dot"></span><div>${n.text}</div></div>`
-  ).join('') : '<div class="ca-notif-empty">Nenhuma notificação por aqui.</div>';
+  panel.innerHTML = notifs.length ? notifs.map(n=>{
+    const clickable = n.type==='plano-solicitado' && n.payload && n.payload.clientEmail;
+    const attrs = clickable ? `style="cursor:pointer" onclick="baHideNotifs();baOpenClientDetailByEmail('${n.payload.clientEmail.replace(/'/g,"\\'")}')"` : '';
+    return `<div class="ca-notif-item ${n.read?'read':'unread'}" ${attrs}><span class="dot"></span><div>${n.text}</div></div>`;
+  }).join('') : '<div class="ca-notif-empty">Nenhuma notificação por aqui.</div>';
+}
+// pedido de plano pode vir de alguém que ainda não está na carteira desse barbeiro — cria o vínculo na hora
+async function baOpenClientDetailByEmail(email){
+  let client = (await baFetchMyCrmClients()).find(c=>c.email && c.email.toLowerCase()===email.toLowerCase());
+  if(!client){
+    const { data } = await sb.from('clients').select('*').eq('email', email).maybeSingle();
+    if(!data) return;
+    client = await baCreateCrmClient({name:data.name, phone:data.phone, email:data.email, age:data.age, instagram:data.instagram});
+    if(!client) return;
+  }
+  baTab('clientes');
+  await baOpenClientDetail(client.name);
 }
 let baNotifTimer = null, baNotifFadeTimer = null;
 function baHideNotifs(){ const p=document.getElementById('ba-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(baNotifTimer); clearTimeout(baNotifFadeTimer); }
