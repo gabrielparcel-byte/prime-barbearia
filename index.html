@@ -4978,12 +4978,12 @@ async function baRenderNotifPanel(){
   const notifs = await primeNotifsFor('barber', baCurrentBarberId);
   panel.innerHTML = notifs.length ? notifs.map(n=>{
     const clickable = n.type==='plano-solicitado' && n.payload && n.payload.clientEmail;
-    const attrs = clickable ? `style="cursor:pointer" onclick="baHideNotifs();baOpenClientDetailByEmail('${n.payload.clientEmail.replace(/'/g,"\\'")}')"` : '';
+    const attrs = clickable ? `style="cursor:pointer" onclick="baAcceptPlanRequest(${n.id},'${n.payload.clientEmail.replace(/'/g,"\\'")}',${n.payload.tierIndex})"` : '';
     return `<div class="ca-notif-item ${n.read?'read':'unread'}" ${attrs}><span class="dot"></span><div>${n.text}</div></div>`;
   }).join('') : '<div class="ca-notif-empty">Nenhuma notificação por aqui.</div>';
 }
-// pedido de plano pode vir de alguém que ainda não está na carteira desse barbeiro — cria o vínculo na hora
-async function baOpenClientDetailByEmail(email){
+// clicar no pedido de plano já aceita na hora — cria o vínculo na carteira se precisar, ativa o plano e atualiza a notificação
+async function baAcceptPlanRequest(notifId, email, tierIndex){
   let client = (await baFetchMyCrmClients()).find(c=>c.email && c.email.toLowerCase()===email.toLowerCase());
   if(!client){
     const { data } = await sb.from('clients').select('*').eq('email', email).maybeSingle();
@@ -4991,8 +4991,13 @@ async function baOpenClientDetailByEmail(email){
     client = await baCreateCrmClient({name:data.name, phone:data.phone, email:data.email, age:data.age, instagram:data.instagram});
     if(!client) return;
   }
-  baTab('clientes');
-  await baOpenClientDetail(client.name);
+  await baAssignPlan(client.name, tierIndex);
+  const tier = baPlanTiers()[tierIndex];
+  await sb.from('notifications').update({
+    type:'plano-confirmado', read:true, text: `Plano ${tier ? tier.name : ''} confirmado pra ${client.name}. ✓`
+  }).eq('id', notifId);
+  await baRenderNotifPanel();
+  await baRenderNotifs();
 }
 let baNotifTimer = null, baNotifFadeTimer = null;
 function baHideNotifs(){ const p=document.getElementById('ba-notif-panel'); if(p){ p.style.display='none'; p.classList.remove('fading'); } clearTimeout(baNotifTimer); clearTimeout(baNotifFadeTimer); }
