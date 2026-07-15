@@ -3379,6 +3379,16 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           </div>
           <div id="ba-dre-body"></div>
         </div>
+
+        <div id="ba-daily-wrap" style="display:none">
+          <div class="ba-slabel">Vendas do dia (equipe toda)</div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
+            <input type="date" id="ba-daily-data" class="add-input" style="flex:1;min-width:150px">
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baRenderDailySales()">Ver vendas do dia</button>
+            <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baExportDailySalesPDF()">🖨 Exportar PDF</button>
+          </div>
+          <div id="ba-daily-body"></div>
+        </div>
       </div>
     </div>
 
@@ -3855,6 +3865,11 @@ async function baRenderDashboard(){
   if(isAdmin) baRenderLucro();
   document.getElementById('ba-dre-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baPopulateDREMonths();
+  document.getElementById('ba-daily-wrap').style.display = isAdmin ? 'block' : 'none';
+  if(isAdmin){
+    const dEl = document.getElementById('ba-daily-data');
+    if(dEl && !dEl.value) dEl.value = primeLocalDate();
+  }
 }
 
 async function baRenderDashMeta(){
@@ -4241,6 +4256,57 @@ async function baExportDREPDF(){
       </div>
     </div>
     <div class="rp-foot">PRIME BARBEARIA · Av. Pedro Taques, 2824 — Maringá · PR<br>DRE gerado automaticamente pelo sistema Prime · sem cálculo de impostos</div>`;
+  window.print();
+}
+
+// ══ Vendas do dia (equipe toda, admin) ══
+let baLastDailySales = null;
+async function baRenderDailySales(){
+  const dateEl = document.getElementById('ba-daily-data');
+  const body = document.getElementById('ba-daily-body');
+  if(!dateEl || !dateEl.value || !body) return;
+  const date = dateEl.value;
+  body.innerHTML = '<p style="color:var(--prata-dim);font-size:.85rem;padding:.6rem 0">Carregando…</p>';
+  const sales = (await baFetchShopSales(date, date)).sort((a,b)=> (a.time||'').localeCompare(b.time||''));
+  baLastDailySales = { date, sales };
+  if(!sales.length){
+    body.innerHTML = `<p style="color:var(--prata-dim);font-size:.85rem;padding:1rem 0">Nenhuma venda registrada em ${baFormatDate(date)}.</p>`;
+    return;
+  }
+  const roster = baGetRoster();
+  const total = sales.reduce((s,x)=>s+x.value,0);
+  const rows = sales.map(s=>{
+    const barberName = (roster.find(b=>b.id===s.barberId)||{}).name || '—';
+    return `<div class="row"><span class="lbl">${s.client} <span style="color:var(--prata-dim);font-size:.72rem">· ${s.service} · ${barberName}</span></span><span class="val small">${baFormatMoney(s.value)}</span></div>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="ba-comm" style="margin-bottom:.6rem">${rows}</div>
+    <div class="ba-comm"><div class="row"><span class="lbl"><b>Total do dia</b></span><span class="val">${baFormatMoney(total)}</span></div><div class="row"><span class="lbl">Vendas</span><span class="val small">${sales.length}</span></div></div>`;
+}
+async function baExportDailySalesPDF(){
+  if(!baLastDailySales || baLastDailySales.date !== document.getElementById('ba-daily-data').value) await baRenderDailySales();
+  if(!baLastDailySales || !baLastDailySales.sales.length) return;
+  const { date, sales } = baLastDailySales;
+  const roster = baGetRoster();
+  const logo = baReportLogoSrc();
+  const geradoEm = baFormatDate(primeLocalDate());
+  const total = sales.reduce((s,x)=>s+x.value,0);
+  const rows = sales.map(s=>{
+    const barberName = (roster.find(b=>b.id===s.barberId)||{}).name || '—';
+    return `<tr><td>${s.client}</td><td class="muted">${s.service}</td><td class="muted">${barberName}</td><td class="num">${baFormatMoney(s.value)}</td></tr>`;
+  }).join('');
+  document.getElementById('ba-report-print').innerHTML = `
+    <div class="rp-head">
+      <div class="rp-logo-badge">${logo}</div>
+      <div><div class="rp-brand">PRIME BARBEARIA</div><div class="sub">vendas do dia</div></div>
+      <div class="rp-meta"><b>${baFormatDate(date)}</b>Equipe toda<br>Gerado em ${geradoEm}</div>
+    </div>
+    <div class="rp-section">
+      <table class="rp-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Barbeiro</th><th class="num">Valor</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="3">Total do dia (${sales.length} venda${sales.length===1?'':'s'})</td><td class="num">${baFormatMoney(total)}</td></tr></tfoot></table>
+    </div>
+    <div class="rp-foot">PRIME BARBEARIA · Av. Pedro Taques, 2824 — Maringá · PR<br>Relatório gerado automaticamente pelo sistema Prime</div>`;
   window.print();
 }
 
