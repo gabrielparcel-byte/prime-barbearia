@@ -856,8 +856,9 @@ function render(){
   next.disabled = !ready;
   next.textContent = state.step===5 ? 'Solicitar pelo WhatsApp' : 'Próximo →';
   if(state.step===5){
+    const total = state.services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
     document.getElementById('wSummary').innerHTML =
-      `Serviço: <b>${state.services.join(' + ')}</b><br>Dia: <b>${state.dayLabel}</b><br>Horário: <b>${state.time}</b><br>Barbeiro: <b>${state.barber}</b>`;
+      `Serviço: <b>${state.services.join(' + ')}</b><br>Dia: <b>${state.dayLabel}</b><br>Horário: <b>${state.time}</b><br>Barbeiro: <b>${state.barber}</b><br>Valor total: <b style="color:var(--verde-neon)">R$ ${total.toFixed(2).replace('.',',')}</b>`;
     const nameInput = document.getElementById('wName');
     if(!nameInput.value.trim()){
       const acc = typeof primeGetAccount==='function' ? primeGetAccount() : null;
@@ -1001,7 +1002,8 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
     return;
   }
   const name=document.getElementById('wName').value.trim()||'Cliente';
-  const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n\nPode confirmar pra mim?`;
+  const waTotal = state.services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
+  const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n💰 Valor total: *R$ ${waTotal.toFixed(2).replace('.',',')}*\n\nPode confirmar pra mim?`;
   window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
   const acc = primeGetAccount();
   const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email});
