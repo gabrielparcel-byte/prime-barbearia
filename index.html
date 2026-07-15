@@ -3651,7 +3651,7 @@ async function baUpdateCrmClientPlan(crmId, plan){
   if(error) console.error('baUpdateCrmClientPlan', error);
 }
 
-function baFormatMoney(v){ return 'R$ ' + v.toFixed(2).replace('.',','); }
+function baFormatMoney(v){ return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function baFormatDate(iso){
   const d = new Date(iso+'T12:00:00');
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
@@ -4243,7 +4243,7 @@ async function baRenderDREScreen(){
     </div>
     <div class="ba-comm">
       <div class="row"><span class="lbl" style="font-size:.95rem"><b>Lucro líquido</b></span><span class="val" style="font-size:1.15rem">${baFormatMoney(dre.lucroLiquido)}${baDREVarLabel(dre.lucroLiquido, prev.lucroLiquido)}</span></div>
-      <div class="row"><span class="lbl">Margem líquida</span><span class="val small">${(dre.margem*100).toFixed(1)}%</span></div>
+      <div class="row"><span class="lbl">Margem líquida</span><span class="val small">${(dre.margem*100).toFixed(1).replace(".",",")}%</span></div>
     </div>
     <p style="color:var(--prata-dim);font-size:.7rem;margin-top:.8rem">Regime de competência (conta no mês do atendimento/venda, não do pagamento). Comparado com ${BA_DRE_MONTH_NAMES[prevDate.getMonth()]} de ${prevDate.getFullYear()}.</p>`;
   baLastDRE = dre;
@@ -4283,7 +4283,7 @@ async function baExportDREPDF(){
     <div class="rp-section">
       <div class="rp-grid">
         <div class="rp-stat highlight"><div class="lbl">Lucro líquido</div><div class="val">${baFormatMoney(d.lucroLiquido)}</div></div>
-        <div class="rp-stat"><div class="lbl">Margem líquida</div><div class="val">${(d.margem*100).toFixed(1)}%</div></div>
+        <div class="rp-stat"><div class="lbl">Margem líquida</div><div class="val">${(d.margem*100).toFixed(1).replace(".",",")}%</div></div>
       </div>
     </div>
     <div class="rp-foot">PRIME BARBEARIA · Av. Pedro Taques, 2824 — Maringá · PR<br>DRE gerado automaticamente pelo sistema Prime · sem cálculo de impostos</div>`;
