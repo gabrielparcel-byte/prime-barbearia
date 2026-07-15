@@ -3279,115 +3279,129 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <div class="screen" id="ba-screen-dashboard">
       <div class="ba-head"><div><div class="hi">Seu painel</div><div class="name">Dashboard</div></div></div>
       <div class="ba-body">
-        <div class="ba-slabel" style="margin-top:0">Meta do mês</div>
-        <div id="ba-dash-meta"></div>
-
-        <div id="ba-dash-scope-wrap" style="display:none">
-          <div class="seg" id="ba-dash-scope">
-            <div class="seg-btn active" data-scope="mine">Minha visão</div>
-            <div class="seg-btn" data-scope="shop">Barbearia toda</div>
-          </div>
+        <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="ba-btn ghost active" data-sub="visao" onclick="baDashTab('visao')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Visão geral</button>
+          <button class="ba-btn ghost" data-sub="despesas" id="ba-dash-subtab-despesas" onclick="baDashTab('despesas')" style="display:none;width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Despesas</button>
+          <button class="ba-btn ghost" data-sub="relatorios" onclick="baDashTab('relatorios')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Relatórios</button>
+          <button class="ba-btn ghost" data-sub="dre" id="ba-dash-subtab-dre" onclick="baDashTab('dre')" style="display:none;width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">DRE</button>
         </div>
 
-        <div class="ba-slabel">Comparativo</div>
-        <div id="ba-dash-comp"></div>
+        <div id="ba-dash-sub-visao">
+          <div class="ba-slabel" style="margin-top:0">Meta do mês</div>
+          <div id="ba-dash-meta"></div>
 
-        <div class="ba-slabel">Faturamento por dia</div>
-        <div class="chart-card">
-          <div class="chart-head">
-            <div class="chart-title">Total no período: <span id="ba-dash-bar-total">R$ 0</span></div>
-            <div class="period-chips" id="ba-dash-bar-chips">
-              <button class="period-chip active" data-days="7">7d</button>
-              <button class="period-chip" data-days="14">14d</button>
-              <button class="period-chip" data-days="30">30d</button>
+          <div id="ba-dash-scope-wrap" style="display:none">
+            <div class="seg" id="ba-dash-scope">
+              <div class="seg-btn active" data-scope="mine">Minha visão</div>
+              <div class="seg-btn" data-scope="shop">Barbearia toda</div>
             </div>
           </div>
-          <div class="chart-sub" id="ba-dash-bar-sub"></div>
-          <div class="bars" id="ba-dash-bars"></div>
-          <div class="bar-labels" id="ba-dash-bar-labels"></div>
+
+          <div class="ba-slabel">Comparativo</div>
+          <div id="ba-dash-comp"></div>
+
+          <div class="ba-slabel">Faturamento por dia</div>
+          <div class="chart-card">
+            <div class="chart-head">
+              <div class="chart-title">Total no período: <span id="ba-dash-bar-total">R$ 0</span></div>
+              <div class="period-chips" id="ba-dash-bar-chips">
+                <button class="period-chip active" data-days="7">7d</button>
+                <button class="period-chip" data-days="14">14d</button>
+                <button class="period-chip" data-days="30">30d</button>
+              </div>
+            </div>
+            <div class="chart-sub" id="ba-dash-bar-sub"></div>
+            <div class="bars" id="ba-dash-bars"></div>
+            <div class="bar-labels" id="ba-dash-bar-labels"></div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-head">
+              <div class="chart-title">Tendência de faturamento</div>
+              <div class="period-chips" id="ba-dash-line-chips">
+                <button class="period-chip" data-months="3">3m</button>
+                <button class="period-chip active" data-months="6">6m</button>
+                <button class="period-chip" data-months="12">12m</button>
+              </div>
+            </div>
+            <div class="line-wrap">
+              <svg class="line-svg" viewBox="0 0 400 120" preserveAspectRatio="none" id="ba-dash-line"></svg>
+            </div>
+            <div class="line-months" id="ba-dash-line-months"></div>
+          </div>
+
+          <div id="ba-dash-ranking-wrap" style="display:none">
+            <div class="ba-slabel" style="display:flex;justify-content:space-between;align-items:center">
+              <span>Ranking da equipe · este mês</span>
+              <div class="period-chips" id="ba-dash-rank-sort">
+                <button class="period-chip active" data-sort="attendances">Atend.</button>
+                <button class="period-chip" data-sort="rating">Feedbacks</button>
+              </div>
+            </div>
+            <div class="rank-list" id="ba-dash-ranking"></div>
+          </div>
         </div>
 
-        <div class="ba-slabel">Evolução mensal</div>
-        <div class="chart-card">
-          <div class="chart-head">
-            <div class="chart-title">Tendência de faturamento</div>
-            <div class="period-chips" id="ba-dash-line-chips">
-              <button class="period-chip" data-months="3">3m</button>
-              <button class="period-chip active" data-months="6">6m</button>
-              <button class="period-chip" data-months="12">12m</button>
+        <div id="ba-dash-sub-despesas" style="display:none">
+          <div id="ba-dash-despesas-wrap" style="display:none">
+            <div class="ba-slabel" style="margin-top:0;display:flex;justify-content:space-between;align-items:baseline">
+              <span>Despesas · este mês</span>
+              <span id="ba-dash-despesas-total" style="font-size:.78rem;color:var(--prata-dim);text-transform:none;letter-spacing:0">R$ 0,00</span>
+            </div>
+            <div id="ba-dash-despesas-list"></div>
+            <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+              <input type="text" id="ba-despesa-nome" class="add-input" placeholder="Nome da despesa..." style="flex:2;min-width:120px">
+              <input type="text" inputmode="decimal" id="ba-despesa-valor" class="add-input" placeholder="R$" style="flex:1;min-width:70px">
+              <input type="date" id="ba-despesa-data" class="add-input" style="flex:1;min-width:130px">
+              <select id="ba-despesa-categoria" class="add-input" style="flex:1;min-width:150px">
+                <option value="aluguel">Aluguel</option>
+                <option value="energia">Energia</option>
+                <option value="agua_internet">Água / Internet</option>
+                <option value="salarios">Salários administrativos</option>
+                <option value="produtos">Produtos e materiais</option>
+                <option value="marketing">Marketing</option>
+                <option value="software">Software / sistema</option>
+                <option value="taxa_maquininha">Taxa de maquininha</option>
+                <option value="outros" selected>Outros</option>
+              </select>
+              <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
             </div>
           </div>
-          <div class="line-wrap">
-            <svg class="line-svg" viewBox="0 0 400 120" preserveAspectRatio="none" id="ba-dash-line"></svg>
+
+          <div id="ba-dash-lucro-wrap" style="display:none">
+            <div class="ba-slabel">Lucro líquido estimado · este mês</div>
+            <div class="ba-comm" id="ba-dash-lucro"></div>
           </div>
-          <div class="line-months" id="ba-dash-line-months"></div>
         </div>
 
-        <div id="ba-dash-ranking-wrap" style="display:none">
-          <div class="ba-slabel" style="display:flex;justify-content:space-between;align-items:center">
-            <span>Ranking da equipe · este mês</span>
-            <div class="period-chips" id="ba-dash-rank-sort">
-              <button class="period-chip active" data-sort="attendances">Atend.</button>
-              <button class="period-chip" data-sort="rating">Feedbacks</button>
+        <div id="ba-dash-sub-relatorios" style="display:none">
+          <div class="ba-slabel" style="margin-top:0">Relatório mensal</div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baExportReportPDF()">🖨 Exportar PDF</button>
+            <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baShareReportWhatsApp()">📤 Compartilhar no WhatsApp</button>
+          </div>
+
+          <div id="ba-daily-wrap" style="display:none">
+            <div class="ba-slabel">Vendas do dia (equipe toda)</div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
+              <input type="date" id="ba-daily-data" class="add-input" style="flex:1;min-width:150px">
+              <button class="ba-btn" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baRenderDailySales()">Ver vendas do dia</button>
+              <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baExportDailySalesPDF()">🖨 Exportar PDF</button>
             </div>
-          </div>
-          <div class="rank-list" id="ba-dash-ranking"></div>
-        </div>
-
-        <div id="ba-dash-despesas-wrap" style="display:none">
-          <div class="ba-slabel" style="display:flex;justify-content:space-between;align-items:baseline">
-            <span>Despesas · este mês</span>
-            <span id="ba-dash-despesas-total" style="font-size:.78rem;color:var(--prata-dim);text-transform:none;letter-spacing:0">R$ 0,00</span>
-          </div>
-          <div id="ba-dash-despesas-list"></div>
-          <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
-            <input type="text" id="ba-despesa-nome" class="add-input" placeholder="Nome da despesa..." style="flex:2;min-width:120px">
-            <input type="text" inputmode="decimal" id="ba-despesa-valor" class="add-input" placeholder="R$" style="flex:1;min-width:70px">
-            <input type="date" id="ba-despesa-data" class="add-input" style="flex:1;min-width:130px">
-            <select id="ba-despesa-categoria" class="add-input" style="flex:1;min-width:150px">
-              <option value="aluguel">Aluguel</option>
-              <option value="energia">Energia</option>
-              <option value="agua_internet">Água / Internet</option>
-              <option value="salarios">Salários administrativos</option>
-              <option value="produtos">Produtos e materiais</option>
-              <option value="marketing">Marketing</option>
-              <option value="software">Software / sistema</option>
-              <option value="taxa_maquininha">Taxa de maquininha</option>
-              <option value="outros" selected>Outros</option>
-            </select>
-            <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
+            <div id="ba-daily-body"></div>
           </div>
         </div>
 
-        <div id="ba-dash-lucro-wrap" style="display:none">
-          <div class="ba-slabel">Lucro líquido estimado · este mês</div>
-          <div class="ba-comm" id="ba-dash-lucro"></div>
-        </div>
-
-        <div class="ba-slabel">Relatório mensal</div>
-        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-          <button class="ba-btn" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baExportReportPDF()">🖨 Exportar PDF</button>
-          <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baShareReportWhatsApp()">📤 Compartilhar no WhatsApp</button>
-        </div>
-
-        <div id="ba-dre-wrap" style="display:none">
-          <div class="ba-slabel">DRE gerencial (mês fechado)</div>
-          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
-            <select id="ba-dre-mes" class="add-input" style="flex:1;min-width:170px"></select>
-            <button class="ba-btn" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baRenderDREScreen()">Calcular DRE</button>
-            <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baExportDREPDF()">🖨 Exportar PDF</button>
+        <div id="ba-dash-sub-dre" style="display:none">
+          <div id="ba-dre-wrap" style="display:none">
+            <div class="ba-slabel" style="margin-top:0">DRE gerencial (mês fechado)</div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
+              <select id="ba-dre-mes" class="add-input" style="flex:1;min-width:170px"></select>
+              <button class="ba-btn" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baRenderDREScreen()">Calcular DRE</button>
+              <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baExportDREPDF()">🖨 Exportar PDF</button>
+            </div>
+            <div id="ba-dre-body"></div>
           </div>
-          <div id="ba-dre-body"></div>
-        </div>
-
-        <div id="ba-daily-wrap" style="display:none">
-          <div class="ba-slabel">Vendas do dia (equipe toda)</div>
-          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem">
-            <input type="date" id="ba-daily-data" class="add-input" style="flex:1;min-width:150px">
-            <button class="ba-btn" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baRenderDailySales()">Ver vendas do dia</button>
-            <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.6rem 1rem;margin:0" onclick="baExportDailySalesPDF()">🖨 Exportar PDF</button>
-          </div>
-          <div id="ba-daily-body"></div>
         </div>
       </div>
     </div>
@@ -3870,6 +3884,16 @@ async function baRenderDashboard(){
     const dEl = document.getElementById('ba-daily-data');
     if(dEl && !dEl.value) dEl.value = primeLocalDate();
   }
+  document.getElementById('ba-dash-subtab-despesas').style.display = isAdmin ? '' : 'none';
+  document.getElementById('ba-dash-subtab-dre').style.display = isAdmin ? '' : 'none';
+  baDashTab('visao');
+}
+function baDashTab(sub){
+  document.querySelectorAll('#ba-screen-dashboard [data-sub]').forEach(b=>b.classList.toggle('active', b.dataset.sub===sub));
+  document.getElementById('ba-dash-sub-visao').style.display = sub==='visao' ? 'block' : 'none';
+  document.getElementById('ba-dash-sub-despesas').style.display = sub==='despesas' ? 'block' : 'none';
+  document.getElementById('ba-dash-sub-relatorios').style.display = sub==='relatorios' ? 'block' : 'none';
+  document.getElementById('ba-dash-sub-dre').style.display = sub==='dre' ? 'block' : 'none';
 }
 
 async function baRenderDashMeta(){
