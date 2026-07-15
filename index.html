@@ -273,6 +273,7 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .svc h3{font-size:1.05rem;letter-spacing:.08em;margin-bottom:.5rem}
 .svc p{color:var(--prata-dim);font-size:.9rem;min-height:2.6em}
 .svc .price{display:block;margin-top:1.2rem;font-family:var(--font-display);font-size:1.3rem;color:var(--verde-neon)}
+.svc .price.price-locked,.lp-info .price.price-locked{font-family:var(--font-body);font-size:.78rem;letter-spacing:.03em;color:var(--dourado);text-decoration:underline;cursor:pointer}
 .svc .time{font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--prata-dim)}
 
 /* ── PRODUTOS (landing) ── */
@@ -493,14 +494,14 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <h2>Excelência em cada detalhe</h2>
     </div>
     <div class="svc-grid">
-      <div class="svc"><h3>Corte Social</h3><p>Clássico e versátil, alinhado ao seu estilo.</p><span class="price">R$ 30</span><span class="time"> · 30 min</span></div>
-      <div class="svc"><h3>Corte Degradê</h3><p>Fade moderno com acabamento na navalha.</p><span class="price">R$ 45</span><span class="time"> · 45 min</span></div>
-      <div class="svc"><h3>Corte Raspado</h3><p>Máquina do início ao fim, prático e no capricho.</p><span class="price">R$ 20</span><span class="time"> · 20 min</span></div>
-      <div class="svc"><h3>Corte Infantil</h3><p>Paciência e capricho pros pequenos clientes.</p><span class="price">R$ 35</span><span class="time"> · 35 min</span></div>
-      <div class="svc"><h3>Acabamento</h3><p>Pezinho e retoque pra manter o corte em dia.</p><span class="price">R$ 15</span><span class="time"> · 15 min</span></div>
-      <div class="svc"><h3>Barba Express</h3><p>Modelagem rápida com toalha quente.</p><span class="price">R$ 25</span><span class="time"> · 25 min</span></div>
-      <div class="svc"><h3>Barbaterapia</h3><p>Ritual relaxante com vapor, massagem e hidratação.</p><span class="price">R$ 45</span><span class="time"> · 50 min</span></div>
-      <div class="svc"><h3>Sobrancelha</h3><p>Design alinhado na navalha, respeitando o natural.</p><span class="price">R$ 20</span><span class="time"> · 15 min</span></div>
+      <div class="svc"><h3>Corte Social</h3><p>Clássico e versátil, alinhado ao seu estilo.</p><span class="price price-locked" data-price="R$ 30">Faça login para ver</span><span class="time"> · 30 min</span></div>
+      <div class="svc"><h3>Corte Degradê</h3><p>Fade moderno com acabamento na navalha.</p><span class="price price-locked" data-price="R$ 45">Faça login para ver</span><span class="time"> · 45 min</span></div>
+      <div class="svc"><h3>Corte Raspado</h3><p>Máquina do início ao fim, prático e no capricho.</p><span class="price price-locked" data-price="R$ 20">Faça login para ver</span><span class="time"> · 20 min</span></div>
+      <div class="svc"><h3>Corte Infantil</h3><p>Paciência e capricho pros pequenos clientes.</p><span class="price price-locked" data-price="R$ 35">Faça login para ver</span><span class="time"> · 35 min</span></div>
+      <div class="svc"><h3>Acabamento</h3><p>Pezinho e retoque pra manter o corte em dia.</p><span class="price price-locked" data-price="R$ 15">Faça login para ver</span><span class="time"> · 15 min</span></div>
+      <div class="svc"><h3>Barba Express</h3><p>Modelagem rápida com toalha quente.</p><span class="price price-locked" data-price="R$ 25">Faça login para ver</span><span class="time"> · 25 min</span></div>
+      <div class="svc"><h3>Barbaterapia</h3><p>Ritual relaxante com vapor, massagem e hidratação.</p><span class="price price-locked" data-price="R$ 45">Faça login para ver</span><span class="time"> · 50 min</span></div>
+      <div class="svc"><h3>Sobrancelha</h3><p>Design alinhado na navalha, respeitando o natural.</p><span class="price price-locked" data-price="R$ 20">Faça login para ver</span><span class="time"> · 15 min</span></div>
     </div>
   </div>
 </section>
@@ -513,11 +514,11 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <h2>Junte serviços,<br>economize no pacote</h2>
     </div>
     <div class="svc-grid">
-      <div class="svc"><h3>Corte e Sobrancelha</h3><p>Os dois serviços numa visita só, sem perder tempo extra.</p><span class="price">R$ 60</span></div>
-      <div class="svc"><h3>Corte e Barba</h3><p>O clássico combo completo, pronto pra qualquer ocasião.</p><span class="price">R$ 85</span></div>
-      <div class="svc"><h3>Corte, Barba e Sobrancelha</h3><p>Pacote completo pra sair totalmente renovado da cadeira.</p><span class="price">R$ 95</span></div>
-      <div class="svc"><h3>Social e Barba</h3><p>Corte social alinhado com barba bem modelada.</p><span class="price">R$ 70</span></div>
-      <div class="svc"><h3>Raspado e Barba</h3><p>Raspado na máquina e barba no capricho, rápido e prático.</p><span class="price">R$ 60</span></div>
+      <div class="svc"><h3>Corte e Sobrancelha</h3><p>Os dois serviços numa visita só, sem perder tempo extra.</p><span class="price price-locked" data-price="R$ 60">Faça login para ver</span></div>
+      <div class="svc"><h3>Corte e Barba</h3><p>O clássico combo completo, pronto pra qualquer ocasião.</p><span class="price price-locked" data-price="R$ 85">Faça login para ver</span></div>
+      <div class="svc"><h3>Corte, Barba e Sobrancelha</h3><p>Pacote completo pra sair totalmente renovado da cadeira.</p><span class="price price-locked" data-price="R$ 95">Faça login para ver</span></div>
+      <div class="svc"><h3>Social e Barba</h3><p>Corte social alinhado com barba bem modelada.</p><span class="price price-locked" data-price="R$ 70">Faça login para ver</span></div>
+      <div class="svc"><h3>Raspado e Barba</h3><p>Raspado na máquina e barba no capricho, rápido e prático.</p><span class="price price-locked" data-price="R$ 60">Faça login para ver</span></div>
     </div>
     <p style="text-align:center;margin-top:2rem;color:var(--prata-dim);font-size:.85rem;letter-spacing:.05em">Combos são fechados com o barbeiro no dia do atendimento.</p>
   </div>
@@ -531,14 +532,14 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <h2>Cuidado que vai<br>além do corte</h2>
     </div>
     <div class="svc-grid">
-      <div class="svc"><h3>Limpeza nasal/orelha</h3><p>Remoção de cera com cera quente, cuidado e conforto.</p><span class="price">R$ 24,90</span></div>
-      <div class="svc"><h3>Limpeza de pele</h3><p>Renovação facial completa com produtos profissionais.</p><span class="price">R$ 49,90</span></div>
-      <div class="svc"><h3>Botox capilar</h3><p>Alisamento com reconstrução e nutrição dos fios.</p><span class="price">R$ 109,90</span></div>
-      <div class="svc"><h3>Relaxamento</h3><p>Alisamento suave que reduz o volume sem perder o movimento.</p><span class="price">R$ 99,90</span></div>
-      <div class="svc"><h3>Progressiva</h3><p>Alisamento duradouro, fios lisos, macios e alinhados.</p><span class="price">R$ 109,90</span></div>
-      <div class="svc"><h3>Hidratação</h3><p>Reposição de nutrientes pro cabelo ficar mais saudável.</p><span class="price">R$ 39,90</span></div>
-      <div class="svc"><h3>Luzes</h3><p>Mechas claras com técnica e acabamento natural.</p><span class="price">R$ 129,90</span></div>
-      <div class="svc"><h3>Platinado</h3><p>Descoloração completa pra um visual marcante e único.</p><span class="price">R$ 179,90</span></div>
+      <div class="svc"><h3>Limpeza nasal/orelha</h3><p>Remoção de cera com cera quente, cuidado e conforto.</p><span class="price price-locked" data-price="R$ 24,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Limpeza de pele</h3><p>Renovação facial completa com produtos profissionais.</p><span class="price price-locked" data-price="R$ 49,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Botox capilar</h3><p>Alisamento com reconstrução e nutrição dos fios.</p><span class="price price-locked" data-price="R$ 109,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Relaxamento</h3><p>Alisamento suave que reduz o volume sem perder o movimento.</p><span class="price price-locked" data-price="R$ 99,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Progressiva</h3><p>Alisamento duradouro, fios lisos, macios e alinhados.</p><span class="price price-locked" data-price="R$ 109,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Hidratação</h3><p>Reposição de nutrientes pro cabelo ficar mais saudável.</p><span class="price price-locked" data-price="R$ 39,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Luzes</h3><p>Mechas claras com técnica e acabamento natural.</p><span class="price price-locked" data-price="R$ 129,90">Faça login para ver</span></div>
+      <div class="svc"><h3>Platinado</h3><p>Descoloração completa pra um visual marcante e único.</p><span class="price price-locked" data-price="R$ 179,90">Faça login para ver</span></div>
     </div>
   </div>
 </section>
@@ -2288,6 +2289,22 @@ function updateNavAuthUI(){
   const loggedIn = primeIsLoggedIn();
   document.getElementById('nav-login-item').style.display = loggedIn ? 'none' : '';
   document.getElementById('nav-account-item').style.display = loggedIn ? '' : 'none';
+  primeUpdatePriceVisibility();
+}
+// preços da landing (serviços, combos, tratamentos, produtos, planos) só aparecem pra quem logou
+function primeUpdatePriceVisibility(){
+  const loggedIn = primeIsLoggedIn();
+  document.querySelectorAll('.price[data-price]').forEach(el=>{
+    if(loggedIn){
+      el.textContent = el.dataset.price;
+      el.classList.remove('price-locked');
+      el.onclick = null;
+    } else {
+      el.textContent = 'Faça login para ver';
+      el.classList.add('price-locked');
+      el.onclick = caOpen;
+    }
+  });
 }
 // ── Sino de notificações do cliente ──
 function caClientTarget(){ const acc=primeGetAccount(); return acc && acc.id; }
@@ -6205,9 +6222,10 @@ async function renderLandingProducts(){
     const out = p.stock<=0 ? '<span class="lp-out">Esgotado</span>' : '';
     return `<div class="lp-card">
       <div class="lp-photo">${photo}${out}</div>
-      <div class="lp-info"><h3>${p.name}</h3><span class="price">R$ ${p.price.toFixed(2).replace('.',',')}</span></div>
+      <div class="lp-info"><h3>${p.name}</h3><span class="price price-locked" data-price="R$ ${p.price.toFixed(2).replace('.',',')}">Faça login para ver</span></div>
     </div>`;
   }).join('');
+  primeUpdatePriceVisibility();
 }
 (async function baBootstrapAuth(){
   await baLoadRoster();
