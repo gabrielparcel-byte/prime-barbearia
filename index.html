@@ -89,6 +89,10 @@
       document.getElementById('recoveryModal').classList.add('open');
     }
   });
+  function closeRecoveryModal(){
+    document.getElementById('recoveryModal').classList.remove('open');
+    sb.auth.signOut();
+  }
   async function caSubmitNewPassword(){
     const p1 = document.getElementById('rc-pass1'), p2 = document.getElementById('rc-pass2');
     const err = document.getElementById('rc-err'), ok = document.getElementById('rc-ok'), btn = document.getElementById('rc-submit');
@@ -102,6 +106,7 @@
     ok.style.display = 'block';
     p1.value = ''; p2.value = '';
     history.replaceState(null, '', window.location.pathname);
+    setTimeout(closeRecoveryModal, 1800);
   }
   // Fase 5 — notificações push. Chave pública VAPID, segura de expor (só prova que o servidor certo assinou o pedido).
   const VAPID_PUBLIC_KEY = 'BEFao3ekLM3-fgQXKvnuiNhcE33TrPTlqyELLko5w1XOEQ6UjZ1N0GGJFep1Z21EE87xoAVR0zCueKDq87MLOU4';
@@ -1429,6 +1434,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 <!-- MODAL: redefinir senha (após clicar no link do e-mail de recuperação) -->
 <div class="modal-backdrop" id="recoveryModal" role="dialog" aria-modal="true" style="z-index:1400">
   <div class="modal" style="max-width:380px;text-align:center">
+    <button class="close" aria-label="Fechar" onclick="closeRecoveryModal()">✕</button>
     <h3>Defina sua nova senha</h3>
     <p style="color:var(--prata-dim);font-size:.85rem;margin:.6rem 0 1.4rem">Escolha uma senha nova pra continuar.</p>
     <input type="password" id="rc-pass1" placeholder="Nova senha (mín. 6 caracteres)" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:.8rem">
