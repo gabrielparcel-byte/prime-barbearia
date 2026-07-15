@@ -3957,6 +3957,13 @@ function baRenderDashLine(months){
   }
   const vals = data.map(d=>d.val);
   const maxM = Math.max(...vals), minM = Math.min(...vals);
+  if(maxM===0){
+    document.getElementById('ba-dash-line').innerHTML = `<text x="200" y="60" text-anchor="middle" fill="var(--prata-dim)" font-size="11" font-family="var(--font-body)">Sem faturamento registrado nesse período ainda</text>`;
+    document.getElementById('ba-dash-line-months').innerHTML = data.map((d,i)=>
+      `<span>${i===data.length-1 || i%(months<=6?1:2)===0 ? BA_MONTHS[d.month.getMonth()] : ''}</span>`
+    ).join('');
+    return;
+  }
   const pad = 10, w = 400, h = 100;
   const pts = data.map((d,i)=>{
     const x = pad + (i/(data.length-1||1)) * (w-pad*2);
