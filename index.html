@@ -83,6 +83,26 @@
     'https://yojvzwkvtedxqlohpuug.supabase.co',
     'sb_publishable_Sr6YB54aCIQVdvhdrNWlSA_PMjlAdMG'
   );
+  // clicou no link do e-mail de redefinição de senha — abre o modal de trocar senha
+  sb.auth.onAuthStateChange((event) => {
+    if(event === 'PASSWORD_RECOVERY'){
+      document.getElementById('recoveryModal').classList.add('open');
+    }
+  });
+  async function caSubmitNewPassword(){
+    const p1 = document.getElementById('rc-pass1'), p2 = document.getElementById('rc-pass2');
+    const err = document.getElementById('rc-err'), ok = document.getElementById('rc-ok'), btn = document.getElementById('rc-submit');
+    ok.style.display = 'none';
+    if(p1.value.length < 6 || p1.value !== p2.value){ err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    btn.disabled = true;
+    const { error } = await sb.auth.updateUser({ password: p1.value });
+    btn.disabled = false;
+    if(error){ err.textContent = 'Não foi possível trocar a senha. Peça o link de novo.'; err.style.display = 'block'; return; }
+    ok.style.display = 'block';
+    p1.value = ''; p2.value = '';
+    history.replaceState(null, '', window.location.pathname);
+  }
   // Fase 5 — notificações push. Chave pública VAPID, segura de expor (só prova que o servidor certo assinou o pedido).
   const VAPID_PUBLIC_KEY = 'BEFao3ekLM3-fgQXKvnuiNhcE33TrPTlqyELLko5w1XOEQ6UjZ1N0GGJFep1Z21EE87xoAVR0zCueKDq87MLOU4';
   if('serviceWorker' in navigator){
@@ -1406,6 +1426,19 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
   </div>
 </div>
 
+<!-- MODAL: redefinir senha (após clicar no link do e-mail de recuperação) -->
+<div class="modal-backdrop" id="recoveryModal" role="dialog" aria-modal="true" style="z-index:1400">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <h3>Defina sua nova senha</h3>
+    <p style="color:var(--prata-dim);font-size:.85rem;margin:.6rem 0 1.4rem">Escolha uma senha nova pra continuar.</p>
+    <input type="password" id="rc-pass1" placeholder="Nova senha (mín. 6 caracteres)" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:.8rem">
+    <input type="password" id="rc-pass2" placeholder="Confirme a nova senha" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:1rem">
+    <p id="rc-err" style="color:var(--erro);font-size:.82rem;margin-bottom:1rem;display:none">As senhas precisam ter 6+ caracteres e coincidir.</p>
+    <p id="rc-ok" style="color:var(--verde-neon);font-size:.82rem;margin-bottom:1rem;display:none">Senha alterada! Pode fechar e entrar com a senha nova.</p>
+    <button class="btn btn-primary" style="width:100%" id="rc-submit" onclick="caSubmitNewPassword()">Salvar nova senha</button>
+  </div>
+</div>
+
 <!-- MODAL: política de privacidade -->
 <div class="modal-backdrop" id="privacyModal" role="dialog" aria-modal="true" style="z-index:1300" onclick="if(event.target===this)closePrivacyModal()">
   <div class="modal" style="max-width:640px">
@@ -2262,7 +2295,7 @@ async function caSendPasswordReset(){
   const e = document.getElementById('ca-email'), fe = document.getElementById('ca-f-email');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.value)){ fe.classList.add('invalid'); alert('Digite seu e-mail no campo acima primeiro.'); return; }
   fe.classList.remove('invalid');
-  const { error } = await sb.auth.resetPasswordForEmail(e.value.trim());
+  const { error } = await sb.auth.resetPasswordForEmail(e.value.trim(), { redirectTo: window.location.origin + window.location.pathname });
   alert(error ? 'Não foi possível enviar o e-mail de redefinição.' : `Enviamos um link de redefinição pra ${e.value.trim()} (confira o spam também).`);
 }
 async function caRenderReferralCard(){
@@ -5546,7 +5579,7 @@ function baBuildEditForm(b, i){
 }
 
 async function baSendPasswordReset(email){
-  const { error } = await sb.auth.resetPasswordForEmail(email);
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
   alert(error ? 'Não foi possível enviar o e-mail de redefinição.' : `E-mail de redefinição enviado para ${email}.`);
 }
 
