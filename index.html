@@ -291,6 +291,18 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .lp-info h3{font-size:1rem;letter-spacing:.04em;margin-bottom:.4rem}
 .lp-info .price{font-family:var(--font-display);font-size:1.2rem;color:var(--verde-neon)}
 
+/* ── CATÁLOGO COMPLETO (overlay) ── */
+.pcat-overlay{position:fixed;inset:0;z-index:1250;background:var(--verde-noite);display:none;flex-direction:column;overflow:hidden}
+.pcat-overlay.open{display:flex}
+.pcat-head{flex:none;display:flex;align-items:center;gap:1rem;padding:1.1rem 1.4rem;border-bottom:1px solid var(--dourado-dim);background:var(--grafite)}
+.pcat-back{background:none;border:1px solid var(--dourado-dim);color:var(--prata);width:38px;height:38px;border-radius:50%;font-size:1.1rem;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center}
+.pcat-back:hover{border-color:var(--dourado);color:var(--dourado)}
+.pcat-title{font-family:var(--font-display);font-size:1.05rem;letter-spacing:.08em;color:var(--prata)}
+.pcat-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1.6rem 1.4rem 3rem}
+.pcat-search{display:block;width:100%;max-width:420px;margin:0 auto 2rem;background:var(--grafite-card);border:1px solid var(--hair);border-radius:6px;padding:.8rem 1rem;color:var(--prata);font-family:var(--font-body);font-size:.9rem;outline:none}
+.pcat-search:focus{border-color:var(--dourado)}
+.pcat-empty{text-align:center;color:var(--prata-dim);font-size:.85rem;margin-top:2rem}
+
 /* ── EQUIPE ── */
 .team .sec-head{text-align:center}
 .team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem}
@@ -555,9 +567,24 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <h2>Produtos que a gente<br>usa e vende</h2>
     </div>
     <div id="lp-grid"></div>
-    <p style="text-align:center;margin-top:2rem;color:var(--prata-dim);font-size:.85rem;letter-spacing:.05em">Disponível pra compra na barbearia.</p>
+    <div id="lp-vermais-wrap" style="text-align:center;margin-top:2.2rem;display:none">
+      <button class="btn btn-ghost" id="lp-vermais-btn" onclick="primeOpenProductCatalog()">Ver todos os produtos</button>
+    </div>
+    <p style="text-align:center;margin-top:1.4rem;color:var(--prata-dim);font-size:.85rem;letter-spacing:.05em">Disponível pra compra na barbearia.</p>
   </div>
 </section>
+
+<!-- CATÁLOGO COMPLETO -->
+<div class="pcat-overlay" id="productCatalogView" role="dialog" aria-modal="true">
+  <div class="pcat-head">
+    <button class="pcat-back" aria-label="Voltar" onclick="primeCloseProductCatalog()">←</button>
+    <span class="pcat-title">Catálogo completo</span>
+  </div>
+  <div class="pcat-body">
+    <input type="text" id="pcat-search" class="pcat-search" placeholder="Buscar produto..." oninput="primeRenderProductCatalog(this.value)">
+    <div id="pcat-grid"></div>
+  </div>
+</div>
 
 <!-- EQUIPE -->
 <section class="team" id="equipe">
@@ -792,8 +819,8 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 <div class="modal-backdrop" id="authPromptModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:420px;text-align:center">
     <button class="close" aria-label="Fechar" onclick="dismissAuthPrompt()">✕</button>
-    <h3>Falta pouco!</h3>
-    <p style="color:var(--prata-dim);margin:1rem 0 1.8rem">Pra garantir esse horário, crie sua conta ou faça login — assim você acompanha tudo em "Meus agendamentos".</p>
+    <h3 id="authPromptTitle">Falta pouco!</h3>
+    <p style="color:var(--prata-dim);margin:1rem 0 1.8rem" id="authPromptBody">Pra garantir esse horário, crie sua conta ou faça login — assim você acompanha tudo em "Meus agendamentos".</p>
     <div style="display:flex;flex-direction:column;gap:.8rem">
       <button class="btn btn-primary" onclick="authPromptGo('signup')">Criar conta</button>
       <button class="btn btn-ghost" onclick="authPromptGo('login')">Já tenho conta</button>
@@ -866,6 +893,23 @@ function barbersScheduledAt(weekday, timeStr){
 // ══ Estado do wizard ══
 const state = {step:1, services:[], day:null, dayLabel:null, time:null, barber:null, barberId:null, barberIntroAnswered:null};
 let pendingBooking = null;
+let pendingProductCatalog = false;
+const AUTH_PROMPT_COPY = {
+  booking: {
+    title: 'Falta pouco!',
+    body: 'Pra garantir esse horário, crie sua conta ou faça login — assim você acompanha tudo em "Meus agendamentos".'
+  },
+  catalog: {
+    title: 'Só mais um passo',
+    body: 'Crie sua conta ou faça login pra ver o catálogo completo, com todos os produtos e preços.'
+  }
+};
+function primeShowAuthPrompt(reason){
+  const copy = AUTH_PROMPT_COPY[reason] || AUTH_PROMPT_COPY.booking;
+  document.getElementById('authPromptTitle').textContent = copy.title;
+  document.getElementById('authPromptBody').textContent = copy.body;
+  document.getElementById('authPromptModal').classList.add('open');
+}
 const modal = document.getElementById('bookingModal');
 const steps = [...document.querySelectorAll('.wstep')];
 const labels = ["Escolha o serviço","Escolha o dia","Escolha o horário","Escolha o barbeiro","Seus dados"];
@@ -873,7 +917,7 @@ const labels = ["Escolha o serviço","Escolha o dia","Escolha o horário","Escol
 function openModal(){ modal.classList.add('open'); document.body.style.overflow='hidden'; buildDays(); }
 function closeModal(){ modal.classList.remove('open'); const appOpen = document.querySelector('#clientApp.open,#barberApp.open'); if(!appOpen) document.body.style.overflow=''; }
 function closeAuthPrompt(){ document.getElementById('authPromptModal').classList.remove('open'); }
-function dismissAuthPrompt(){ pendingBooking=null; closeAuthPrompt(); }
+function dismissAuthPrompt(){ pendingBooking=null; pendingProductCatalog=false; closeAuthPrompt(); }
 function authPromptGo(kind){
   closeAuthPrompt();
   caOpen();
@@ -887,7 +931,7 @@ document.querySelector('[data-close-booking]').addEventListener('click',closeMod
 modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
 const authModal = document.getElementById('authPromptModal');
 authModal.addEventListener('click',e=>{ if(e.target===authModal) dismissAuthPrompt(); });
-addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); dismissAuthPrompt(); } });
+addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); dismissAuthPrompt(); primeCloseProductCatalog(); } });
 
 function render(){
   steps.forEach(s=>s.classList.toggle('active', +s.dataset.step===state.step));
@@ -1035,7 +1079,7 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
     if(state.step===3 && !primeIsLoggedIn()){
       pendingBooking = {services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time};
       closeModal();
-      document.getElementById('authPromptModal').classList.add('open');
+      primeShowAuthPrompt('booking');
       return;
     }
     state.step++;
@@ -2311,6 +2355,11 @@ function caEnter(){
   caRenderHomeBarbeiro();
   caRenderNotifs();
   setTimeout(caCelebrateUnlocks, 600);
+  if(pendingProductCatalog){
+    pendingProductCatalog = false;
+    caClose();
+    primeOpenProductCatalog();
+  }
 }
 function caRenderHomeBarbeiro(){
   const acc = primeGetAccount();
@@ -6421,24 +6470,76 @@ function renderTeamSection(){
       </div>
     </div>`).join('') : '<p style="color:var(--prata-dim)">Equipe em breve.</p>';
 }
+const PROD_LANDING_PLACEHOLDER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
+const PROD_TEASER_LIMIT = 6;
+let primeAllProductsCache = [];
+function primeProductCard(p){
+  const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : PROD_LANDING_PLACEHOLDER;
+  const out = p.stock<=0 ? '<span class="lp-out">Esgotado</span>' : '';
+  return `<div class="lp-card">
+    <div class="lp-photo">${photo}${out}</div>
+    <div class="lp-info"><h3>${p.name}</h3><span class="price price-locked" data-price="R$ ${p.price.toFixed(2).replace('.',',')}">Faça login para ver</span></div>
+  </div>`;
+}
 async function renderLandingProducts(){
   const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
   if(error){ console.error('renderLandingProducts', error); return; }
   const section = document.getElementById('produtos-landing');
   if(!data || !data.length){ section.style.display = 'none'; return; }
   section.style.display = '';
-  const placeholder = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
-  const card = p=>{
-    const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : placeholder;
-    const out = p.stock<=0 ? '<span class="lp-out">Esgotado</span>' : '';
-    return `<div class="lp-card">
-      <div class="lp-photo">${photo}${out}</div>
-      <div class="lp-info"><h3>${p.name}</h3><span class="price price-locked" data-price="R$ ${p.price.toFixed(2).replace('.',',')}">Faça login para ver</span></div>
-    </div>`;
-  };
-  const groups = baGroupProductsByCategory(data);
-  document.getElementById('lp-grid').innerHTML = groups.map(g=>
-    `<div class="lp-group"><div class="lp-group-label">${g.category}</div><div class="lp-group-grid">${g.items.map(card).join('')}</div></div>`
+  primeAllProductsCache = data;
+  const teaser = data.slice(0, PROD_TEASER_LIMIT);
+  document.getElementById('lp-grid').innerHTML = `<div class="lp-group-grid">${teaser.map(primeProductCard).join('')}</div>`;
+  const vermaisWrap = document.getElementById('lp-vermais-wrap');
+  const resto = data.length - teaser.length;
+  if(resto > 0){
+    document.getElementById('lp-vermais-btn').textContent = `Ver todos os ${data.length} produtos`;
+    vermaisWrap.style.display = '';
+  } else {
+    vermaisWrap.style.display = 'none';
+  }
+  primeUpdatePriceVisibility();
+}
+function primeGroupByCategoryAlpha(products){
+  const byCat = {};
+  products.forEach(p=>{
+    const cat = p.category || 'Outros';
+    (byCat[cat] = byCat[cat] || []).push(p);
+  });
+  return Object.keys(byCat).sort((a,b)=>a.localeCompare(b)).map(category=>({
+    category, items: byCat[category].slice().sort((a,b)=>a.name.localeCompare(b.name))
+  }));
+}
+async function primeOpenProductCatalog(){
+  if(!primeIsLoggedIn()){
+    pendingProductCatalog = true;
+    primeShowAuthPrompt('catalog');
+    return;
+  }
+  document.getElementById('productCatalogView').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if(!primeAllProductsCache.length){
+    const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
+    if(!error && data) primeAllProductsCache = data;
+  }
+  document.getElementById('pcat-search').value = '';
+  primeRenderProductCatalog('');
+}
+function primeCloseProductCatalog(){
+  document.getElementById('productCatalogView').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function primeRenderProductCatalog(search){
+  const q = (search||'').trim().toLowerCase();
+  const filtered = q ? primeAllProductsCache.filter(p=>p.name.toLowerCase().includes(q)) : primeAllProductsCache;
+  const grid = document.getElementById('pcat-grid');
+  if(!filtered.length){
+    grid.innerHTML = '<p class="pcat-empty">Nenhum produto encontrado.</p>';
+    return;
+  }
+  const groups = primeGroupByCategoryAlpha(filtered);
+  grid.innerHTML = groups.map(g=>
+    `<div class="lp-group"><div class="lp-group-label">${g.category}</div><div class="lp-group-grid">${g.items.map(primeProductCard).join('')}</div></div>`
   ).join('');
   primeUpdatePriceVisibility();
 }
