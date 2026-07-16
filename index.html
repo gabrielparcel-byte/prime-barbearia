@@ -1794,33 +1794,35 @@ function baLoadAgendaCache(barberId){
   try{ return JSON.parse(localStorage.getItem(baAgendaCacheKey(barberId))||'null'); }catch(e){ return null; }
 }
 async function baFetchAgendaAppointments(day){
+  if(!baActingBarberId) return [];
   try{
-    const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baCurrentBarberId).eq('day', day).neq('status','cancelado');
+    const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baActingBarberId).eq('day', day).neq('status','cancelado');
     if(error) throw error;
     const appts = (data||[]).map(primeApptFromRow);
-    const cache = baLoadAgendaCache(baCurrentBarberId);
-    baSaveAgendaCache(baCurrentBarberId, day, appts, (cache && cache.pending) || []);
+    const cache = baLoadAgendaCache(baActingBarberId);
+    baSaveAgendaCache(baActingBarberId, day, appts, (cache && cache.pending) || []);
     baAgendaIsStale = false;
     return appts;
   }catch(e){
     console.error('baFetchAgendaAppointments', e);
-    const cache = baLoadAgendaCache(baCurrentBarberId);
+    const cache = baLoadAgendaCache(baActingBarberId);
     if(cache && cache.day === day){ baAgendaIsStale = true; baAgendaCacheSavedAt = cache.savedAt; return cache.appts; }
     baAgendaIsStale = true; baAgendaCacheSavedAt = null;
     return [];
   }
 }
 async function baFetchPendingAppointments(){
+  if(!baActingBarberId) return [];
   try{
-    const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baCurrentBarberId).eq('status','pendente');
+    const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baActingBarberId).eq('status','pendente');
     if(error) throw error;
     const pending = (data||[]).map(primeApptFromRow);
-    const cache = baLoadAgendaCache(baCurrentBarberId);
-    baSaveAgendaCache(baCurrentBarberId, (cache && cache.day) || null, (cache && cache.appts) || [], pending);
+    const cache = baLoadAgendaCache(baActingBarberId);
+    baSaveAgendaCache(baActingBarberId, (cache && cache.day) || null, (cache && cache.appts) || [], pending);
     return pending;
   }catch(e){
     console.error('baFetchPendingAppointments', e);
-    const cache = baLoadAgendaCache(baCurrentBarberId);
+    const cache = baLoadAgendaCache(baActingBarberId);
     baAgendaIsStale = true; baAgendaCacheSavedAt = cache ? cache.savedAt : baAgendaCacheSavedAt;
     return (cache && cache.pending) || [];
   }
@@ -3356,6 +3358,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <button class="ca-bell" onclick="baToggleNotifs()" aria-label="Notificações"><svg class="pi-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 3.4 1 5.4 2 7H4c1-1.6 2-3.6 2-7z"/><path d="M9.5 19a2.5 2.5 0 005 0"/></svg><span class="ca-bell-count" id="ba-bell-count-m" style="display:none">0</span></button>
       </div>
       <div class="ba-body">
+        <div id="ba-vendas-picker-agenda" style="display:none"></div>
         <div id="ba-offline-banner" class="offline-banner" style="display:none">
           <svg class="pi-icon" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55"/><path d="M5 12.55a10.94 10.94 0 015.17-2.39"/><path d="M10.71 5.05A16 16 0 0122.58 9"/><path d="M1.42 9a15.91 15.91 0 014.7-2.88"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
           <span id="ba-offline-banner-text">Sem conexão — mostrando agenda salva</span>
@@ -3376,6 +3379,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
     <div class="screen" id="ba-screen-atendimento">
       <div class="ba-head"><div><div class="hi">Registrar</div><div class="name">Atendimento</div></div></div>
       <div class="ba-body">
+        <div id="ba-vendas-picker-at" style="display:none"></div>
         <div class="ba-slabel" style="margin-top:0">Cliente</div>
         <div class="seg" id="at-client-seg">
           <div class="seg-btn active" data-mode="buscar">Buscar existente</div>
@@ -3701,15 +3705,17 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div class="ba-field" id="ba-f-nb-name"><label>Nome</label><input type="text" id="ba-nb-name" placeholder="Nome do barbeiro"><span class="err">Digite um nome</span></div>
           <div class="ba-field" id="ba-f-nb-email"><label>E-mail (referência)</label><input type="email" id="ba-nb-email" placeholder="email@prime.com"><span class="err">Digite um e-mail válido</span></div>
           <div class="ba-field"><label>Função</label>
-            <select id="ba-nb-role">
+            <select id="ba-nb-role" onchange="baNbRoleChanged()">
               <option value="barbeiro">Barbeiro</option>
               <option value="admin">Admin</option>
+              <option value="vendas">Vendas (balcão)</option>
             </select>
           </div>
-          <label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;color:var(--prata-dim);margin-bottom:1.2rem;cursor:pointer">
+          <label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;color:var(--prata-dim);margin-bottom:.5rem;cursor:pointer">
             <input type="checkbox" id="ba-nb-isbarber" checked style="width:16px;height:16px;accent-color:var(--dourado)">
             Atende clientes como barbeiro (aparece pra escolha dos clientes)
           </label>
+          <p id="ba-nb-vendas-hint" style="display:none;color:var(--prata-dim);font-size:.76rem;margin:0 0 1.2rem;line-height:1.5">Conta de balcão — não atende clientes como barbeiro. Depois que a pessoa aceitar o convite, abra a Equipe e desmarque "Atende clientes como barbeiro" pra ela sumir da escolha de barbeiro do cliente.</p>
           <button class="ba-btn" style="max-width:100%" onclick="baCreateBarber()">Gerar convite</button>
           <p class="ba-err" id="ba-nb-err">Já existe um barbeiro cadastrado com esse e-mail.</p>
           <p id="ba-nb-invite-result" style="display:none;color:var(--prata-dim);font-size:.85rem;margin-top:.8rem;line-height:1.5"></p>
@@ -3775,6 +3781,9 @@ let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a c
 let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê a aba Gestão
 let baCurrentBarberEmail = null;
 let baCurrentBarberId = null; // uuid em barbers — usado nas queries de appointments/vendas/clientes
+// barbeiro "em ação" nas telas de agenda/atendimento: pra barbeiro comum é sempre o próprio (= baCurrentBarberId);
+// pra conta role='vendas' é setado dinamicamente pelo seletor de barbeiro (baRenderVendasPicker)
+let baActingBarberId = null;
 let baRosterCache = []; // mirror em memória da tabela `barbers` do Supabase
 let baProductsCache = []; // mirror em memória da tabela `products` — refresh em pontos de entrada, leitura síncrona no resto
 
@@ -3843,7 +3852,8 @@ function baCrmFromRow(r){
     email:r.email, age:r.age, instagram:r.instagram, plan:r.plan };
 }
 async function baFetchMyCrmClients(){
-  const { data, error } = await sb.from('crm_clients').select('*').eq('barber_id', baCurrentBarberId);
+  if(!baActingBarberId) return [];
+  const { data, error } = await sb.from('crm_clients').select('*').eq('barber_id', baActingBarberId);
   if(error){ console.error('baFetchMyCrmClients', error); return []; }
   return (data||[]).map(baCrmFromRow);
 }
@@ -3859,7 +3869,7 @@ async function baFindRealClientId(name, phone, email){
 async function baCreateCrmClient(fields){ // {name, phone?, email?, age?, instagram?}
   const clientId = await baFindRealClientId(fields.name, fields.phone, fields.email);
   const { data, error } = await sb.from('crm_clients').insert({
-    barber_id: baCurrentBarberId, client_id: clientId, name: fields.name, phone: fields.phone||null,
+    barber_id: baActingBarberId, client_id: clientId, name: fields.name, phone: fields.phone||null,
     email: fields.email||null, age: fields.age||null, instagram: fields.instagram||null
   }).select().single();
   if(error){ console.error('baCreateCrmClient', error); return null; }
@@ -3885,8 +3895,35 @@ function baShow(id){document.querySelectorAll('#barberApp .screen').forEach(s=>s
 function baOpen(){document.getElementById('barberApp').classList.add('open');document.body.style.overflow='hidden'}
 function baClose(){document.getElementById('barberApp').classList.remove('open');document.body.style.overflow=''}
 
+// seletor de barbeiro nas telas de Agenda/Atendimento — só aparece pra conta role='vendas'.
+// escolher um chip seta baActingBarberId e reaproveita baTab() pra re-renderizar a tela atual.
+function baRenderVendasPicker(containerId, headSelector){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  if(baCurrentRole!=='vendas'){ el.style.display='none'; return; }
+  el.style.display='block';
+  const barbers = primeGetBarberRoster();
+  el.innerHTML = `
+    <div class="ba-slabel" style="margin-top:0">Atendendo em nome de</div>
+    <div class="chips" style="margin-bottom:1.1rem">
+      ${barbers.length ? barbers.map(b=>`<button class="chip${baActingBarberId===b.id?' active':''}" onclick="baSetActingBarber('${b.id}')">${b.name.replace(/"/g,'&quot;')}</button>`).join('')
+        : '<span style="color:var(--prata-dim);font-size:.82rem">Nenhum barbeiro cadastrado.</span>'}
+    </div>
+    ${!baActingBarberId ? '<p style="color:var(--prata-dim);font-size:.82rem;margin:-.6rem 0 1rem">Escolha um barbeiro pra ver a agenda e finalizar atendimentos.</p>' : ''}`;
+  const headNameEl = document.querySelector(headSelector);
+  if(headNameEl){
+    const b = barbers.find(x=>x.id===baActingBarberId);
+    headNameEl.textContent = b ? b.name : 'Escolha um barbeiro';
+  }
+}
+function baSetActingBarber(id){
+  baActingBarberId = id;
+  const activeTab = document.querySelector('#barberApp .ba-tab.active,#barberApp .ba-links button.active');
+  baTab(activeTab ? activeTab.dataset.tab : 'agenda');
+}
 function baTab(tab){
   if(tab==='gestao' && baCurrentRole!=='admin') tab='perfil';
+  if((tab==='dashboard'||tab==='clientes'||tab==='vendas') && baCurrentRole==='vendas') tab='agenda';
   const m={agenda:'ba-screen-agenda',vendas:'ba-screen-vendas',clientes:'ba-screen-clientes',perfil:'ba-screen-perfil',dashboard:'ba-screen-dashboard',atendimento:'ba-screen-atendimento',gestao:'ba-screen-gestao'};
   baShow(m[tab]);
   document.querySelectorAll('#barberApp .ba-tab,#barberApp .ba-links button').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
@@ -5454,7 +5491,8 @@ let baAgendaDay = null;
 
 const ATENDIMENTO_AUTO_START_MIN = 6;
 async function baAutoStartDueAppointments(){
-  const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baCurrentBarberId).eq('status','confirmado').is('iniciado_em', null);
+  if(!baActingBarberId) return;
+  const { data, error } = await sb.from('appointments').select('*').eq('barber_id', baActingBarberId).eq('status','confirmado').is('iniciado_em', null);
   if(error){ console.error('baAutoStartDueAppointments', error); return; }
   const now = Date.now();
   const due = (data||[]).filter(a=>{
@@ -5467,6 +5505,7 @@ async function baAutoStartDueAppointments(){
   }));
 }
 async function baRenderAgenda(){
+  baRenderVendasPicker('ba-vendas-picker-agenda', '#ba-screen-agenda .ba-head .name');
   await baAutoStartDueAppointments();
   baBuildAgendaDays();
   await baBuildAgendaTimes();
@@ -5571,7 +5610,7 @@ async function baCartAddProduct(productId){
   const currentQty = existing ? existing.qty : 0;
   if(currentQty+1 > product.stock) return;
   if(existing) await sb.from('cart_items').update({qty: existing.qty+1}).eq('id', existing.id);
-  else await sb.from('cart_items').insert({appointment_id: baCarrinhoApptId, barber_id: baCurrentBarberId, product_id: productId, qty: 1});
+  else await sb.from('cart_items').insert({appointment_id: baCarrinhoApptId, barber_id: baActingBarberId, product_id: productId, qty: 1});
   document.getElementById('cart-prod-search').value = '';
   document.getElementById('cart-prod-results').innerHTML = '';
   baRenderCartItems();
@@ -5632,12 +5671,12 @@ async function baFinalizarCarrinho(){
   const today = primeLocalDate();
   const now = new Date().toTimeString().slice(0,5);
 
-  const rows = [{barberId: baCurrentBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
+  const rows = [{barberId: baActingBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
     service: svcs.join(' + ')||'Serviço', value: svcValue, date: today, time: now, notaId}];
   for(const item of items){
     const p = products.find(x=>x.id===item.product_id);
     if(!p) continue;
-    rows.push({barberId: baCurrentBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
+    rows.push({barberId: baActingBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
       service: p.name, value: p.price*item.qty, qty: item.qty, date: today, time: now, notaId, type:'produto'});
     await baDecrementStock(p.id, item.qty);
   }
@@ -5902,7 +5941,7 @@ async function baSaveEncaixe(){
   const appt = await primeCreateAppointment({
     services: svcs, day: baAgendaDay, dayLabel: dayLabel, time: time, duration: dur,
     name: baEncSelectedClient.name, clientId: baEncSelectedClient.id, clientEmail: baEncSelectedClient.email || null,
-    barberId: baCurrentBarberId, status: 'confirmado', isEncaixe: true
+    barberId: baActingBarberId, status: 'confirmado', isEncaixe: true
   });
   if(!appt){ fail('Não foi possível salvar o encaixe. Tente de novo.'); return; }
   if(notify && baEncSelectedClient.id){
@@ -5953,6 +5992,7 @@ function baAtResetFields(){
   document.getElementById('at-time').value = now.toTimeString().slice(0,5);
 }
 function baRenderAtendimento(){
+  baRenderVendasPicker('ba-vendas-picker-at', '#ba-screen-atendimento .ba-head .name');
   baAtResetFields();
   document.getElementById('at-success').style.display = 'none';
 }
@@ -6123,12 +6163,12 @@ async function baAtRegistrar(){
   const notaId = primeNextId();
   const rows = [];
   if(svcs.length){
-    rows.push({barberId: baCurrentBarberId, client:clientName, service:svcs.join(' + '), value:svcValue, date, time, notaId});
+    rows.push({barberId: baActingBarberId, client:clientName, service:svcs.join(' + '), value:svcValue, date, time, notaId});
   }
   for(const item of baAtCart){
     const p = products.find(x=>x.id===item.productId);
     if(!p) continue;
-    rows.push({barberId: baCurrentBarberId, client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, notaId, type:'produto'});
+    rows.push({barberId: baActingBarberId, client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, notaId, type:'produto'});
     await baDecrementStock(p.id, item.qty);
   }
   await baInsertSales(rows);
@@ -6148,8 +6188,13 @@ function baEnter(barber){
   baCurrentBarberId = barber.id;
   baFetchProducts();
   const isAdmin = barber.role==='admin';
+  const isVendas = barber.role==='vendas';
+  baActingBarberId = isVendas ? null : baCurrentBarberId;
   document.getElementById('ba-link-gestao').style.display = isAdmin ? '' : 'none';
   document.getElementById('ba-tabicon-gestao').style.display = isAdmin ? '' : 'none';
+  document.querySelectorAll('#barberApp [data-tab="dashboard"],#barberApp [data-tab="clientes"],#barberApp [data-tab="vendas"]').forEach(el=>{
+    el.style.display = isVendas ? 'none' : '';
+  });
   document.getElementById('ba-tabbar').style.display='';
   baTab('agenda');
 }
@@ -6299,8 +6344,9 @@ function baBuildEditForm(b, i){
     <p><a href="#" onclick="baSendPasswordReset('${b.email.replace(/'/g,"\\'")}');return false" style="font-size:.78rem;color:var(--dourado)">Enviar e-mail de redefinição de senha</a></p>
     <div class="ba-field"><label>Função</label>
       <select id="ba-edit-role-${i}">
-        <option value="barbeiro" ${b.role!=='admin'?'selected':''}>Barbeiro</option>
+        <option value="barbeiro" ${b.role!=='admin'&&b.role!=='vendas'?'selected':''}>Barbeiro</option>
         <option value="admin" ${b.role==='admin'?'selected':''}>Admin</option>
+        <option value="vendas" ${b.role==='vendas'?'selected':''}>Vendas (balcão)</option>
       </select>
     </div>
     <label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;color:var(--prata-dim);margin-bottom:1rem;cursor:pointer">
@@ -6410,6 +6456,10 @@ async function baDeleteBarber(email){
   baRenderRoster();
   renderTeamSection();
 }
+function baNbRoleChanged(){
+  const role = document.getElementById('ba-nb-role').value;
+  document.getElementById('ba-nb-vendas-hint').style.display = role==='vendas' ? 'block' : 'none';
+}
 async function baCreateBarber(){
   const name=document.getElementById('ba-nb-name'), email=document.getElementById('ba-nb-email'), role=document.getElementById('ba-nb-role'), isBarber=document.getElementById('ba-nb-isbarber');
   const fn=document.getElementById('ba-f-nb-name'), fe=document.getElementById('ba-f-nb-email');
@@ -6436,6 +6486,7 @@ async function baCreateBarber(){
     resultEl.innerHTML = `Convite gerado para <b>${name.value.trim()}</b>. Código: <b style="color:var(--dourado)">${code}</b><br>Peça pra pessoa acessar a área do barbeiro, clicar em "Tenho um convite" e usar esse código.`;
   }
   name.value=''; email.value=''; role.value='barbeiro'; isBarber.checked=true;
+  document.getElementById('ba-nb-vendas-hint').style.display='none';
 }
 
 document.querySelectorAll('[data-open-barber]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();baOpen();}));
