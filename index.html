@@ -264,7 +264,8 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 @media(max-width:720px){.benefit{grid-template-columns:50px 1fr;gap:.8rem}.benefit p{grid-column:2}}
 
 /* ── SERVIÇOS ── */
-.services{background:var(--grafite)}
+.services{background:var(--grafite);padding-top:clamp(2.5rem,4vw,3.5rem);padding-bottom:clamp(2.5rem,4vw,3.5rem)}
+.services + .services{padding-top:clamp(1.5rem,2.5vw,2.2rem)}
 .svc-grid{display:flex;flex-wrap:wrap;border-top:1px solid var(--dourado-dim);border-left:1px solid var(--dourado-dim)}
 .svc{flex:1 1 300px;background:var(--grafite-card);padding:2.2rem 1.8rem;transition:background .3s;border-right:1px solid var(--dourado-dim);border-bottom:1px solid var(--dourado-dim)}
 @media(max-width:520px){.svc{flex-basis:100%}}
