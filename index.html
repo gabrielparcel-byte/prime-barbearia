@@ -3633,6 +3633,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
               </select>
               <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddExpense()">Adicionar</button>
             </div>
+            <p class="ba-err" id="ba-despesa-err" style="display:none;margin-top:.5rem"></p>
           </div>
 
           <div id="ba-dash-lucro-wrap" style="display:none">
@@ -4392,8 +4393,8 @@ async function baFetchExpenses(from, to){
 }
 async function baAddExpenseRow(name, value, date, category){
   const { data, error } = await sb.from('expenses').insert({name, value, date, category: category||'outros'}).select().single();
-  if(error){ console.error('baAddExpenseRow', error); return null; }
-  return data;
+  if(error){ console.error('baAddExpenseRow', error); return { error }; }
+  return { data };
 }
 const BA_EXPENSE_CATEGORY_LABEL = {
   aluguel:'Aluguel', energia:'Energia', agua_internet:'Água/Internet', salarios:'Salários',
@@ -4427,11 +4428,15 @@ async function baAddExpense(){
   const valorEl = document.getElementById('ba-despesa-valor');
   const dataEl = document.getElementById('ba-despesa-data');
   const catEl = document.getElementById('ba-despesa-categoria');
+  const errEl = document.getElementById('ba-despesa-err');
+  errEl.style.display = 'none';
   const name = nameEl.value.trim();
-  const value = parseFloat(valorEl.value);
+  const value = parseFloat((valorEl.value||'').replace(',','.'));
   const date = dataEl.value || primeLocalDate();
-  if(!name || !value || value<=0) return;
-  await baAddExpenseRow(name, value, date, catEl ? catEl.value : 'outros');
+  if(!name){ errEl.textContent = 'Digite o nome da despesa.'; errEl.style.display = 'block'; return; }
+  if(!(value>0)){ errEl.textContent = 'Digite um valor válido.'; errEl.style.display = 'block'; return; }
+  const { error } = await baAddExpenseRow(name, value, date, catEl ? catEl.value : 'outros');
+  if(error){ errEl.textContent = 'Não foi possível lançar: ' + (error.message || 'erro desconhecido'); errEl.style.display = 'block'; return; }
   nameEl.value=''; valorEl.value=''; dataEl.value='';
   baRenderDespesas();
   baRenderLucro();
