@@ -291,6 +291,15 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .lp-info h3{font-size:1rem;letter-spacing:.04em;margin-bottom:.4rem}
 .lp-info .price{font-family:var(--font-display);font-size:1.2rem;color:var(--verde-neon)}
 
+/* ── VITRINE (carrossel) ── */
+.lp-carousel{display:flex;align-items:center;gap:.8rem}
+.lp-car-viewport{flex:1;overflow:hidden}
+.lp-car-track{display:flex;transition:transform .5s cubic-bezier(.16,1,.3,1)}
+.lp-car-track .lp-card{flex:none}
+.lp-car-arrow{flex:none;width:42px;height:42px;border-radius:50%;background:var(--grafite-card);border:1px solid var(--dourado-dim);color:var(--dourado);font-size:1.3rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s}
+.lp-car-arrow:hover{border-color:var(--dourado);color:var(--dourado-claro)}
+@media(max-width:640px){.lp-car-arrow{width:34px;height:34px;font-size:1.1rem}}
+
 /* ── CATÁLOGO COMPLETO (overlay) ── */
 .pcat-overlay{position:fixed;inset:0;z-index:1250;background:var(--verde-noite);display:none;flex-direction:column;overflow:hidden}
 .pcat-overlay.open{display:flex}
@@ -566,7 +575,13 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <span class="eyebrow">Vitrine</span>
       <h2>Produtos que a gente<br>usa e vende</h2>
     </div>
-    <div id="lp-grid"></div>
+    <div class="lp-carousel" id="lp-carousel">
+      <button class="lp-car-arrow lp-car-prev" aria-label="Anterior" onclick="primeCarNav(-1)">‹</button>
+      <div class="lp-car-viewport" id="lp-car-viewport">
+        <div class="lp-car-track" id="lp-car-track"></div>
+      </div>
+      <button class="lp-car-arrow lp-car-next" aria-label="Próximo" onclick="primeCarNav(1)">›</button>
+    </div>
     <div id="lp-vermais-wrap" style="text-align:center;margin-top:2.2rem;display:none">
       <button class="btn btn-ghost" id="lp-vermais-btn" onclick="primeOpenProductCatalog()">Ver todos os produtos</button>
     </div>
@@ -6471,7 +6486,7 @@ function renderTeamSection(){
     </div>`).join('') : '<p style="color:var(--prata-dim)">Equipe em breve.</p>';
 }
 const PROD_LANDING_PLACEHOLDER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
-const PROD_TEASER_LIMIT = 6;
+const PROD_CAROUSEL_POOL = 12;
 let primeAllProductsCache = [];
 function primeProductCard(p){
   const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : PROD_LANDING_PLACEHOLDER;
@@ -6481,6 +6496,60 @@ function primeProductCard(p){
     <div class="lp-info"><h3>${p.name}</h3><span class="price price-locked" data-price="R$ ${p.price.toFixed(2).replace('.',',')}">Faça login para ver</span></div>
   </div>`;
 }
+// ── Carrossel da vitrine: 4 produtos por vez (2 em tablet, 1 no celular),
+// avança sozinho a cada poucos segundos, pausa no hover/toque e retoma ao sair/depois de um tempo parado.
+let primeCarIndex = 0;
+let primeCarTimer = null;
+let primeCarPool = [];
+let primeCarBound = false;
+function primeCarVisibleCount(){
+  const w = window.innerWidth;
+  if(w <= 640) return 1;
+  if(w <= 960) return 2;
+  return 4;
+}
+function primeCarLayout(){
+  const viewport = document.getElementById('lp-car-viewport');
+  const track = document.getElementById('lp-car-track');
+  if(!viewport || !track || !track.children.length) return;
+  const visible = primeCarVisibleCount();
+  const gap = 24;
+  const cardWidth = (viewport.clientWidth - gap*(visible-1)) / visible;
+  [...track.children].forEach(c => c.style.flexBasis = `${cardWidth}px`);
+  track.style.gap = gap+'px';
+  const maxIndex = Math.max(0, primeCarPool.length - visible);
+  if(primeCarIndex > maxIndex) primeCarIndex = maxIndex;
+  track.style.transform = `translateX(-${primeCarIndex * (cardWidth+gap)}px)`;
+  document.getElementById('lp-carousel').querySelectorAll('.lp-car-arrow').forEach(a=>{
+    a.style.display = primeCarPool.length > visible ? '' : 'none';
+  });
+}
+function primeCarNav(dir){
+  const visible = primeCarVisibleCount();
+  const maxIndex = Math.max(0, primeCarPool.length - visible);
+  primeCarIndex += dir;
+  if(primeCarIndex < 0) primeCarIndex = maxIndex;
+  if(primeCarIndex > maxIndex) primeCarIndex = 0;
+  primeCarLayout();
+}
+function primeCarAutoStart(){
+  clearInterval(primeCarTimer);
+  primeCarTimer = setInterval(()=>primeCarNav(1), 3800);
+}
+function primeCarAutoStop(){
+  clearInterval(primeCarTimer);
+}
+function primeCarBindEvents(){
+  if(primeCarBound) return;
+  primeCarBound = true;
+  const el = document.getElementById('lp-carousel');
+  let resumeTimer = null;
+  el.addEventListener('mouseenter', primeCarAutoStop);
+  el.addEventListener('mouseleave', primeCarAutoStart);
+  el.addEventListener('touchstart', ()=>{ clearTimeout(resumeTimer); primeCarAutoStop(); }, {passive:true});
+  el.addEventListener('touchend', ()=>{ resumeTimer = setTimeout(primeCarAutoStart, 4000); }, {passive:true});
+  window.addEventListener('resize', primeCarLayout);
+}
 async function renderLandingProducts(){
   const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
   if(error){ console.error('renderLandingProducts', error); return; }
@@ -6488,11 +6557,15 @@ async function renderLandingProducts(){
   if(!data || !data.length){ section.style.display = 'none'; return; }
   section.style.display = '';
   primeAllProductsCache = data;
-  const teaser = data.slice(0, PROD_TEASER_LIMIT);
-  document.getElementById('lp-grid').innerHTML = `<div class="lp-group-grid">${teaser.map(primeProductCard).join('')}</div>`;
+  primeCarPool = data.slice(0, PROD_CAROUSEL_POOL);
+  primeCarIndex = 0;
+  document.getElementById('lp-car-track').innerHTML = primeCarPool.map(primeProductCard).join('');
+  primeCarBindEvents();
+  primeCarLayout();
+  primeCarAutoStart();
   const vermaisWrap = document.getElementById('lp-vermais-wrap');
-  const resto = data.length - teaser.length;
-  if(resto > 0){
+  const resto = data.length - primeCarPool.length;
+  if(resto > 0 || data.length > PROD_CAROUSEL_POOL){
     document.getElementById('lp-vermais-btn').textContent = `Ver todos os ${data.length} produtos`;
     vermaisWrap.style.display = '';
   } else {
