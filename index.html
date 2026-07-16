@@ -6645,7 +6645,7 @@ async function renderLandingProducts(){
   if(!data || !data.length){ section.style.display = 'none'; return; }
   section.style.display = '';
   primeAllProductsCache = data;
-  primeCarPool = data.slice(0, PROD_CAROUSEL_POOL);
+  primeCarPool = data.filter(p => p.category !== 'Geladeira').slice(0, PROD_CAROUSEL_POOL);
   primeCarIndex = 0;
   document.getElementById('lp-car-track').innerHTML = primeCarPool.map(primeProductCard).join('');
   primeCarBindEvents();
