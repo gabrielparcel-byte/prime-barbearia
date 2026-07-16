@@ -430,6 +430,9 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 .plan-tier p{color:var(--prata-dim);font-size:.88rem;margin-bottom:.9rem}
 .modal input[type=text]{width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.95rem;margin-bottom:1rem}
 .modal input[type=text]:focus{outline:none;border-color:var(--verde-neon)}
+.modal select{width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.95rem;margin-bottom:1rem;border-radius:0;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239BA39C' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;background-size:16px}
+.modal select:focus{outline:none;border-color:var(--verde-neon)}
+.modal select option{background:var(--verde-noite);color:var(--prata)}
 .modal .field-lbl{display:block;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--prata-dim);margin-bottom:.4rem}
 .wizard-nav{display:flex;justify-content:space-between;gap:1rem;margin-top:1.8rem}
 .wizard-nav .btn{padding:.8rem 1.6rem;font-size:.78rem}
@@ -654,15 +657,15 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
     <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem">
       <div id="pe-photo-preview" style="width:64px;height:64px;flex:none;border-radius:8px;overflow:hidden;background:var(--grafite);display:flex;align-items:center;justify-content:center;color:var(--prata-dim)"></div>
       <div style="display:flex;flex-direction:column;gap:.4rem">
-        <label for="pe-foto" class="ba-btn" style="width:auto;max-width:none;margin:0;padding:.5rem .9rem;font-size:.66rem;cursor:pointer">Trocar foto</label>
+        <label for="pe-foto" class="btn btn-ghost" style="padding:.5rem .9rem;font-size:.62rem;letter-spacing:.1em;cursor:pointer">Trocar foto</label>
         <input type="file" id="pe-foto" accept="image/*" style="display:none" onchange="baProdEditPreviewFoto()">
         <button id="pe-remove-foto" type="button" style="background:none;border:none;color:var(--prata-dim);font-size:.66rem;text-decoration:underline;cursor:pointer;padding:0;text-align:left" onclick="baProdEditRemoveFoto()">remover foto</button>
       </div>
     </div>
     <span class="field-lbl">Nome</span>
-    <input type="text" id="pe-nome" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem">
+    <input type="text" id="pe-nome">
     <span class="field-lbl">Categoria</span>
-    <select id="pe-categoria" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem">
+    <select id="pe-categoria">
       <option value="Cabelo e Barba">Cabelo e Barba</option>
       <option value="Geladeira">Geladeira</option>
       <option value="Conveniência">Conveniência</option>
@@ -671,17 +674,17 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
       <div>
         <span class="field-lbl">Estoque</span>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" id="pe-estoque" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="pe-estoque">
       </div>
       <div>
         <span class="field-lbl">Custo R$</span>
-        <input type="text" inputmode="decimal" id="pe-custo" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem" oninput="baProdEditInfo()">
+        <input type="text" inputmode="decimal" id="pe-custo" oninput="baProdEditInfo()">
       </div>
     </div>
     <span class="field-lbl">Preço de venda R$</span>
-    <input type="text" inputmode="decimal" id="pe-preco" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:.4rem" oninput="baProdEditInfo()">
+    <input type="text" inputmode="decimal" id="pe-preco" oninput="baProdEditInfo()">
     <p id="pe-info" style="font-size:.72rem;color:var(--prata-dim);margin-bottom:1.2rem;min-height:1.2em"></p>
-    <button class="ba-btn" style="width:100%;max-width:100%" onclick="baSaveProdEdit()">Salvar alterações</button>
+    <button class="btn btn-primary" style="width:100%;text-align:center" onclick="baSaveProdEdit()">Salvar alterações</button>
   </div>
 </div>
 
@@ -5337,7 +5340,7 @@ async function baSaveProdEdit(){
   const stock = parseInt(document.getElementById('pe-estoque').value)||0;
   const cost = parseMoney(document.getElementById('pe-custo').value);
   const price = parseMoney(document.getElementById('pe-preco').value);
-  if(!name || !(price>0)) return;
+  if(!name){ alert('Preencha o nome do produto.'); return; }
   let image_url = p.image_url;
   if(baProdEditFotoFile){
     const code = p.code || primeGenProductCode();
@@ -5348,9 +5351,9 @@ async function baSaveProdEdit(){
     image_url = null;
   }
   const { error } = await sb.from('products').update({
-    name, category, stock, price, cost: cost>0?cost:null, image_url
+    name, category, stock, price: price>0?price:0, cost: cost>0?cost:null, image_url
   }).eq('id', id);
-  if(error){ console.error('baSaveProdEdit', error); return; }
+  if(error){ console.error('baSaveProdEdit', error); alert('Não deu pra salvar. Tenta de novo.'); return; }
   await baFetchProducts();
   baCloseProdEdit();
   baRenderProdutosConfig();
