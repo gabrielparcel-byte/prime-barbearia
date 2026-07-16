@@ -269,6 +269,7 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .svc{flex:1 1 300px;background:var(--grafite-card);padding:2.2rem 1.8rem;transition:background .3s;border-right:1px solid var(--dourado-dim);border-bottom:1px solid var(--dourado-dim)}
 @media(max-width:520px){.svc{flex-basis:100%}}
 .svc:hover{background:#20261F}
+.lp-car-track .svc{flex:none;border:1px solid var(--dourado-dim)}
 .svc h3{font-size:1.05rem;letter-spacing:.08em;margin-bottom:.5rem}
 .svc p{color:var(--prata-dim);font-size:.9rem;min-height:2.6em}
 .svc .price{display:block;margin-top:1.2rem;font-family:var(--font-display);font-size:1.3rem;color:var(--verde-neon)}
@@ -520,15 +521,21 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <span class="eyebrow">Serviços</span>
       <h2>Excelência em cada detalhe</h2>
     </div>
-    <div class="svc-grid">
-      <div class="svc"><h3>Corte Social</h3><p>Clássico e versátil, alinhado ao seu estilo.</p><span class="price price-locked" data-price="R$ 30">Faça login para ver</span><span class="time"> · 30 min</span></div>
-      <div class="svc"><h3>Corte Degradê</h3><p>Fade moderno com acabamento na navalha.</p><span class="price price-locked" data-price="R$ 45">Faça login para ver</span><span class="time"> · 45 min</span></div>
-      <div class="svc"><h3>Corte Raspado</h3><p>Máquina do início ao fim, prático e no capricho.</p><span class="price price-locked" data-price="R$ 20">Faça login para ver</span><span class="time"> · 20 min</span></div>
-      <div class="svc"><h3>Corte Infantil</h3><p>Paciência e capricho pros pequenos clientes.</p><span class="price price-locked" data-price="R$ 35">Faça login para ver</span><span class="time"> · 35 min</span></div>
-      <div class="svc"><h3>Acabamento</h3><p>Pezinho e retoque pra manter o corte em dia.</p><span class="price price-locked" data-price="R$ 15">Faça login para ver</span><span class="time"> · 15 min</span></div>
-      <div class="svc"><h3>Barba Express</h3><p>Modelagem rápida com toalha quente.</p><span class="price price-locked" data-price="R$ 25">Faça login para ver</span><span class="time"> · 25 min</span></div>
-      <div class="svc"><h3>Barbaterapia</h3><p>Ritual relaxante com vapor, massagem e hidratação.</p><span class="price price-locked" data-price="R$ 45">Faça login para ver</span><span class="time"> · 50 min</span></div>
-      <div class="svc"><h3>Sobrancelha</h3><p>Design alinhado na navalha, respeitando o natural.</p><span class="price price-locked" data-price="R$ 20">Faça login para ver</span><span class="time"> · 15 min</span></div>
+    <div class="lp-carousel" id="svc-carousel">
+      <button class="lp-car-arrow lp-car-prev" aria-label="Anterior" onclick="svcCarNav(-1)">‹</button>
+      <div class="lp-car-viewport" id="svc-car-viewport">
+        <div class="lp-car-track" id="svc-car-track">
+          <div class="svc"><h3>Corte Social</h3><p>Clássico e versátil, alinhado ao seu estilo.</p><span class="price price-locked" data-price="R$ 30">Faça login para ver</span><span class="time"> · 30 min</span></div>
+          <div class="svc"><h3>Corte Degradê</h3><p>Fade moderno com acabamento na navalha.</p><span class="price price-locked" data-price="R$ 45">Faça login para ver</span><span class="time"> · 45 min</span></div>
+          <div class="svc"><h3>Corte Raspado</h3><p>Máquina do início ao fim, prático e no capricho.</p><span class="price price-locked" data-price="R$ 20">Faça login para ver</span><span class="time"> · 20 min</span></div>
+          <div class="svc"><h3>Corte Infantil</h3><p>Paciência e capricho pros pequenos clientes.</p><span class="price price-locked" data-price="R$ 35">Faça login para ver</span><span class="time"> · 35 min</span></div>
+          <div class="svc"><h3>Acabamento</h3><p>Pezinho e retoque pra manter o corte em dia.</p><span class="price price-locked" data-price="R$ 15">Faça login para ver</span><span class="time"> · 15 min</span></div>
+          <div class="svc"><h3>Barba Express</h3><p>Modelagem rápida com toalha quente.</p><span class="price price-locked" data-price="R$ 25">Faça login para ver</span><span class="time"> · 25 min</span></div>
+          <div class="svc"><h3>Barbaterapia</h3><p>Ritual relaxante com vapor, massagem e hidratação.</p><span class="price price-locked" data-price="R$ 45">Faça login para ver</span><span class="time"> · 50 min</span></div>
+          <div class="svc"><h3>Sobrancelha</h3><p>Design alinhado na navalha, respeitando o natural.</p><span class="price price-locked" data-price="R$ 20">Faça login para ver</span><span class="time"> · 15 min</span></div>
+        </div>
+      </div>
+      <button class="lp-car-arrow lp-car-next" aria-label="Próximo" onclick="svcCarNav(1)">›</button>
     </div>
   </div>
 </section>
@@ -6705,6 +6712,62 @@ function primeCarBindEvents(){
   el.addEventListener('touchend', ()=>{ resumeTimer = setTimeout(primeCarAutoStart, 4000); }, {passive:true});
   window.addEventListener('resize', primeCarLayout);
 }
+// ── Carrossel de Serviços: 3 por vez (2 tablet, 1 celular), mesmo comportamento do carrossel de produtos ──
+let svcCarIndex = 0;
+let svcCarTimer = null;
+function svcCarVisibleCount(){
+  const w = window.innerWidth;
+  if(w <= 640) return 1;
+  if(w <= 960) return 2;
+  return 3;
+}
+function svcCarLayout(){
+  const viewport = document.getElementById('svc-car-viewport');
+  const track = document.getElementById('svc-car-track');
+  if(!viewport || !track || !track.children.length) return;
+  const visible = svcCarVisibleCount();
+  const gap = 24;
+  const cardWidth = (viewport.clientWidth - gap*(visible-1)) / visible;
+  [...track.children].forEach(c => c.style.flexBasis = `${cardWidth}px`);
+  track.style.gap = gap+'px';
+  const count = track.children.length;
+  const maxIndex = Math.max(0, count - visible);
+  if(svcCarIndex > maxIndex) svcCarIndex = maxIndex;
+  track.style.transform = `translateX(-${svcCarIndex * (cardWidth+gap)}px)`;
+  document.getElementById('svc-carousel').querySelectorAll('.lp-car-arrow').forEach(a=>{
+    a.style.display = count > visible ? '' : 'none';
+  });
+}
+function svcCarNav(dir){
+  const visible = svcCarVisibleCount();
+  const track = document.getElementById('svc-car-track');
+  const count = track ? track.children.length : 0;
+  const maxIndex = Math.max(0, count - visible);
+  svcCarIndex += dir;
+  if(svcCarIndex < 0) svcCarIndex = maxIndex;
+  if(svcCarIndex > maxIndex) svcCarIndex = 0;
+  svcCarLayout();
+}
+function svcCarAutoStart(){
+  clearInterval(svcCarTimer);
+  svcCarTimer = setInterval(()=>svcCarNav(1), 3800);
+}
+function svcCarAutoStop(){
+  clearInterval(svcCarTimer);
+}
+function svcCarInit(){
+  const el = document.getElementById('svc-carousel');
+  if(!el) return;
+  let resumeTimer = null;
+  el.addEventListener('mouseenter', svcCarAutoStop);
+  el.addEventListener('mouseleave', svcCarAutoStart);
+  el.addEventListener('touchstart', ()=>{ clearTimeout(resumeTimer); svcCarAutoStop(); }, {passive:true});
+  el.addEventListener('touchend', ()=>{ resumeTimer = setTimeout(svcCarAutoStart, 4000); }, {passive:true});
+  window.addEventListener('resize', svcCarLayout);
+  svcCarLayout();
+  svcCarAutoStart();
+}
+svcCarInit();
 async function renderLandingProducts(){
   const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
   if(error){ console.error('renderLandingProducts', error); return; }
