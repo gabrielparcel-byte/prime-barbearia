@@ -4434,10 +4434,12 @@ async function baAddExpense(){
   await baAddExpenseRow(name, value, date, catEl ? catEl.value : 'outros');
   nameEl.value=''; valorEl.value=''; dataEl.value='';
   baRenderDespesas();
+  baRenderLucro();
 }
 async function baRemoveExpense(id){
   await baRemoveExpenseRow(id);
   baRenderDespesas();
+  baRenderLucro();
 }
 
 // ══ Lucro líquido estimado (admin) — faturamento da barbearia toda - comissões - despesas ══
