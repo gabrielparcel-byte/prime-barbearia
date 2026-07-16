@@ -5957,12 +5957,24 @@ function baToggleEncaixe(){
     </div>`).join('');
   form.innerHTML = `<div class="ba-encaixe">
     <div class="ba-slabel">Novo encaixe</div>
-    <div class="ba-field" style="max-width:100%;margin-bottom:.4rem">
-      <label>Cliente (nome ou @)</label>
-      <input type="text" id="ba-enc-search" placeholder="Buscar cliente..." oninput="baEncSearchClient()" autocomplete="off">
+    <div class="seg" id="ba-enc-client-seg">
+      <div class="seg-btn active" data-mode="buscar">Buscar existente</div>
+      <div class="seg-btn" data-mode="novo">+ Novo cliente</div>
     </div>
-    <div class="ba-enc-results" id="ba-enc-results"></div>
-    <div id="ba-enc-selected" style="display:none;margin-bottom:.6rem"></div>
+    <div id="ba-enc-buscar-block">
+      <div class="ba-field" style="max-width:100%;margin-bottom:.4rem">
+        <label>Cliente (nome ou @)</label>
+        <input type="text" id="ba-enc-search" placeholder="Buscar cliente..." oninput="baEncSearchClient()" autocomplete="off">
+      </div>
+      <div class="ba-enc-results" id="ba-enc-results"></div>
+      <div id="ba-enc-selected" style="display:none;margin-bottom:.6rem"></div>
+    </div>
+    <div id="ba-enc-novo-block" style="display:none">
+      <div style="display:flex;gap:.6rem">
+        <div class="ba-field" style="flex:1"><label>Nome</label><input type="text" id="ba-enc-new-name" placeholder="Nome completo"></div>
+        <div class="ba-field" style="flex:1"><label>Telefone</label><input type="text" inputmode="numeric" id="ba-enc-new-phone" placeholder="(44) 99999-9999"></div>
+      </div>
+    </div>
     <div class="ba-slabel" style="margin-top:.2rem">Serviço</div>
     <div class="ba-svc-grid">${svcsHtml}</div>
     <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.6rem">
@@ -5985,11 +5997,22 @@ function baToggleEncaixe(){
     </div>
   </div>`;
   form.style.display = 'block';
+  baEncMode = 'buscar';
+  document.getElementById('ba-enc-client-seg').addEventListener('click', e=>{
+    const btn = e.target.closest('.seg-btn');
+    if(!btn) return;
+    baEncMode = btn.dataset.mode;
+    document.querySelectorAll('#ba-enc-client-seg .seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+    document.getElementById('ba-enc-buscar-block').style.display = baEncMode==='buscar' ? 'block' : 'none';
+    document.getElementById('ba-enc-novo-block').style.display = baEncMode==='novo' ? 'block' : 'none';
+    baEncClearClient();
+  });
 }
 
 let baEncSelectedClient = null;
 let baEncSearchResults = [];
 let baEncSearchToken = 0;
+let baEncMode = 'buscar';
 async function baEncSearchClient(){
   const q = document.getElementById('ba-enc-search').value.trim();
   const box = document.getElementById('ba-enc-results');
@@ -6036,6 +6059,17 @@ async function baSaveEncaixe(){
   const errEl = document.getElementById('ba-enc-err');
   const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; };
   errEl.style.display='none';
+  if(baEncMode==='novo'){
+    const name = document.getElementById('ba-enc-new-name').value.trim();
+    const phoneRaw = document.getElementById('ba-enc-new-phone').value.trim();
+    if(!name) return fail('Digite o nome do cliente.');
+    if(phoneRaw.replace(/\D/g,'').length<10) return fail('Digite um telefone válido.');
+    const phone = baAtNormalizePhone(phoneRaw);
+    const myClients = await baFetchMyCrmClients();
+    if(myClients.some(c=>c.name.toLowerCase()===name.toLowerCase())) return fail('Já existe um cliente com esse nome na carteira desse barbeiro.');
+    await baCreateCrmClient({name, phone});
+    baEncSelectedClient = { id:null, name, email:null, instagram:null };
+  }
   if(!baEncSelectedClient) return fail('Selecione um cliente.');
   const svcs = [...document.querySelectorAll('.ba-enc-svc:checked')].map(x=>x.value);
   if(!svcs.length) return fail('Selecione pelo menos um serviço.');
