@@ -688,6 +688,19 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
   </div>
 </div>
 
+<!-- DEFINIR MARGEM POR CATEGORIA -->
+<div class="modal-backdrop" id="margemModal" role="dialog" aria-modal="true" style="z-index:1300">
+  <div class="modal" style="max-width:400px;text-align:left">
+    <button class="close" aria-label="Fechar" onclick="baCloseMargemModal()">✕</button>
+    <h3 style="margin-bottom:.3rem">Definir margem</h3>
+    <p style="color:var(--prata-dim);font-size:.85rem;margin-bottom:1.3rem">Categoria <b style="color:var(--dourado-claro)" id="mg-categoria">—</b></p>
+    <span class="field-lbl">Margem %</span>
+    <input type="text" inputmode="decimal" id="mg-margem" placeholder="Ex: 50" oninput="baMargemPreview()">
+    <p id="mg-info" style="font-size:.78rem;color:var(--prata-dim);margin:.4rem 0 1.3rem;line-height:1.5"></p>
+    <button class="btn btn-primary" style="width:100%;text-align:center" onclick="baApplyMargemConfirm()">Aplicar margem</button>
+  </div>
+</div>
+
 <!-- PLANOS -->
 <div class="modal-backdrop" id="plansModal" role="dialog" aria-modal="true" style="z-index:1200">
   <div class="modal" style="max-width:520px">
@@ -5290,7 +5303,7 @@ function baRenderProdutosConfig(){
   const groups = baGroupProductsByCategory(products);
   document.getElementById('ba-produtos-list').innerHTML = groups.map(g=>{
     const items = baProdView==='grid' ? `<div class="prod-grid">${g.items.map(gridCard).join('')}</div>` : g.items.map(listRow).join('');
-    return `<div class="prod-group"><div class="prod-group-label">${g.category} <span class="prod-group-count">${g.items.length}</span><button class="prod-group-margin" onclick="baApplyCategoryMargin('${g.category.replace(/'/g,"\\'")}')">definir margem</button></div>${items}</div>`;
+    return `<div class="prod-group"><div class="prod-group-label">${g.category} <span class="prod-group-count">${g.items.length}</span><button class="prod-group-margin" onclick="baOpenMargemModal('${g.category.replace(/'/g,"\\'")}')">definir margem</button></div>${items}</div>`;
   }).join('');
 }
 function baProdMargemLabel(p){
@@ -5422,18 +5435,48 @@ async function baSaveProdEdit(){
   baCloseProdEdit();
   baRenderProdutosConfig();
 }
-async function baApplyCategoryMargin(category){
-  const marginStr = prompt(`Nova margem % pra "${category}" (aplica sobre o custo de cada produto):`);
-  if(marginStr===null) return;
-  const margin = parseFloat(marginStr.replace(',','.'));
+let baMargemCategory = null;
+function baOpenMargemModal(category){
+  baMargemCategory = category;
+  document.getElementById('mg-categoria').textContent = category;
+  document.getElementById('mg-margem').value = '';
+  baMargemPreview();
+  document.getElementById('margemModal').classList.add('open');
+}
+function baCloseMargemModal(){
+  document.getElementById('margemModal').classList.remove('open');
+  baMargemCategory = null;
+}
+function baMargemItems(){
+  return baGetProducts().filter(p => (p.category||'Outros')===baMargemCategory && p.cost>0);
+}
+function baMargemPreview(){
+  const items = baMargemItems();
+  const info = document.getElementById('mg-info');
+  const margin = parseFloat((document.getElementById('mg-margem').value||'').replace(',','.'));
+  if(!items.length){
+    info.textContent = 'Nenhum produto dessa categoria tem custo cadastrado.';
+    return;
+  }
+  if(!(margin>=0)){
+    info.textContent = `${items.length} produto${items.length>1?'s':''} com custo cadastrado vai${items.length>1?'ão':''} ter o preço recalculado.`;
+    return;
+  }
+  const example = items[0];
+  const examplePrice = Math.round(example.cost * (1 + margin/100) * 100) / 100;
+  info.textContent = `${items.length} produto${items.length>1?'s':''} atualizado${items.length>1?'s':''} · ex: ${example.name} (custo ${baFormatMoney(example.cost)}) vira ${baFormatMoney(examplePrice)}`;
+}
+async function baApplyMargemConfirm(){
+  const margin = parseFloat((document.getElementById('mg-margem').value||'').replace(',','.'));
   if(!(margin>=0)) return;
-  const items = baGetProducts().filter(p => (p.category||'Outros')===category && p.cost>0);
-  if(!items.length){ alert('Nenhum produto dessa categoria tem custo cadastrado.'); return; }
+  const items = baMargemItems();
+  if(!items.length){ baCloseMargemModal(); return; }
   await Promise.all(items.map(p => {
     const price = Math.round(p.cost * (1 + margin/100) * 100) / 100;
     return sb.from('products').update({price}).eq('id', p.id);
   }));
   await baFetchProducts();
+  baCloseMargemModal();
   baRenderProdutosConfig();
 }
 async function baRestockProduct(id){
