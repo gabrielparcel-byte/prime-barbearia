@@ -3126,6 +3126,10 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-view-toggle button{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;color:var(--prata-dim);cursor:pointer;transition:all .15s}
 #barberApp .prod-view-toggle button svg{width:15px;height:15px}
 #barberApp .prod-view-toggle button.active{border-color:var(--dourado);color:var(--dourado)}
+#barberApp .prod-sort-bar{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem}
+#barberApp .prod-sort-lbl{font-size:.66rem;letter-spacing:.06em;color:var(--prata-dim)}
+#barberApp .prod-sort-btn{background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;color:var(--prata-dim);font-size:.7rem;padding:.32rem .6rem;cursor:pointer;transition:all .15s}
+#barberApp .prod-sort-btn.active{border-color:var(--dourado);color:var(--dourado)}
 #barberApp .prod-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem}
 #barberApp .prod-card{background:var(--grafite-card);border:1px solid var(--hair);border-radius:8px;padding:.6rem;display:flex;flex-direction:column;gap:.15rem}
 #barberApp .prod-card-photo{width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:.4rem;background:var(--grafite)}
@@ -5129,6 +5133,7 @@ async function baDecrementStock(id, qty){
 const PROD_PLACEHOLDER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
 let baProdView = localStorage.getItem('primeProdView') || 'list';
 let baProdSearch = '';
+let baProdSort = localStorage.getItem('primeProdSort') || 'name-asc';
 function baSetProdView(v){
   baProdView = v;
   localStorage.setItem('primeProdView', v);
@@ -5137,6 +5142,25 @@ function baSetProdView(v){
 function baProdSearchInput(v){
   baProdSearch = v.trim().toLowerCase();
   baRenderProdutosConfig();
+}
+function baSetProdSort(field){
+  const [curField, curDir] = baProdSort.split('-');
+  baProdSort = field + '-' + (curField===field && curDir==='asc' ? 'desc' : 'asc');
+  localStorage.setItem('primeProdSort', baProdSort);
+  baRenderProdutosConfig();
+}
+function baSortProducts(items){
+  const [field, dir] = baProdSort.split('-');
+  const mult = dir==='desc' ? -1 : 1;
+  return items.slice().sort((a,b)=>{
+    if(field==='price') return ((a.price||0)-(b.price||0))*mult;
+    if(field==='stock') return ((a.stock||0)-(b.stock||0))*mult;
+    return a.name.localeCompare(b.name)*mult;
+  });
+}
+function baProdSortArrow(field){
+  const [curField, curDir] = baProdSort.split('-');
+  return curField===field ? (curDir==='asc' ? ' ▲' : ' ▼') : '';
 }
 function baProdActions(p){
   const removerFoto = p.image_url ? `<button class="prod-remove-foto" onclick="baRemoveProductPhoto(${p.id})">remover foto</button>` : '';
@@ -5149,15 +5173,22 @@ function baProdActions(p){
 }
 function baRenderProdutosConfig(){
   const all = baGetProducts();
-  const products = baProdSearch
+  const filtered = baProdSearch
     ? all.filter(p => p.name.toLowerCase().includes(baProdSearch) || (p.code||'').toLowerCase().includes(baProdSearch))
     : all;
+  const products = baSortProducts(filtered);
   const toggle = `<div class="prod-view-toggle">
     <button class="${baProdView==='list'?'active':''}" onclick="baSetProdView('list')" aria-label="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
     <button class="${baProdView==='grid'?'active':''}" onclick="baSetProdView('grid')" aria-label="Grade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg></button>
   </div>`;
   const search = `<div class="ba-field" style="max-width:100%;margin-bottom:.6rem"><input type="text" placeholder="🔍 Buscar por nome ou código..." value="${baProdSearch}" oninput="baProdSearchInput(this.value)"></div>`;
-  document.getElementById('ba-produtos-toolbar').innerHTML = search + toggle;
+  const sortBar = `<div class="prod-sort-bar">
+    <span class="prod-sort-lbl">Ordenar por:</span>
+    <button class="prod-sort-btn${baProdSort.startsWith('name')?' active':''}" onclick="baSetProdSort('name')">Nome${baProdSortArrow('name')}</button>
+    <button class="prod-sort-btn${baProdSort.startsWith('price')?' active':''}" onclick="baSetProdSort('price')">Preço${baProdSortArrow('price')}</button>
+    <button class="prod-sort-btn${baProdSort.startsWith('stock')?' active':''}" onclick="baSetProdSort('stock')">Estoque${baProdSortArrow('stock')}</button>
+  </div>`;
+  document.getElementById('ba-produtos-toolbar').innerHTML = search + sortBar + toggle;
 
   if(!products.length){
     document.getElementById('ba-produtos-list').innerHTML = `<p style="color:var(--prata-dim);font-size:.78rem">${baProdSearch ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}</p>`;
