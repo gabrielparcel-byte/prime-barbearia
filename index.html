@@ -537,6 +537,9 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       </div>
       <button class="lp-car-arrow lp-car-next" aria-label="Próximo" onclick="svcCarousel.nav(1)">›</button>
     </div>
+    <div style="text-align:center;margin-top:2.2rem">
+      <button class="btn btn-ghost" onclick="primeOpenServiceCatalog('svc','Todos os serviços')">Ver todos os serviços</button>
+    </div>
   </div>
 </section>
 
@@ -560,7 +563,10 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       </div>
       <button class="lp-car-arrow lp-car-next" aria-label="Próximo" onclick="comboCarousel.nav(1)">›</button>
     </div>
-    <p style="text-align:center;margin-top:2rem;color:var(--prata-dim);font-size:.85rem;letter-spacing:.05em">Combos são fechados com o barbeiro no dia do atendimento.</p>
+    <div style="text-align:center;margin-top:2.2rem">
+      <button class="btn btn-ghost" onclick="primeOpenServiceCatalog('combo','Todos os combos')">Ver todos os combos</button>
+    </div>
+    <p style="text-align:center;margin-top:1.4rem;color:var(--prata-dim);font-size:.85rem;letter-spacing:.05em">Combos são fechados com o barbeiro no dia do atendimento.</p>
   </div>
 </section>
 
@@ -587,6 +593,9 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       </div>
       <button class="lp-car-arrow lp-car-next" aria-label="Próximo" onclick="tratCarousel.nav(1)">›</button>
     </div>
+    <div style="text-align:center;margin-top:2.2rem">
+      <button class="btn btn-ghost" onclick="primeOpenServiceCatalog('trat','Todos os tratamentos')">Ver todos os tratamentos</button>
+    </div>
   </div>
 </section>
 
@@ -610,6 +619,17 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
     <p style="text-align:center;margin-top:1.4rem;color:var(--prata-dim);font-size:.85rem;letter-spacing:.05em">Disponível pra compra na barbearia.</p>
   </div>
 </section>
+
+<!-- TODOS OS SERVIÇOS/COMBOS/TRATAMENTOS -->
+<div class="pcat-overlay" id="svcCatalogView" role="dialog" aria-modal="true">
+  <div class="pcat-head">
+    <button class="pcat-back" aria-label="Voltar" onclick="primeCloseServiceCatalog()">←</button>
+    <span class="pcat-title" id="svcCatalogTitle">Todos os serviços</span>
+  </div>
+  <div class="pcat-body">
+    <div class="svc-grid" id="svcCatalogGrid"></div>
+  </div>
+</div>
 
 <!-- CATÁLOGO COMPLETO -->
 <div class="pcat-overlay" id="productCatalogView" role="dialog" aria-modal="true">
@@ -981,7 +1001,7 @@ document.querySelector('[data-close-booking]').addEventListener('click',closeMod
 modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
 const authModal = document.getElementById('authPromptModal');
 authModal.addEventListener('click',e=>{ if(e.target===authModal) dismissAuthPrompt(); });
-addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); dismissAuthPrompt(); primeCloseProductCatalog(); } });
+addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); dismissAuthPrompt(); primeCloseProductCatalog(); primeCloseServiceCatalog(); } });
 
 function render(){
   steps.forEach(s=>s.classList.toggle('active', +s.dataset.step===state.step));
@@ -6816,6 +6836,19 @@ function primeGroupByCategoryAlpha(products){
   return Object.keys(byCat).sort((a,b)=>a.localeCompare(b)).map(category=>({
     category, items: byCat[category].slice().sort((a,b)=>a.name.localeCompare(b.name))
   }));
+}
+function primeOpenServiceCatalog(prefix, title){
+  const track = document.getElementById(prefix+'-car-track');
+  if(!track) return;
+  document.getElementById('svcCatalogTitle').textContent = title;
+  document.getElementById('svcCatalogGrid').innerHTML = track.innerHTML;
+  document.getElementById('svcCatalogView').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  primeUpdatePriceVisibility();
+}
+function primeCloseServiceCatalog(){
+  document.getElementById('svcCatalogView').classList.remove('open');
+  document.body.style.overflow = '';
 }
 async function primeOpenProductCatalog(){
   if(!primeIsLoggedIn()){
