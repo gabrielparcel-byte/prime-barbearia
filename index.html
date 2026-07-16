@@ -1416,7 +1416,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <p id="ca-su-precadastro" style="display:none;background:rgba(53,197,88,.12);border:1px solid var(--verde-neon);border-radius:6px;padding:.7rem .9rem;font-size:.8rem;color:var(--prata);margin:-.4rem 0 1rem;line-height:1.5">📋 Encontramos um atendimento anterior com esse telefone — termina o cadastro que a gente já traz seu histórico pra sua conta.</p>
           <div class="ca-field" id="ca-f-su-age"><label>Idade</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ca-su-age" placeholder="18" min="1" max="120"><span class="err">Idade válida</span></div>
         </div>
-        <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"><span class="err">Digite seu @ do Instagram</span></div>
+        <div class="ca-field" id="ca-f-su-ig"><label>@ do Instagram (opcional)</label><input type="text" id="ca-su-ig" placeholder="@seuusuario"></div>
         <div class="ca-field"><label>Código de indicação (opcional)</label><input type="text" id="ca-su-ref" placeholder="Ex: JOA4F9K" style="text-transform:uppercase"></div>
         <label id="ca-f-su-consent" style="display:flex;align-items:flex-start;gap:.6rem;font-size:.78rem;color:var(--prata-dim);margin-bottom:1rem;cursor:pointer;line-height:1.5">
           <input type="checkbox" id="ca-su-consent" style="width:16px;height:16px;flex:none;margin-top:.15rem;accent-color:var(--verde-neon)">
@@ -2844,7 +2844,7 @@ async function caSignup(){
   if(phone.value.replace(/\D/g,'').length<10){fp.classList.add('invalid');ok=false}else fp.classList.remove('invalid');
   const ageNum=parseInt(age.value,10);
   if(!ageNum||ageNum<1||ageNum>120){fa.classList.add('invalid');ok=false}else fa.classList.remove('invalid');
-  if(!ig.value.trim()){fi.classList.add('invalid');ok=false}else fi.classList.remove('invalid');
+  fi.classList.remove('invalid');
   const consent = document.getElementById('ca-su-consent'), consentErr = document.getElementById('ca-su-consent-err');
   if(!consent.checked){ consentErr.style.display='block'; ok=false; } else consentErr.style.display='none';
   if(!ok){ err.style.display='none'; return; }
@@ -2852,7 +2852,7 @@ async function caSignup(){
   const { data, error } = await sb.auth.signUp({ email: newEmail, password: pass.value });
   if(error){ err.style.display='block'; return; }
   err.style.display='none';
-  const acc = { id:data.user.id, name:nome.value.trim(), email:newEmail, phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim() };
+  const acc = { id:data.user.id, name:nome.value.trim(), email:newEmail, phone:phone.value.trim(), age:ageNum, instagram:ig.value.trim()||null };
   await sb.from('clients').insert({ id:acc.id, email:acc.email, name:acc.name, phone:acc.phone, age:acc.age, instagram:acc.instagram });
   primeAccountCache = acc;
   const { data: linkedCount } = await sb.rpc('link_precadastro');
