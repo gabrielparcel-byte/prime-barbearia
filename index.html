@@ -277,7 +277,10 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 
 /* ── PRODUTOS (landing) ── */
 .landing-products{background:var(--grafite)}
-.lp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-top:1rem}
+.lp-group{margin-top:2.2rem}
+.lp-group:first-child{margin-top:1rem}
+.lp-group-label{font-size:.68rem;letter-spacing:.28em;text-transform:uppercase;color:var(--dourado);font-weight:600;margin-bottom:1rem}
+.lp-group-grid,.lp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-top:1rem}
 .lp-card{background:var(--grafite-card);border:1px solid var(--dourado-dim);overflow:hidden;transition:transform .3s,border-color .3s}
 .lp-card:hover{transform:translateY(-4px);border-color:var(--dourado)}
 .lp-photo{aspect-ratio:1;background:linear-gradient(160deg,#243027,#141715);display:flex;align-items:center;justify-content:center;position:relative;color:var(--dourado-dim)}
@@ -3000,9 +3003,14 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-meta.low{color:var(--alerta)}
 #barberApp .prod-price{font-size:.8rem;color:var(--dourado-claro);font-weight:600;flex:none;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-end;gap:.15rem}
 #barberApp .prod-margem{font-size:.6rem;color:var(--verde-neon);font-weight:400;letter-spacing:.03em;text-transform:uppercase}
+#barberApp .prod-group{margin-bottom:1.1rem}
+#barberApp .prod-group:last-child{margin-bottom:0}
+#barberApp .prod-group-label{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dourado);font-weight:600;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
+#barberApp .prod-group-count{color:var(--prata-dim);font-weight:400;letter-spacing:0;text-transform:none}
 #barberApp .prod-actions{display:flex;gap:.3rem;flex:none}
 #barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .45rem;border-radius:3px;transition:all .15s;background:none;border:none}
 #barberApp .prod-actions .prod-restock:hover{color:var(--verde-neon);background:rgba(53,197,88,.1)}
+#barberApp .prod-actions .prod-edit:hover{color:var(--dourado);background:rgba(198,167,94,.1)}
 #barberApp .prod-actions .prod-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
 #barberApp .prod-actions .prod-remove-foto:hover{color:var(--alerta);background:rgba(217,164,65,.1)}
 #barberApp .prod-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;flex:none;background:var(--grafite-card)}
@@ -3608,6 +3616,12 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div id="ba-produtos-list"></div>
           <div style="display:flex;gap:.4rem;margin-top:.9rem;flex-wrap:wrap;align-items:center">
             <input type="text" id="ba-prod-nome" class="add-input" placeholder="Nome do produto..." style="flex:2;min-width:110px">
+            <select id="ba-prod-grupo" class="add-input" style="flex:1;min-width:150px">
+              <option value="Cabelo e Barba">Cabelo e Barba</option>
+              <option value="Geladeira">Geladeira</option>
+              <option value="Conveniência">Conveniência</option>
+              <option value="Outros" selected>Outros</option>
+            </select>
             <input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-prod-estoque" class="add-input" placeholder="Qtd" style="flex:1;min-width:60px">
             <label class="ba-prod-foto-label" for="ba-prod-foto" title="Adicionar foto (opcional)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -4963,11 +4977,11 @@ function baProdCalcMargem(){
     info.textContent = '';
   }
 }
-async function baAddProductRow(name, price, stock, file, cost){
+async function baAddProductRow(name, price, stock, file, cost, category){
   let code, inserted, insertError;
   for(let i=0;i<5;i++){
     code = primeGenProductCode();
-    const res = await sb.from('products').insert({name, price, stock, code, cost: cost>0?cost:null}).select().single();
+    const res = await sb.from('products').insert({name, price, stock, code, cost: cost>0?cost:null, category: category||'Outros'}).select().single();
     if(!res.error){ inserted = res.data; break; }
     insertError = res.error;
     if(res.error.code !== '23505'){ console.error('baAddProductRow', res.error); return false; }
@@ -5021,6 +5035,7 @@ function baProdSearchInput(v){
 function baProdActions(p){
   const removerFoto = p.image_url ? `<button class="prod-remove-foto" onclick="baRemoveProductPhoto(${p.id})">remover foto</button>` : '';
   return `<div class="prod-actions">
+    <button class="prod-edit" onclick="baEditProduct(${p.id})">editar</button>
     <button class="prod-restock" onclick="baRestockProduct(${p.id})">repor</button>
     ${removerFoto}
     <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
@@ -5042,40 +5057,58 @@ function baRenderProdutosConfig(){
     document.getElementById('ba-produtos-list').innerHTML = `<p style="color:var(--prata-dim);font-size:.78rem">${baProdSearch ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}</p>`;
     return;
   }
-  if(baProdView==='grid'){
-    document.getElementById('ba-produtos-list').innerHTML = `<div class="prod-grid">${products.map(p=>{
-      const low = p.stock<=PROD_LOW_STOCK;
-      const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<div class="prod-card-placeholder">${PROD_PLACEHOLDER_SVG}</div>`;
-      return `<div class="prod-card">
-        <div class="prod-card-photo">${photo}</div>
+  const gridCard = p=>{
+    const low = p.stock<=PROD_LOW_STOCK;
+    const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<div class="prod-card-placeholder">${PROD_PLACEHOLDER_SVG}</div>`;
+    return `<div class="prod-card">
+      <div class="prod-card-photo">${photo}</div>
+      <div class="prod-name">${p.name}</div>
+      <div class="prod-code">#${p.code||'—'}</div>
+      <div class="prod-price">${baFormatMoney(p.price)}${baProdMargemLabel(p)}</div>
+      <div class="prod-meta${low?' low':''}">${p.stock} em estoque${p.stock===0?' · esgotado':(low?' · acabando':'')}</div>
+      ${baProdActions(p)}
+    </div>`;
+  };
+  const listRow = p=>{
+    const low = p.stock<=PROD_LOW_STOCK;
+    const thumb = p.image_url ? `<img class="prod-thumb" src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<div class="prod-thumb prod-thumb-placeholder">${PROD_PLACEHOLDER_SVG}</div>`;
+    return `<div class="prod-row">
+      ${thumb}
+      <div class="prod-info">
         <div class="prod-name">${p.name}</div>
         <div class="prod-code">#${p.code||'—'}</div>
-        <div class="prod-price">${baFormatMoney(p.price)}${baProdMargemLabel(p)}</div>
         <div class="prod-meta${low?' low':''}">${p.stock} em estoque${p.stock===0?' · esgotado':(low?' · acabando':'')}</div>
-        ${baProdActions(p)}
-      </div>`;
-    }).join('')}</div>`;
-  } else {
-    document.getElementById('ba-produtos-list').innerHTML = products.map(p=>{
-      const low = p.stock<=PROD_LOW_STOCK;
-      const thumb = p.image_url ? `<img class="prod-thumb" src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<div class="prod-thumb prod-thumb-placeholder">${PROD_PLACEHOLDER_SVG}</div>`;
-      return `<div class="prod-row">
-        ${thumb}
-        <div class="prod-info">
-          <div class="prod-name">${p.name}</div>
-          <div class="prod-code">#${p.code||'—'}</div>
-          <div class="prod-meta${low?' low':''}">${p.stock} em estoque${p.stock===0?' · esgotado':(low?' · acabando':'')}</div>
-        </div>
-        <div class="prod-price">${baFormatMoney(p.price)}${baProdMargemLabel(p)}</div>
-        ${baProdActions(p)}
-      </div>`;
-    }).join('');
-  }
+      </div>
+      <div class="prod-price">${baFormatMoney(p.price)}${baProdMargemLabel(p)}</div>
+      ${baProdActions(p)}
+    </div>`;
+  };
+  const groups = baGroupProductsByCategory(products);
+  document.getElementById('ba-produtos-list').innerHTML = groups.map(g=>{
+    const items = baProdView==='grid' ? `<div class="prod-grid">${g.items.map(gridCard).join('')}</div>` : g.items.map(listRow).join('');
+    return `<div class="prod-group"><div class="prod-group-label">${g.category} <span class="prod-group-count">${g.items.length}</span></div>${items}</div>`;
+  }).join('');
 }
 function baProdMargemLabel(p){
   if(!(p.cost>0) || !(p.price>0)) return '';
   const margem = (p.price-p.cost)/p.price*100;
   return `<span class="prod-margem">${margem.toFixed(0)}% margem</span>`;
+}
+const PROD_CATEGORY_ORDER = ['Cabelo e Barba','Geladeira','Conveniência'];
+function baGroupProductsByCategory(products){
+  const byCat = {};
+  products.forEach(p=>{
+    const cat = p.category || 'Outros';
+    (byCat[cat] = byCat[cat] || []).push(p);
+  });
+  const cats = Object.keys(byCat).sort((a,b)=>{
+    const ia = PROD_CATEGORY_ORDER.indexOf(a), ib = PROD_CATEGORY_ORDER.indexOf(b);
+    if(ia===-1 && ib===-1) return a.localeCompare(b);
+    if(ia===-1) return 1;
+    if(ib===-1) return -1;
+    return ia-ib;
+  });
+  return cats.map(category=>({category, items:byCat[category]}));
 }
 async function baAddProduct(){
   const nameEl = document.getElementById('ba-prod-nome');
@@ -5084,14 +5117,15 @@ async function baAddProduct(){
   const fotoEl = document.getElementById('ba-prod-foto');
   const custoEl = document.getElementById('ba-prod-custo');
   const margemEl = document.getElementById('ba-prod-margem');
+  const grupoEl = document.getElementById('ba-prod-grupo');
   const parseMoney = v => parseFloat((v||'').replace(',','.'));
   const name = nameEl.value.trim();
   const price = parseMoney(priceEl.value);
   const cost = parseMoney(custoEl.value);
   const stock = parseInt(stockEl.value)||0;
-  if(!name || !price || price<=0) return;
+  if(!name) return;
   const file = fotoEl.files && fotoEl.files[0] ? fotoEl.files[0] : null;
-  await baAddProductRow(name, price, stock, file, cost);
+  await baAddProductRow(name, price>0?price:0, stock, file, cost, grupoEl.value);
   nameEl.value=''; priceEl.value=''; stockEl.value=''; fotoEl.value=''; custoEl.value=''; margemEl.value='';
   document.getElementById('ba-prod-margem-info').textContent = '';
   const fotoLabel = document.querySelector('.ba-prod-foto-label'); if(fotoLabel) fotoLabel.classList.remove('has-file');
@@ -5099,6 +5133,25 @@ async function baAddProduct(){
 }
 async function baRemoveProduct(id){
   await baRemoveProductRow(id);
+  baRenderProdutosConfig();
+}
+async function baEditProductRow(id, price, cost){
+  const { error } = await sb.from('products').update({price, cost: cost>0?cost:null}).eq('id', id);
+  if(error){ console.error('baEditProductRow', error); return false; }
+  await baFetchProducts();
+  return true;
+}
+async function baEditProduct(id){
+  const p = baGetProducts().find(x=>x.id===id);
+  if(!p) return;
+  const priceStr = prompt('Preço de venda (R$):', p.price ? String(p.price).replace('.',',') : '');
+  if(priceStr===null) return;
+  const price = parseFloat((priceStr||'').replace(',','.'));
+  if(!price || price<=0) return;
+  const costStr = prompt('Custo (R$) — deixe vazio se não souber:', p.cost ? String(p.cost).replace('.',',') : '');
+  if(costStr===null) return;
+  const cost = parseFloat((costStr||'').replace(',','.'));
+  await baEditProductRow(id, price, cost);
   baRenderProdutosConfig();
 }
 async function baRestockProduct(id){
@@ -6249,20 +6302,24 @@ function renderTeamSection(){
     </div>`).join('') : '<p style="color:var(--prata-dim)">Equipe em breve.</p>';
 }
 async function renderLandingProducts(){
-  const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url').order('name');
+  const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
   if(error){ console.error('renderLandingProducts', error); return; }
   const section = document.getElementById('produtos-landing');
   if(!data || !data.length){ section.style.display = 'none'; return; }
   section.style.display = '';
   const placeholder = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
-  document.getElementById('lp-grid').innerHTML = data.map(p=>{
+  const card = p=>{
     const photo = p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : placeholder;
     const out = p.stock<=0 ? '<span class="lp-out">Esgotado</span>' : '';
     return `<div class="lp-card">
       <div class="lp-photo">${photo}${out}</div>
       <div class="lp-info"><h3>${p.name}</h3><span class="price price-locked" data-price="R$ ${p.price.toFixed(2).replace('.',',')}">Faça login para ver</span></div>
     </div>`;
-  }).join('');
+  };
+  const groups = baGroupProductsByCategory(data);
+  document.getElementById('lp-grid').innerHTML = groups.map(g=>
+    `<div class="lp-group"><div class="lp-group-label">${g.category}</div><div class="lp-group-grid">${g.items.map(card).join('')}</div></div>`
+  ).join('');
   primeUpdatePriceVisibility();
 }
 (async function baBootstrapAuth(){
