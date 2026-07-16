@@ -3133,6 +3133,8 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-view-toggle button.active{border-color:var(--dourado);color:var(--dourado)}
 #barberApp .prod-sort-bar{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem}
 #barberApp .prod-sort-lbl{font-size:.66rem;letter-spacing:.06em;color:var(--prata-dim)}
+#barberApp .prod-cat-filter{background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;color:var(--prata);font-family:var(--font-body);font-size:.72rem;padding:.32rem .5rem;cursor:pointer;margin-right:.4rem}
+#barberApp .prod-cat-filter:focus{outline:none;border-color:var(--dourado)}
 #barberApp .prod-sort-btn{background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;color:var(--prata-dim);font-size:.7rem;padding:.32rem .6rem;cursor:pointer;transition:all .15s}
 #barberApp .prod-sort-btn.active{border-color:var(--dourado);color:var(--dourado)}
 #barberApp .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.8rem}
@@ -5177,6 +5179,7 @@ const PROD_PLACEHOLDER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="curre
 let baProdView = localStorage.getItem('primeProdView') || 'list';
 let baProdSearch = '';
 let baProdSort = localStorage.getItem('primeProdSort') || 'name-asc';
+let baProdCategoryFilter = '';
 function baSetProdView(v){
   baProdView = v;
   localStorage.setItem('primeProdView', v);
@@ -5214,18 +5217,39 @@ function baProdActions(p){
     <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
   </div>`;
 }
+function baProdCategoryList(all){
+  const cats = Array.from(new Set(all.map(p=>p.category||'Outros')));
+  return cats.sort((a,b)=>{
+    const ia = PROD_CATEGORY_ORDER.indexOf(a), ib = PROD_CATEGORY_ORDER.indexOf(b);
+    if(ia===-1 && ib===-1) return a.localeCompare(b);
+    if(ia===-1) return 1;
+    if(ib===-1) return -1;
+    return ia-ib;
+  });
+}
+function baProdCategoryInput(v){
+  baProdCategoryFilter = v;
+  baRenderProdutosConfig();
+}
 function baRenderProdutosConfig(){
   const all = baGetProducts();
+  const categories = baProdCategoryList(all);
+  const byCategory = baProdCategoryFilter ? all.filter(p=>(p.category||'Outros')===baProdCategoryFilter) : all;
   const filtered = baProdSearch
-    ? all.filter(p => p.name.toLowerCase().includes(baProdSearch) || (p.code||'').toLowerCase().includes(baProdSearch))
-    : all;
+    ? byCategory.filter(p => p.name.toLowerCase().includes(baProdSearch) || (p.code||'').toLowerCase().includes(baProdSearch))
+    : byCategory;
   const products = baSortProducts(filtered);
   const toggle = `<div class="prod-view-toggle">
     <button class="${baProdView==='list'?'active':''}" onclick="baSetProdView('list')" aria-label="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
     <button class="${baProdView==='grid'?'active':''}" onclick="baSetProdView('grid')" aria-label="Grade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg></button>
   </div>`;
   const search = `<div class="ba-field" style="max-width:100%;margin-bottom:.6rem"><input type="text" placeholder="🔍 Buscar por nome ou código..." value="${baProdSearch}" oninput="baProdSearchInput(this.value)"></div>`;
+  const categorySelect = `<select class="prod-cat-filter" onchange="baProdCategoryInput(this.value)">
+    <option value="">Todas as categorias</option>
+    ${categories.map(c=>`<option value="${c}" ${baProdCategoryFilter===c?'selected':''}>${c}</option>`).join('')}
+  </select>`;
   const sortBar = `<div class="prod-sort-bar">
+    ${categorySelect}
     <span class="prod-sort-lbl">Ordenar por:</span>
     <button class="prod-sort-btn${baProdSort.startsWith('name')?' active':''}" onclick="baSetProdSort('name')">Nome${baProdSortArrow('name')}</button>
     <button class="prod-sort-btn${baProdSort.startsWith('price')?' active':''}" onclick="baSetProdSort('price')">Preço${baProdSortArrow('price')}</button>
@@ -5234,7 +5258,7 @@ function baRenderProdutosConfig(){
   document.getElementById('ba-produtos-toolbar').innerHTML = search + sortBar + toggle;
 
   if(!products.length){
-    document.getElementById('ba-produtos-list').innerHTML = `<p style="color:var(--prata-dim);font-size:.78rem">${baProdSearch ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}</p>`;
+    document.getElementById('ba-produtos-list').innerHTML = `<p style="color:var(--prata-dim);font-size:.78rem">${baProdSearch||baProdCategoryFilter ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}</p>`;
     return;
   }
   const gridCard = p=>{
