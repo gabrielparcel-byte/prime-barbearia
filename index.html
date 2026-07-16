@@ -603,6 +603,45 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
   </div>
 </div>
 
+<!-- EDITAR PRODUTO -->
+<div class="modal-backdrop" id="prodEditModal" role="dialog" aria-modal="true" style="z-index:1300">
+  <div class="modal" style="max-width:420px;text-align:left">
+    <button class="close" aria-label="Fechar" onclick="baCloseProdEdit()">✕</button>
+    <h3 style="margin-bottom:1.2rem">Editar produto</h3>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem">
+      <div id="pe-photo-preview" style="width:64px;height:64px;flex:none;border-radius:8px;overflow:hidden;background:var(--grafite);display:flex;align-items:center;justify-content:center;color:var(--prata-dim)"></div>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        <label for="pe-foto" class="ba-btn" style="width:auto;max-width:none;margin:0;padding:.5rem .9rem;font-size:.66rem;cursor:pointer">Trocar foto</label>
+        <input type="file" id="pe-foto" accept="image/*" style="display:none" onchange="baProdEditPreviewFoto()">
+        <button id="pe-remove-foto" type="button" style="background:none;border:none;color:var(--prata-dim);font-size:.66rem;text-decoration:underline;cursor:pointer;padding:0;text-align:left" onclick="baProdEditRemoveFoto()">remover foto</button>
+      </div>
+    </div>
+    <span class="field-lbl">Nome</span>
+    <input type="text" id="pe-nome" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem">
+    <span class="field-lbl">Categoria</span>
+    <select id="pe-categoria" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem">
+      <option value="Cabelo e Barba">Cabelo e Barba</option>
+      <option value="Geladeira">Geladeira</option>
+      <option value="Conveniência">Conveniência</option>
+      <option value="Outros">Outros</option>
+    </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
+      <div>
+        <span class="field-lbl">Estoque</span>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="pe-estoque" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem">
+      </div>
+      <div>
+        <span class="field-lbl">Custo R$</span>
+        <input type="text" inputmode="decimal" id="pe-custo" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:1rem" oninput="baProdEditInfo()">
+      </div>
+    </div>
+    <span class="field-lbl">Preço de venda R$</span>
+    <input type="text" inputmode="decimal" id="pe-preco" class="ba-field add-input" style="max-width:100%;width:100%;margin-bottom:.4rem" oninput="baProdEditInfo()">
+    <p id="pe-info" style="font-size:.72rem;color:var(--prata-dim);margin-bottom:1.2rem;min-height:1.2em"></p>
+    <button class="ba-btn" style="width:100%;max-width:100%" onclick="baSaveProdEdit()">Salvar alterações</button>
+  </div>
+</div>
+
 <!-- PLANOS -->
 <div class="modal-backdrop" id="plansModal" role="dialog" aria-modal="true" style="z-index:1200">
   <div class="modal" style="max-width:520px">
@@ -3007,6 +3046,8 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-group:last-child{margin-bottom:0}
 #barberApp .prod-group-label{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dourado);font-weight:600;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
 #barberApp .prod-group-count{color:var(--prata-dim);font-weight:400;letter-spacing:0;text-transform:none}
+#barberApp .prod-group-margin{margin-left:auto;background:none;border:1px solid var(--dourado-dim);color:var(--dourado);font-size:.6rem;letter-spacing:.08em;text-transform:none;font-weight:400;padding:.25rem .55rem;border-radius:3px;cursor:pointer}
+#barberApp .prod-group-margin:hover{border-color:var(--dourado);background:rgba(198,167,94,.08)}
 #barberApp .prod-actions{display:flex;gap:.3rem;flex:none}
 #barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .45rem;border-radius:3px;transition:all .15s;background:none;border:none}
 #barberApp .prod-actions .prod-restock:hover{color:var(--verde-neon);background:rgba(53,197,88,.1)}
@@ -5035,7 +5076,7 @@ function baProdSearchInput(v){
 function baProdActions(p){
   const removerFoto = p.image_url ? `<button class="prod-remove-foto" onclick="baRemoveProductPhoto(${p.id})">remover foto</button>` : '';
   return `<div class="prod-actions">
-    <button class="prod-edit" onclick="baEditProduct(${p.id})">editar</button>
+    <button class="prod-edit" onclick="baOpenProdEdit(${p.id})">editar</button>
     <button class="prod-restock" onclick="baRestockProduct(${p.id})">repor</button>
     ${removerFoto}
     <button class="prod-remove" onclick="baRemoveProduct(${p.id})">remover</button>
@@ -5086,7 +5127,7 @@ function baRenderProdutosConfig(){
   const groups = baGroupProductsByCategory(products);
   document.getElementById('ba-produtos-list').innerHTML = groups.map(g=>{
     const items = baProdView==='grid' ? `<div class="prod-grid">${g.items.map(gridCard).join('')}</div>` : g.items.map(listRow).join('');
-    return `<div class="prod-group"><div class="prod-group-label">${g.category} <span class="prod-group-count">${g.items.length}</span></div>${items}</div>`;
+    return `<div class="prod-group"><div class="prod-group-label">${g.category} <span class="prod-group-count">${g.items.length}</span><button class="prod-group-margin" onclick="baApplyCategoryMargin('${g.category.replace(/'/g,"\\'")}')">definir margem</button></div>${items}</div>`;
   }).join('');
 }
 function baProdMargemLabel(p){
@@ -5135,23 +5176,101 @@ async function baRemoveProduct(id){
   await baRemoveProductRow(id);
   baRenderProdutosConfig();
 }
-async function baEditProductRow(id, price, cost){
-  const { error } = await sb.from('products').update({price, cost: cost>0?cost:null}).eq('id', id);
-  if(error){ console.error('baEditProductRow', error); return false; }
-  await baFetchProducts();
-  return true;
-}
-async function baEditProduct(id){
+let baProdEditId = null;
+let baProdEditFotoFile = null;
+let baProdEditFotoRemoved = false;
+function baOpenProdEdit(id){
   const p = baGetProducts().find(x=>x.id===id);
   if(!p) return;
-  const priceStr = prompt('Preço de venda (R$):', p.price ? String(p.price).replace('.',',') : '');
-  if(priceStr===null) return;
-  const price = parseFloat((priceStr||'').replace(',','.'));
-  if(!price || price<=0) return;
-  const costStr = prompt('Custo (R$) — deixe vazio se não souber:', p.cost ? String(p.cost).replace('.',',') : '');
-  if(costStr===null) return;
-  const cost = parseFloat((costStr||'').replace(',','.'));
-  await baEditProductRow(id, price, cost);
+  baProdEditId = id;
+  baProdEditFotoFile = null;
+  baProdEditFotoRemoved = false;
+  document.getElementById('pe-nome').value = p.name;
+  document.getElementById('pe-categoria').value = p.category || 'Outros';
+  document.getElementById('pe-estoque').value = p.stock;
+  document.getElementById('pe-custo').value = p.cost ? String(p.cost).replace('.',',') : '';
+  document.getElementById('pe-preco').value = p.price ? String(p.price).replace('.',',') : '';
+  document.getElementById('pe-foto').value = '';
+  baProdEditRenderPhoto(p.image_url);
+  baProdEditInfo();
+  document.getElementById('prodEditModal').classList.add('open');
+}
+function baCloseProdEdit(){
+  document.getElementById('prodEditModal').classList.remove('open');
+  baProdEditId = null;
+}
+function baProdEditRenderPhoto(url){
+  document.getElementById('pe-photo-preview').innerHTML = url
+    ? `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover">`
+    : PROD_PLACEHOLDER_SVG;
+}
+function baProdEditPreviewFoto(){
+  const fotoEl = document.getElementById('pe-foto');
+  const file = fotoEl.files && fotoEl.files[0] ? fotoEl.files[0] : null;
+  if(!file) return;
+  baProdEditFotoFile = file;
+  baProdEditFotoRemoved = false;
+  baProdEditRenderPhoto(URL.createObjectURL(file));
+}
+function baProdEditRemoveFoto(){
+  baProdEditFotoFile = null;
+  baProdEditFotoRemoved = true;
+  document.getElementById('pe-foto').value = '';
+  baProdEditRenderPhoto(null);
+}
+function baProdEditInfo(){
+  const custo = parseFloat((document.getElementById('pe-custo').value||'').replace(',','.'));
+  const preco = parseFloat((document.getElementById('pe-preco').value||'').replace(',','.'));
+  const info = document.getElementById('pe-info');
+  if(custo>0 && preco>0){
+    const margem = (preco-custo)/preco*100;
+    const lucro = preco-custo;
+    info.textContent = `Margem de ${margem.toFixed(0)}% · lucro de R$ ${lucro.toFixed(2).replace('.',',')} por unidade`;
+  } else {
+    info.textContent = '';
+  }
+}
+async function baSaveProdEdit(){
+  const id = baProdEditId;
+  if(!id) return;
+  const p = baGetProducts().find(x=>x.id===id);
+  if(!p) return;
+  const parseMoney = v => parseFloat((v||'').replace(',','.'));
+  const name = document.getElementById('pe-nome').value.trim();
+  const category = document.getElementById('pe-categoria').value;
+  const stock = parseInt(document.getElementById('pe-estoque').value)||0;
+  const cost = parseMoney(document.getElementById('pe-custo').value);
+  const price = parseMoney(document.getElementById('pe-preco').value);
+  if(!name || !(price>0)) return;
+  let image_url = p.image_url;
+  if(baProdEditFotoFile){
+    const code = p.code || primeGenProductCode();
+    const url = await primeUploadProductImage(code, baProdEditFotoFile);
+    if(url) image_url = url;
+  } else if(baProdEditFotoRemoved){
+    if(p.image_url && p.code) await sb.storage.from('product-images').remove([`${p.code}.jpg`]);
+    image_url = null;
+  }
+  const { error } = await sb.from('products').update({
+    name, category, stock, price, cost: cost>0?cost:null, image_url
+  }).eq('id', id);
+  if(error){ console.error('baSaveProdEdit', error); return; }
+  await baFetchProducts();
+  baCloseProdEdit();
+  baRenderProdutosConfig();
+}
+async function baApplyCategoryMargin(category){
+  const marginStr = prompt(`Nova margem % pra "${category}" (aplica sobre o custo de cada produto):`);
+  if(marginStr===null) return;
+  const margin = parseFloat(marginStr.replace(',','.'));
+  if(!(margin>=0)) return;
+  const items = baGetProducts().filter(p => (p.category||'Outros')===category && p.cost>0);
+  if(!items.length){ alert('Nenhum produto dessa categoria tem custo cadastrado.'); return; }
+  await Promise.all(items.map(p => {
+    const price = Math.round(p.cost * (1 + margin/100) * 100) / 100;
+    return sb.from('products').update({price}).eq('id', p.id);
+  }));
+  await baFetchProducts();
   baRenderProdutosConfig();
 }
 async function baRestockProduct(id){
