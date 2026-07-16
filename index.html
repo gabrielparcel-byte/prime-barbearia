@@ -3116,8 +3116,8 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-group-count{color:var(--prata-dim);font-weight:400;letter-spacing:0;text-transform:none}
 #barberApp .prod-group-margin{margin-left:auto;background:none;border:1px solid var(--dourado-dim);color:var(--dourado);font-size:.6rem;letter-spacing:.08em;text-transform:none;font-weight:400;padding:.25rem .55rem;border-radius:3px;cursor:pointer}
 #barberApp .prod-group-margin:hover{border-color:var(--dourado);background:rgba(198,167,94,.08)}
-#barberApp .prod-actions{display:flex;gap:.3rem;flex:none}
-#barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .45rem;border-radius:3px;transition:all .15s;background:none;border:none}
+#barberApp .prod-actions{display:flex;flex-wrap:wrap;gap:.2rem .35rem;flex:none;margin-top:auto;padding-top:.5rem}
+#barberApp .prod-actions button{font-size:.66rem;color:var(--prata-dim);cursor:pointer;padding:.2rem .4rem;border-radius:3px;transition:all .15s;background:none;border:none;white-space:nowrap}
 #barberApp .prod-actions .prod-restock:hover{color:var(--verde-neon);background:rgba(53,197,88,.1)}
 #barberApp .prod-actions .prod-edit:hover{color:var(--dourado);background:rgba(198,167,94,.1)}
 #barberApp .prod-actions .prod-remove:hover{color:#e85d5d;background:rgba(232,93,93,.1)}
@@ -3133,8 +3133,11 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .prod-sort-lbl{font-size:.66rem;letter-spacing:.06em;color:var(--prata-dim)}
 #barberApp .prod-sort-btn{background:var(--grafite-card);border:1px solid var(--hair);border-radius:4px;color:var(--prata-dim);font-size:.7rem;padding:.32rem .6rem;cursor:pointer;transition:all .15s}
 #barberApp .prod-sort-btn.active{border-color:var(--dourado);color:var(--dourado)}
-#barberApp .prod-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem}
-#barberApp .prod-card{background:var(--grafite-card);border:1px solid var(--hair);border-radius:8px;padding:.6rem;display:flex;flex-direction:column;gap:.15rem}
+#barberApp .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.8rem}
+#barberApp .prod-card{background:var(--grafite-card);border:1px solid var(--hair);border-radius:8px;padding:.7rem;display:flex;flex-direction:column;gap:.15rem;overflow:hidden;min-width:0}
+#barberApp .prod-card .prod-name{overflow-wrap:break-word}
+#barberApp .prod-card .prod-actions{min-width:0}
+#barberApp .prod-card .prod-actions button{min-width:0;flex:0 1 auto;padding:.2rem .3rem;font-size:.62rem}
 #barberApp .prod-card-photo{width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:.4rem;background:var(--grafite)}
 #barberApp .prod-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
 #barberApp .prod-card-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--prata-dim)}
