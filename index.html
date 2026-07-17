@@ -1258,6 +1258,10 @@ render();
 #clientApp .club-card .cl-bar{height:6px;background:rgba(198,167,94,.15);border-radius:99px;overflow:hidden}
 #clientApp .club-card .cl-fill{height:100%;background:linear-gradient(90deg,#8F7538,#C6A75E,#E8D5A4);border-radius:99px;transition:width .6s ease}
 #clientApp .club-card .cl-next{font-size:.7rem;color:var(--prata-dim);margin-top:.45rem}
+#clientApp .fid-stamps{display:flex;gap:.55rem;margin:.75rem 0}
+#clientApp .fid-stamp{width:34px;height:34px;flex:none;border-radius:50%;border:1.5px dashed rgba(198,167,94,.35);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--dourado-dim);transition:all .35s cubic-bezier(.34,1.56,.64,1)}
+#clientApp .fid-stamp.filled{border-style:solid;background:linear-gradient(145deg,#8F7538,#C6A75E);border-color:var(--dourado);color:#1a1506;box-shadow:0 0 12px rgba(198,167,94,.45);transform:scale(1.05)}
+#clientApp .fid-history{font-size:.68rem;color:var(--prata-dim);margin-top:.6rem;opacity:.85}
 #clientApp .club-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem .7rem}
 #clientApp .club-stk{display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #clientApp .club-medal{position:relative;width:100%}
@@ -1560,6 +1564,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         <!-- PRIME CLUB -->
         <div class="ca-slabel" style="margin-top:0">Prime Club <span class="club-beta">beta</span></div>
         <div class="club-card" id="ca-club-level"></div>
+        <div id="ca-club-fidelidade"></div>
         <div id="ca-club-brinde"></div>
         <div class="club-grid" id="ca-club-grid"></div>
 
@@ -2598,6 +2603,27 @@ function caShareReferral(){
   const msg = `E aí! Bora cortar o cabelo na Prime Barbearia? Usa meu código *${code}* quando for criar sua conta lá no app 💈`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
+// cartão de fidelidade visual — selos preenchidos até o próximo brinde (a cada BRINDE_EVERY cortes)
+async function caRenderFidelidade(clientId, cuts){
+  const el = document.getElementById('ca-club-fidelidade');
+  if(!el) return;
+  if(!clientId){ el.innerHTML = ''; return; }
+  const row = await primeGetLoyaltyGiftRow(clientId);
+  const last = (row && row.last_gift_at) || 0;
+  const completedCycles = Math.floor(last / BRINDE_EVERY);
+  const inCycle = Math.min(BRINDE_EVERY, Math.max(0, cuts - last));
+  const remaining = Math.max(0, BRINDE_EVERY - inCycle);
+  const stampsHtml = Array.from({length: BRINDE_EVERY}, (_,i)=>
+    `<span class="fid-stamp${i<inCycle?' filled':''}">${i<inCycle?'✂':''}</span>`
+  ).join('');
+  el.innerHTML = `
+    <div class="club-card">
+      <div class="cl-row"><span class="cl-nivel">Cartão fidelidade</span><span class="cl-cuts">${inCycle}/${BRINDE_EVERY} cortes</span></div>
+      <div class="fid-stamps">${stampsHtml}</div>
+      <div class="cl-next">${remaining>0 ? `Faltam ${remaining} corte${remaining===1?'':'s'} pro próximo brinde grátis` : 'Cartão completo — escolha seu brinde abaixo! 🎁'}</div>
+      ${completedCycles>0 ? `<div class="fid-history">Você já completou ${completedCycles} ${completedCycles===1?'cartão':'cartões'} 🏆</div>` : ''}
+    </div>`;
+}
 async function caRenderClub(){
   const acc = primeGetAccount() || {};
   const clientId = acc.id || '';
@@ -2613,6 +2639,7 @@ async function caRenderClub(){
     <div class="cl-row"><span class="cl-nivel">Nível ${level.nome}</span><span class="cl-cuts">${unlockedCount}/${ACH_CATALOG.length} conquistas</span></div>
     <div class="cl-bar"><div class="cl-fill" style="width:${pct}%"></div></div>
     <div class="cl-next">${next ? `Faltam ${next.min - cuts} corte${next.min-cuts===1?'':'s'} pro nível ${next.nome}` : 'Nível máximo — lenda da Prime 💎'}</div>`;
+  await caRenderFidelidade(clientId, cuts);
   const brindeEl = document.getElementById('ca-club-brinde');
   if(brindeEl){
     if(!(await primeIsBrindeEligible(clientId, cuts))){ brindeEl.innerHTML = ''; }
