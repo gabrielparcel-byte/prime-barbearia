@@ -22,13 +22,13 @@
   - [x] "VIP" — atingiu nível Ouro
 - [x] Sistema de níveis: Bronze → Prata → Ouro → Diamante
 - [x] Brinde por fidelidade (a cada 5 cortes, barbeiro decide o mimo)
+- [x] Notificação de brinde pro barbeiro ✅ *(2026-07-16)* — antes só existia um pontinho dourado na lista de Clientes, fácil de passar batido. Agora, assim que um checkout (agendado ou avulso) deixa o cliente elegível, dispara um aviso de verdade no sino do barbeiro. Coluna nova `loyalty_gifts.notified_for` guarda pra qual ciclo (`last_gift_at`) já foi avisado, evitando duplicar notificação enquanto o brinde não é marcado como dado — reseta sozinho no ciclo seguinte
 - [ ] Benefícios por nível (desconto %, prioridade de horário)
 
 ### Cartão de Fidelidade Digital
-- [ ] Barra de progresso "X de 10 cortes → próximo grátis"
-- [ ] Visual de selos/carimbos preenchidos
-- [ ] Reset automático ao completar + registrar corte grátis
-- [ ] Histórico de cartões completados
+- [x] Barra/selos de progresso "X de 5 cortes → próximo grátis" ✅ *(2026-07-16)* — cartão visual no Prime Club (perfil do cliente), entre o nível e a escolha do brinde: 5 selos preenchidos conforme os cortes do ciclo atual, "faltam N cortes" e histórico "você já completou N cartões". Reaproveita o `BRINDE_EVERY`/`last_gift_at` que já existiam pra elegibilidade, sem SQL novo *(o valor real do ciclo é 5 cortes, não 10 como o texto antigo desse item sugeria)*
+- [x] Reset automático ao completar — já resolvido pela lógica existente (`last_gift_at` avança quando o barbeiro marca "dado", reiniciando o ciclo/selos sozinho)
+- [x] Histórico de cartões completados — "Você já completou N cartões 🏆" no cartão visual acima
 
 ---
 
@@ -94,9 +94,18 @@
 - [x] Lucro líquido estimado (faturamento de toda a equipe − comissões de cada barbeiro − despesas, só admin)
 - [x] Catálogo de produtos com estoque (cerveja, cremes, gel, etc.) — só admin cadastra/edita/repõe, alerta de estoque baixo
 - [x] Foto, código de registro e visualização em grade/lista no catálogo ✅ *(2026-07-13)* — primeira integração do projeto com Supabase Storage (bucket `product-images`, leitura pública/escrita admin-only). Cada produto ganha um código aleatório fixo de 5 caracteres na criação (sem `0/O/1/I/L`, pra colar numa etiqueta física e achar o produto certo mesmo com estoque zerado); foto opcional com captura direto da câmera, comprimida no navegador antes de subir (máx 800px, JPEG 80%). Busca por nome/código + alternância lista/grade (preferência salva por aparelho).
+- [x] Categorias de produto + custo/margem ✅ *(2026-07-14/16)* — coluna `category` (Cabelo e Barba, Geladeira, Conveniência, Outros por padrão), catálogo agrupado por categoria com filtro dedicado. Coluna `cost` (nullable, sensível — excluída da view pública `products_public`) com assistente de margem: informa custo + margem % e o preço de venda é sugerido automaticamente; badge de margem (%) no card/linha de cada produto. "Definir margem" por categoria inteira num modal próprio (prévia ao vivo de quantos produtos afeta e um exemplo de preço), recalcula o preço de todos os produtos daquela categoria com custo cadastrado de uma vez. Modal de editar produto completo (foto, nome, categoria, estoque, custo, preço) substituindo os antigos `prompt()`/campos soltos do navegador.
+- [x] Vitrine de produtos na landing page ✅ *(2026-07-16)* — carrossel automático (4 por vez, pausa no hover/toque) mostrando uma prévia dos produtos (exclui a categoria Geladeira do carrossel de destaque), com "Ver todos os produtos" abrindo um catálogo completo em tela cheia (busca por nome, agrupado por categoria em ordem alfabética) — só acessível logado; anônimo recebe um convite pra criar conta/logar e volta direto pro catálogo depois do login.
 - [x] Carrinho ao vivo durante o atendimento — barbeiro clica "Iniciar" num agendamento confirmado, adiciona produtos à vontade enquanto atende, e "Finaliza" gerando uma nota única (serviço + produtos) com desconto automático de estoque
 - [x] Auto-início do atendimento — se o barbeiro esquecer de clicar "Iniciar", o sistema inicia sozinho 6 minutos após o horário agendado (registra o início no horário marcado, não no momento da detecção)
 - [x] Corrigido: agendamentos feitos pelo cliente no site agora **geram venda de verdade** ao serem finalizados (antes só a aba "Atendimento" avulsa registrava vendas — todo o histórico de agendamento "sumia" financeiramente)
+
+### Papel "Vendas" (finalizador de balcão) ✅ *(2026-07-16)*
+- [x] Terceiro papel `role='vendas'` na tabela `barbers` — conta de recepção, sem "atender clientes como barbeiro" (`is_barber=false`, já reaproveitando o filtro que existia pra excluir admins-que-não-cortam do wizard de agendamento do cliente)
+- [x] Nav reduzido — só Agenda, Atendimento e Perfil (Sair); Gestão, Dashboard, Clientes e Minhas Vendas ficam escondidos
+- [x] Seletor de barbeiro nas telas de Agenda e Atendimento (chips, só aparece pra essa conta) — define qual barbeiro está "em ação" (`baActingBarberId`), reaproveitando as mesmas telas/funções de sempre em vez de duplicar UI
+- [x] Tudo que é finalizado (agendado, encaixe ou walk-in com pré-cadastro) grava com o `barber_id` do barbeiro escolhido, não da conta Vendas — pra barbeiro comum o comportamento não muda em nada, `baActingBarberId` é sempre o próprio id
+- [x] Policies de RLS aditivas pra `sales`/`cart_items`/`crm_clients`/`appointments` permitindo a conta `role='vendas'` agir em nome de qualquer barbeiro
 
 ---
 
@@ -110,6 +119,7 @@
 
 ### Marketing
 - [x] Landing page com depoimentos reais ✅ *(2026-07-13)* — 3 elogios reais do perfil do Google Maps (Caio Henrique, Hildine Nascimento Silva, Gustavo Rocha), link "Ver todas no Google Maps" apontando pro perfil real
+- [x] Menu de serviços/combos/tratamentos atualizado + carrossel ✅ *(2026-07-14/16)* — 8 serviços, 5 combos e 8 tratamentos migrados do cardápio impresso real pro site (antes eram só os 6 serviços originais); cada seção virou um carrossel automático (3 por vez, pausa no hover/toque, setas manuais — fábrica reaproveitável `primeMakeCarousel`), resolvendo o espaço vazio que sobrava quando o total não era múltiplo de colunas fixas; "Ver todos" em cada seção abre a lista completa em tela cheia. Preços de toda a landing (serviços, combos, tratamentos, produtos, planos) ficam travados atrás de login ("Faça login para ver")
 - [ ] Seção "Galeria" com fotos de cortes realizados
 - [x] Instagram feed integrado (embed posts) ✅ *(2026-07-13)* — post real do @primebarbeariamga embutido via widget oficial do Instagram (embed.js, sem custo/API paga), seção nova entre depoimentos e localização
 - [x] SEO técnico otimizado — 1 `<h1>` só por página (antes tinha 2), dados estruturados Schema.org (`HairSalon`, endereço, horário, telefone — aparece no card local do Google), Open Graph + Twitter Card (link bonito ao compartilhar no WhatsApp/Instagram), `robots.txt` + `sitemap.xml`, link canônico *(o resto do SEO — Google Meu Negócio, depoimentos reais, conteúdo — depende de ação fora do código ou de material que ainda não temos)*
@@ -163,12 +173,12 @@
 - [x] Drift de preço histórico no app do cliente ✅ *(2026-07-13)* — `caHistItemHtml` mostrava o preço **atual** do catálogo (`SVC_PRICES`) em vez do valor realmente cobrado na época. Corrigido sem mudar o schema de `appointments`: o valor exato já era gravado em `sales.value` no momento da finalização (`baFinalizarCarrinho`), só faltava ler de lá. Nova RPC `get_my_appt_sale_values` (`security definer`) porque a RLS de `sales` não deixa cliente ler a tabela direto (é dado financeiro do barbeiro) — retorna só o valor da linha de serviço (não de produto) pros próprios agendamentos do cliente. Testado: corte cobrado a R$ 40 continua mostrando R$ 40 no histórico mesmo depois do catálogo mudar pra R$ 45.
 - [x] Busca de cliente em "Registrar Atendimento" corrigida ✅ *(2026-07-13)* — buscava só na carteira (`crm_clients`) do barbeiro logado, por nome/@; um cliente já cadastrado no app mas nunca atendido por aquele barbeiro simplesmente não aparecia. Agora busca na tabela real `clients` (nome, @ ou e-mail, mesmo padrão do Encaixe da Fase B) e, ao selecionar um cliente achado assim, cria automaticamente o vínculo na carteira (`crm_clients` com `client_id` real) se ainda não existir.
 
-### Hospedagem & Custos *(discutido 2026-07-08 — plano, nada contratado ainda)*
-- [ ] Banco de dados: **Supabase** (grátis pra começar — 500MB cobre bem o volume de uma barbearia; se crescer muito, plano pago é ~US$25/mês). Zero administração de servidor — Supabase cuida de backup, segurança e atualização.
-- [ ] Site: manter no **GitHub Pages** (já funciona, grátis) ou migrar pra **Vercel/Netlify** (também grátis, com a vantagem de deploy automático a cada `git push` + domínio próprio mais fácil de configurar). Não é obrigatório trocar.
-- [ ] Domínio próprio (opcional): tipo `primebarbearia.com.br` via registro.br, ~R$40-60/ano — só estética/profissionalismo, não é necessário pro sistema funcionar.
+### Hospedagem & Custos *(discutido 2026-07-08 — em produção desde então)*
+- [x] Banco de dados: **Supabase** (grátis pra começar — 500MB cobre bem o volume de uma barbearia; se crescer muito, plano pago é ~US$25/mês). Zero administração de servidor — Supabase cuida de backup, segurança e atualização.
+- [x] Site: **GitHub Pages**, deploy automático a cada `git push` pra `master`.
+- [x] Domínio próprio ✅ — `primebarbearia.app.br` já em produção, apontando pro GitHub Pages.
 - [ ] **Decisão explícita: NÃO comprar servidor próprio (VPS/dedicado).** Exigiria administrar sistema operacional, banco de dados, backup e segurança manualmente — trabalho de sysadmin em tempo integral, isso é overkill total pro tamanho do negócio. Um serviço gerenciado (Supabase) resolve tudo isso por uma fração do custo/risco.
-- Custo total estimado: **R$0 pra começar** (Supabase free + Pages/Vercel/Netlify free), só o domínio opcional (~R$40-60/ano) se quiser; escalar pra ~R$125/mês (Supabase Pro) só quando o negócio já estiver crescendo o suficiente pra bancar fácil.
+- Custo total: **Supabase free + GitHub Pages free** + domínio (`primebarbearia.app.br`, ~R$40-60/ano); escalar pra ~R$125/mês (Supabase Pro) só quando o negócio já estiver crescendo o suficiente pra bancar fácil.
 
 ### LGPD e segurança
 - [x] Política de privacidade ✅ *(2026-07-11)* — modal acessível pelo rodapé, cobre dados coletados, finalidade/base legal (art. 7º), compartilhamento (Supabase como operadora), retenção, direitos do titular (art. 18) e canal de contato. Baseada em pesquisa da Lei 13.709/2018 e Resolução CD/ANPD nº 2/2022 (regras simplificadas pra pequeno porte) — **rascunho informado, não é parecer jurídico; recomendo revisão de um advogado antes de tratar como definitiva**, principalmente se o negócio crescer ou passar a processar pagamento no site
@@ -180,6 +190,14 @@
 - [x] Plano básico de resposta a incidente ✅ *(2026-07-11)* — ver `PLANO-RESPOSTA-INCIDENTE.md`: passo a passo de contenção, avaliação, comunicação a titulares/ANPD, e checklist de prevenção
 - [x] **Vulnerabilidade corrigida** ✅ *(2026-07-12)* — a policy de leitura de `barber_invites` (`using (used_at is null)`) permitia que **qualquer visitante anônimo** listasse todos os convites em aberto via `select('*')` direto do console do navegador, incluindo o `code` e o `role` — expondo, entre outros, um convite de admin ainda não usado (risco de auto-registro como admin). Corrigido removendo a policy pública e trocando a validação client-side por uma RPC `security definer` (`redeem_barber_invite`) que só retorna `role`/`name_hint` pra um código exato, nunca lista a tabela. O convite exposto foi invalidado manualmente. Verificado depois: `select('*')` anônimo em `barber_invites` retorna 0 linhas.
 - [x] **Bug corrigido** ✅ *(2026-07-13)* — descoberto ao testar a correção acima: o cadastro via convite nunca tinha funcionado de verdade, porque a RLS de `barbers` só permite `INSERT` por admin, mas quem precisa inserir a própria linha nesse fluxo é o barbeiro recém-convidado. Corrigido com outra RPC `security definer` (`complete_barber_invite`) que valida o código e insere a linha atomicamente. Testado ponta a ponta (convite → cadastro → login automático).
+
+### Correções diversas *(2026-07-14 a 2026-07-16)*
+- [x] Modal de editar produto sem estilo — `<select>` e botão usavam classes só válidas dentro do `#barberApp`, mas o modal fica fora dela; ficavam com o visual padrão feio do navegador. CSS de `<select>`/botão movida pra regra global de modal.
+- [x] "Salvar alterações" do produto travava em silêncio sempre que o preço estava vazio — agora aceita salvar com preço R$ 0,00 (edita depois), igual o cadastro já permitia.
+- [x] Cards de produto na grade estouravam o botão "remover" pra fora da borda — colunas mais largas, botões de ação sem quebra de palavra, e um `overflow:hidden` de segurança no card.
+- [x] "Lucro líquido estimado" (Dashboard) não atualizava ao lançar/remover despesa — só a listinha de despesas era re-renderizada, o card de lucro ficava com o valor da última vez que a tela tinha sido aberta.
+- [x] Lançar despesa falhava em silêncio quando o insert dava erro (RLS, rede etc. — antes só logava no console) + valor digitado com vírgula decimal (ex: "1500,00") quebrava o parser. Agora mostra o erro real na tela e aceita vírgula.
+- [x] Instagram deixou de ser obrigatório no cadastro de cliente.
 
 ---
 
@@ -202,4 +220,4 @@
 
 ---
 
-*Última atualização: 2026-07-13 (Fase D concluída por completo — filtro por período, backup automático, drift de preço; bug de busca de cliente no Atendimento corrigido)*
+*Última atualização: 2026-07-16 — domínio `primebarbearia.app.br` em produção; catálogo de produtos com categoria/custo/margem e vitrine em carrossel na landing; Serviços/Combos/Tratamentos também em carrossel com "Ver todos"; papel "Vendas" (finalizador de balcão); notificação + cartão visual de fidelidade; leva de correções de bugs (modal fora do tema, lucro líquido não atualizando, despesa falhando em silêncio, Instagram obrigatório).*
