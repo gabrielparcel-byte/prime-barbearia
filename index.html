@@ -876,6 +876,8 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <div class="summary" id="wSummary"></div>
       <label class="field-lbl" for="wName">Seu nome</label>
       <input type="text" id="wName" placeholder="Como podemos te chamar?">
+      <label class="field-lbl" for="wNotes">Observação (opcional)</label>
+      <textarea id="wNotes" placeholder="Alguma preferência ou detalhe pro barbeiro?" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:1rem;resize:vertical;min-height:70px"></textarea>
       <p style="font-size:.78rem;color:var(--prata-dim)">Ao confirmar, você será direcionado pro nosso WhatsApp com a solicitação pronta. A confirmação do horário é feita pela nossa equipe.</p>
     </div>
 
@@ -916,6 +918,10 @@ const SVC_COLORS = {'Corte Social':'#C6A75E','Corte Degradê':'#D9A566','Corte R
 function primeLocalDate(d){
   d = d || new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// escapa texto livre digitado por usuário (ex: observação) antes de jogar em innerHTML
+function primeEsc(s){
+  return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // mostra spinner + desabilita o botão por `ms`, feedback tátil em ações que salvam/recarregam dados
@@ -1160,11 +1166,12 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
     return;
   }
   const name=document.getElementById('wName').value.trim()||'Cliente';
+  const notes=document.getElementById('wNotes').value.trim()||null;
   const waTotal = state.services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
-  const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n💰 Valor total: *R$ ${waTotal.toFixed(2).replace('.',',')}*\n\nPode confirmar pra mim?`;
+  const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n💰 Valor total: *R$ ${waTotal.toFixed(2).replace('.',',')}*${notes?`\n📝 Observação: *${notes}*`:''}\n\nPode confirmar pra mim?`;
   window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
   const acc = primeGetAccount();
-  const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email});
+  const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, notes, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email});
   // notifica o barbeiro sobre o novo pedido de agendamento
   await primeAddNotif({forRole:'barber', recipientBarberId:state.barberId, type:'novo', apptId:savedAppt.id,
     text:`Novo agendamento de ${name} — ${state.dayLabel} às ${state.time} (${state.services.join(' + ')})`});
@@ -1174,6 +1181,7 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
   state.step=1; state.services=[]; state.day=null; state.dayLabel=null; state.time=null; state.barber=null; state.barberId=null; state.barberIntroAnswered=null;
   document.querySelectorAll('#wService .chip, #wDay .chip, #wTime .chip').forEach(c=>c.classList.remove('active'));
   document.getElementById('wName').value='';
+  document.getElementById('wNotes').value='';
   render();
   caOpen();
   caTab('hist');
@@ -1769,7 +1777,7 @@ function primeApptFromRow(r){
     iniciadoEm:r.iniciado_em ? new Date(r.iniciado_em).getTime() : null, rating:r.rating,
     ratingComment:r.rating_comment, ratingBy:r.rating_by, clientRating:r.client_rating,
     clientRatingComment:r.client_rating_comment, barberReply:r.barber_reply, name:r.client_name,
-    clientEmail:r.client_email, createdAt:r.created_at
+    clientEmail:r.client_email, createdAt:r.created_at, notes:r.notes
   };
 }
 function primeApptToRow(a){
@@ -1792,6 +1800,7 @@ function primeApptToRow(a){
   if('clientEmail' in a) row.client_email = a.clientEmail;
   if('clientId' in a) row.client_id = a.clientId;
   if('barberId' in a) row.barber_id = a.barberId;
+  if('notes' in a) row.notes = a.notes;
   return row;
 }
 async function primeCreateAppointment(appt){
@@ -2180,7 +2189,8 @@ function caHistItemHtml(a, priceMap){
   // preço da época (sales.value via priceMap); cai pro cálculo pelo catálogo atual só se não achar o snapshot
   const value = (priceMap && priceMap[a.id]!==undefined) ? priceMap[a.id] : (a.services||[]).reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
   const stars = a.rating ? `<div class="d" style="color:var(--dourado);margin-top:.15rem">${'★'.repeat(a.rating)}<span style="color:rgba(237,237,232,.2)">${'★'.repeat(5-a.rating)}</span></div>` : '';
-  return `<div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">${svcName}</div><div class="d">${baFormatDate(a.day)} · ${apBarberName(a)}</div>${stars}</div><div class="val">R$ ${value}</div></div>`;
+  const notesLine = a.notes ? `<div class="d" style="color:var(--dourado-dim);font-style:italic;margin-top:.15rem">📝 ${primeEsc(a.notes)}</div>` : '';
+  return `<div class="ca-hist"><div class="ic">✂</div><div class="info"><div class="s">${svcName}</div><div class="d">${baFormatDate(a.day)} · ${apBarberName(a)}</div>${stars}${notesLine}</div><div class="val">R$ ${value}</div></div>`;
 }
 async function caRenderHist(){
   const acc = primeGetAccount();
@@ -3336,6 +3346,7 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .review-reply-btn{background:none;border:none;color:var(--prata-dim);font-size:.72rem;cursor:pointer;padding:.3rem 0;margin-top:.3rem;text-decoration:underline;align-self:flex-start}
 #barberApp .review-reply-form{display:flex;gap:.5rem;margin-top:.5rem;width:100%}
 #barberApp .review-reply-form textarea{flex:1;background:var(--verde-noite);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.5rem .7rem;font-family:var(--font-body);font-size:.8rem;border-radius:4px;resize:vertical;min-height:44px}
+#barberApp .obs-textarea{width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.6rem .8rem;font-family:var(--font-body);font-size:.82rem;border-radius:4px;resize:vertical;min-height:60px;margin-top:.4rem}
 #barberApp .review-reply-form button{align-self:flex-end;background:var(--dourado);color:#1a1506;border:none;font-size:.68rem;font-weight:600;text-transform:uppercase;padding:.5rem .8rem;border-radius:4px;cursor:pointer;white-space:nowrap}
 #barberApp .ba-item{display:flex;align-items:center;gap:.9rem;padding:.9rem 0;border-bottom:1px solid rgba(198,167,94,.12)}
 #barberApp .ba-item:last-child{border-bottom:none}
@@ -3521,6 +3532,9 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div class="ba-field" style="flex:1"><label>Horário que terminou</label><input type="time" id="at-time"></div>
         </div>
 
+        <label class="field-lbl" for="at-notes">Observação (opcional)</label>
+        <textarea id="at-notes" class="obs-textarea" placeholder="Alguma preferência ou detalhe..." style="margin-bottom:.6rem"></textarea>
+
         <p class="ba-err" id="at-err" style="display:none;margin-bottom:.6rem"></p>
         <p class="at-success" id="at-success" style="display:none">Atendimento registrado ✓</p>
         <button class="ba-btn" style="max-width:100%" onclick="baAtRegistrar()">Registrar atendimento</button>
@@ -3545,6 +3559,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div><div class="lbl">Serviço agendado</div><div class="svcs" id="cart-svc-names">—</div></div>
           <div class="val" id="cart-svc-value">R$ 0,00</div>
         </div>
+        <p id="cart-notes" style="display:none;font-size:.78rem;color:var(--dourado-dim);margin:.4rem 0 0"></p>
 
         <div class="ba-slabel">Adicionar produto</div>
         <div class="ba-field" style="max-width:100%"><input type="text" id="cart-prod-search" placeholder="Buscar produto..." oninput="baCartSearchProduct()" autocomplete="off"></div>
@@ -4988,6 +5003,12 @@ async function baOpenClientDetail(name){
   if(!client) return; // proteção: barbeiro não pode abrir cliente que não é dele
   const sales = (await baFetchClientSales(name)).sort((a,b)=> b.date.localeCompare(a.date));
   const lastSale = sales[0];
+  // observações ficam em `appointments` (wizard/encaixe/atendimento avulso já linkado) — busca à parte
+  // porque `sales` não carrega esse campo, e junta pelo appointment_id de cada venda
+  const { data: apptNotesRows } = await sb.from('appointments').select('id,notes')
+    .eq('barber_id', baActingBarberId).eq('client_name', name).not('notes','is',null);
+  const notesByApptId = {};
+  (apptNotesRows||[]).forEach(r=>{ notesByApptId[r.id] = r.notes; });
   document.getElementById('ba-cli-nome').textContent = client.name;
   document.getElementById('ba-cli-idade').textContent = client.age + ' anos';
   document.getElementById('ba-cli-insta').textContent = client.instagram;
@@ -5001,9 +5022,11 @@ async function baOpenClientDetail(name){
   document.getElementById('ba-cli-rating').textContent = rated.length
     ? `${'★'.repeat(Math.round(rated.reduce((s,a)=>s+a.rating,0)/rated.length))} (${(rated.reduce((s,a)=>s+a.rating,0)/rated.length).toFixed(1)})`
     : 'Sem avaliações';
-  document.getElementById('ba-cli-historico').innerHTML = sales.length ? sales.map(s=>
-    `<div class="ba-item"><div class="ic">✂</div><div class="info"><div class="n">${s.service}</div><div class="d">${baFormatDate(s.date)}</div></div><div class="val">${baFormatMoney(s.value)}</div></div>`
-  ).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Sem histórico ainda.</p>';
+  document.getElementById('ba-cli-historico').innerHTML = sales.length ? sales.map(s=>{
+    const notes = s.appointmentId ? notesByApptId[s.appointmentId] : null;
+    const notesLine = notes ? `<div class="d" style="color:var(--dourado-dim);margin-top:.1rem">📝 ${primeEsc(notes)}</div>` : '';
+    return `<div class="ba-item"><div class="ic">✂</div><div class="info"><div class="n">${s.service}</div><div class="d">${baFormatDate(s.date)}</div>${notesLine}</div><div class="val">${baFormatMoney(s.value)}</div></div>`;
+  }).join('') : '<p style="color:var(--prata-dim);padding:1rem 0">Sem histórico ainda.</p>';
   document.getElementById('ba-cli-msg-btn').onclick = ()=>{
     const msg = `Olá ${client.name}! Aqui é o ${baCurrentBarber} da Prime Barbearia. Faz um tempinho que não te vejo por aqui — bora marcar um novo horário?`;
     window.open(`https://wa.me/${client.phone}?text=${encodeURIComponent(msg)}`,'_blank');
@@ -5743,6 +5766,9 @@ async function baOpenCarrinho(apptId){
   document.getElementById('cart-started-at').textContent = `Atendimento iniciado às ${new Date(appt.iniciadoEm).toTimeString().slice(0,5)}`;
   document.getElementById('cart-svc-names').textContent = svcs.join(' + ') || '—';
   document.getElementById('cart-svc-value').textContent = baFormatMoney(svcValue);
+  const notesEl = document.getElementById('cart-notes');
+  if(appt.notes){ notesEl.textContent = `📝 ${appt.notes}`; notesEl.style.display = 'block'; }
+  else { notesEl.style.display = 'none'; notesEl.textContent = ''; }
   document.getElementById('cart-prod-search').value = '';
   document.getElementById('cart-prod-results').innerHTML = '';
   baRenderCartItems();
@@ -5961,12 +5987,14 @@ async function baBuildAgendaTimes(){
         : emAndamento ? `<button class="ba-mini-btn amber" onclick="baOpenCarrinho(${a.id})">Abrir carrinho</button>`
         : st==='confirmado' ? `<button class="ba-mini-btn primary" onclick="baIniciarAtendimento(${a.id})">Iniciar</button>`
         : '';
+      const notesLine = a.notes ? `<div class="ts-detail" style="color:var(--dourado-dim)">📝 ${primeEsc(a.notes)}</div>` : '';
       html += `<div class="ba-tslot ${cls}">
         <div class="ts-time">${timeStr}</div>
         <div class="ts-card">
           <div class="ts-info">
             <div class="ts-name">${dots}${a.name||'Cliente'} ${badge}</div>
             <div class="ts-detail">${detailText}</div>
+            ${notesLine}
           </div>
           ${action}
         </div>
@@ -6037,7 +6065,9 @@ function baToggleEncaixe(){
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-enc-dur" value="45" min="15" max="180" step="15" style="width:100%">
       </div>
     </div>
-    <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--prata-dim);margin-bottom:.8rem;cursor:pointer">
+    <label class="field-lbl" for="ba-enc-notes">Observação (opcional)</label>
+    <textarea id="ba-enc-notes" class="obs-textarea" placeholder="Alguma preferência ou detalhe..."></textarea>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--prata-dim);margin:.8rem 0;cursor:pointer">
       <input type="checkbox" id="ba-enc-notify" checked style="width:15px;height:15px;accent-color:var(--dourado)"> Notificar cliente
     </label>
     <p class="ba-err" id="ba-enc-err" style="display:none;margin-bottom:.6rem"></p>
@@ -6127,10 +6157,11 @@ async function baSaveEncaixe(){
   if(!time) return fail('Informe o horário do encaixe.');
   const dur = parseInt(document.getElementById('ba-enc-dur').value)||45;
   const notify = document.getElementById('ba-enc-notify').checked;
+  const notes = document.getElementById('ba-enc-notes').value.trim() || null;
   const d = new Date(baAgendaDay+'T12:00:00');
   const dayLabel = `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
   const appt = await primeCreateAppointment({
-    services: svcs, day: baAgendaDay, dayLabel: dayLabel, time: time, duration: dur,
+    services: svcs, day: baAgendaDay, dayLabel: dayLabel, time: time, duration: dur, notes,
     name: baEncSelectedClient.name, clientId: baEncSelectedClient.id, clientEmail: baEncSelectedClient.email || null,
     barberId: baActingBarberId, status: 'confirmado', isEncaixe: true
   });
@@ -6168,6 +6199,7 @@ function baAtResetFields(){
   document.getElementById('at-err').style.display = 'none';
   document.getElementById('at-prod-search').value = '';
   document.getElementById('at-prod-results').innerHTML = '';
+  document.getElementById('at-notes').value = '';
 
   const svcsHtml = Object.keys(SVC_PRICES).map(name=>
     `<div class="ba-svc-chip" onclick="this.classList.toggle('selected');this.querySelector('input').checked=this.classList.contains('selected');baAtUpdateTotal()">
@@ -6349,12 +6381,29 @@ async function baAtRegistrar(){
   if(!date) return fail('Informe a data.');
   const time = document.getElementById('at-time').value;
   if(!time) return fail('Informe o horário.');
+  const notes = document.getElementById('at-notes').value.trim() || null;
+
+  // atendimento com serviço pra cliente com conta vinculada também vira um agendamento já concluído
+  // por trás — assim entra no histórico/fidelidade do cliente igual qualquer outro atendimento, e
+  // reaproveita o mesmo campo de observação sem precisar de estrutura nova
+  const linkedClientId = baAtMode==='buscar' && baAtSelectedClient ? baAtSelectedClient.id : null;
+  let retroApptId = null;
+  if(svcs.length && linkedClientId){
+    const d = new Date(date+'T12:00:00');
+    const dayLabel = `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    const appt = await primeCreateAppointment({
+      services: svcs, day: date, dayLabel, time, duration: 30, notes,
+      name: clientName, clientId: linkedClientId, clientEmail: baAtSelectedClient.email || null,
+      barberId: baActingBarberId, status: 'concluido'
+    });
+    if(appt) retroApptId = appt.id;
+  }
 
   const products = baGetProducts();
   const notaId = primeNextId();
   const rows = [];
   if(svcs.length){
-    rows.push({barberId: baActingBarberId, client:clientName, service:svcs.join(' + '), value:svcValue, date, time, notaId});
+    rows.push({barberId: baActingBarberId, client:clientName, service:svcs.join(' + '), value:svcValue, date, time, notaId, appointmentId: retroApptId});
   }
   for(const item of baAtCart){
     const p = products.find(x=>x.id===item.productId);
@@ -6364,8 +6413,7 @@ async function baAtRegistrar(){
   }
   await baInsertSales(rows);
   await baFetchProducts();
-  const notifClientId = baAtMode==='buscar' && baAtSelectedClient ? baAtSelectedClient.id : null;
-  if(notifClientId) await primeCheckBrindeNotify(baActingBarberId, notifClientId, clientName);
+  if(linkedClientId) await primeCheckBrindeNotify(baActingBarberId, linkedClientId, clientName);
 
   baAtResetFields();
   const successEl = document.getElementById('at-success');
