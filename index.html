@@ -2098,6 +2098,21 @@ async function primeIsBrindeEligible(clientId, cutCount){
   const last = (row && row.last_gift_at) || 0;
   return cutCount >= last + BRINDE_EVERY;
 }
+// avisa o barbeiro (sino) quando um cliente vira elegível — evita duplicar o aviso pro mesmo ciclo
+// via `notified_for` (guarda o last_gift_at que já gerou aviso; reseta sozinho quando o brinde é marcado como dado)
+async function primeCheckBrindeNotify(barberId, clientId, clientName){
+  if(!barberId || !clientId) return;
+  const { count } = await sb.from('sales').select('id', {count:'exact', head:true}).eq('barber_id', barberId).eq('client_name', clientName);
+  const cutCount = count || 0;
+  if(!(await primeIsBrindeEligible(clientId, cutCount))) return;
+  const row = await primeGetLoyaltyGiftRow(clientId);
+  const last = (row && row.last_gift_at) || 0;
+  if(row && row.notified_for === last) return;
+  const { error } = await sb.from('loyalty_gifts').upsert({ client_id: clientId, notified_for: last }, { onConflict: 'client_id' });
+  if(error){ console.error('primeCheckBrindeNotify', error); return; }
+  await primeAddNotif({forRole:'barber', recipientBarberId: barberId, type:'brinde',
+    text: `${clientName} bateu ${cutCount} cortes — hora de dar o mimo! 🎁`});
+}
 async function primeMarkBrindeGiven(clientId, cutCount){
   if(!clientId) return;
   const { error } = await sb.from('loyalty_gifts').upsert({
@@ -5798,6 +5813,7 @@ async function baFinalizarCarrinho(){
   await baFetchProducts(); // refresh do cache pós-decremento
 
   await sb.from('cart_items').delete().eq('appointment_id', baCarrinhoApptId);
+  if(appt.clientId) await primeCheckBrindeNotify(baActingBarberId, appt.clientId, appt.name);
 
   const finishedId = baCarrinhoApptId;
   baCarrinhoApptId = null;
@@ -6321,6 +6337,8 @@ async function baAtRegistrar(){
   }
   await baInsertSales(rows);
   await baFetchProducts();
+  const notifClientId = baAtMode==='buscar' && baAtSelectedClient ? baAtSelectedClient.id : null;
+  if(notifClientId) await primeCheckBrindeNotify(baActingBarberId, notifClientId, clientName);
 
   baAtResetFields();
   const successEl = document.getElementById('at-success');
