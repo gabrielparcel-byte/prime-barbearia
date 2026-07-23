@@ -3733,7 +3733,15 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
         </div>
 
         <div id="ba-dash-sub-relatorios" style="display:none">
-          <div class="ba-slabel" style="margin-top:0">Relatório mensal</div>
+          <div class="ba-slabel" style="margin-top:0">Relatório</div>
+          <div class="ba-vfiltros" id="ba-report-filtros">
+            <button class="ba-vf" data-rf="semana" onclick="baSetReportFilter('semana')">Semana</button>
+            <button class="ba-vf active" data-rf="mes" onclick="baSetReportFilter('mes')">Mês</button>
+            <button class="ba-vf" data-rf="custom" onclick="baSetReportFilter('custom')">Período</button>
+          </div>
+          <div class="ba-vf-dates" id="ba-rf-dates" style="display:none">
+            <input type="date" id="ba-rf-from"> <span style="color:var(--prata-dim)">até</span> <input type="date" id="ba-rf-to">
+          </div>
           <div style="display:flex;gap:.6rem;flex-wrap:wrap">
             <button class="ba-btn" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baExportReportPDF()">🖨 Exportar PDF</button>
             <button class="ba-btn ghost" style="width:auto;max-width:none;padding:.7rem 1.1rem;margin:0" onclick="baShareReportWhatsApp()">📤 Compartilhar no WhatsApp</button>
@@ -4297,6 +4305,7 @@ async function baRenderDashboard(){
   baRenderDashLine(baDashLineMonths);
   document.getElementById('ba-dash-ranking-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderRanking(baDashRankSort);
+  document.getElementById('ba-report-filtros').style.display = isAdmin ? 'none' : 'flex';
   document.getElementById('ba-dash-despesas-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderDespesas();
   document.getElementById('ba-dash-lucro-wrap').style.display = isAdmin ? 'block' : 'none';
@@ -4783,10 +4792,32 @@ function baReportMonthRange(){
   const monthName = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][today.getMonth()];
   return { from, to, label: `${monthName} de ${today.getFullYear()}` };
 }
+// período do relatório PESSOAL (barbeiro) — admin continua fixo no mês atual (tem o DRE separado pra isso)
+let baReportFilter = 'mes';
+function baSetReportFilter(f){
+  baReportFilter = f;
+  document.querySelectorAll('#ba-report-filtros .ba-vf').forEach(b=>b.classList.toggle('active', b.dataset.rf===f));
+  document.getElementById('ba-rf-dates').style.display = f==='custom' ? 'flex' : 'none';
+}
+function baPersonalReportRange(){
+  const now = new Date();
+  const todayStr = primeLocalDate(now);
+  if(baReportFilter==='semana'){
+    const d = new Date(now); d.setDate(d.getDate()-d.getDay());
+    const from = primeLocalDate(d);
+    return { from, to: todayStr, label: `Semana de ${baFormatDate(from)} a ${baFormatDate(todayStr)}` };
+  }
+  if(baReportFilter==='custom'){
+    const from = document.getElementById('ba-rf-from').value;
+    const to = document.getElementById('ba-rf-to').value;
+    if(from && to) return { from, to, label: `${baFormatDate(from)} a ${baFormatDate(to)}` };
+  }
+  return baReportMonthRange();
+}
 async function baBuildReportData(){
-  const { from, to, label } = baReportMonthRange();
   const isAdmin = baCurrentRole==='admin';
   if(isAdmin){
+    const { from, to, label } = baReportMonthRange();
     const today = new Date();
     const fin = await baShopFinancials(today.getFullYear(), today.getMonth());
     const despesas = (await baFetchExpenses(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
@@ -4799,10 +4830,12 @@ async function baBuildReportData(){
     });
     return { isAdmin:true, label, fin, despesas, byBarber };
   }
+  const { from, to, label } = baPersonalReportRange();
   const sales = (await baFetchMySales(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
   const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
-  return { isAdmin:false, label, sales, total, comissao: baCommissionSum(sales, me), name: baCurrentBarber };
+  const clientesAtendidos = new Set(sales.map(s=>s.client)).size;
+  return { isAdmin:false, label, sales, total, comissao: baCommissionSum(sales, me), clientesAtendidos, name: baCurrentBarber };
 }
 function baReportLogoSrc(){
   // logo é um SVG desenhado inline (não uma <img>), então embutimos o SVG de verdade em vez de
@@ -4855,14 +4888,15 @@ async function baRenderReportHTML(){
     body = `
       <div class="rp-section">
         <div class="rp-slabel">Resumo financeiro</div>
-        <div class="rp-grid">
+        <div class="rp-grid" style="grid-template-columns:1fr 1fr 1fr">
           <div class="rp-stat"><div class="lbl">Faturamento gerado</div><div class="val">${baFormatMoney(d.total)}</div></div>
           <div class="rp-stat highlight"><div class="lbl">Sua comissão</div><div class="val">${baFormatMoney(d.comissao)}</div></div>
+          <div class="rp-stat"><div class="lbl">Clientes atendidos</div><div class="val">${d.clientesAtendidos}</div></div>
         </div>
       </div>
       <div class="rp-section">
         <div class="rp-section-head"><span class="rp-slabel" style="margin-bottom:0">Seus atendimentos</span><span class="rp-section-total">${d.sales.length} no total</span></div>
-        ${d.sales.length ? `<table class="rp-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Data</th><th class="num">Valor</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total</td><td class="num">${baFormatMoney(d.total)}</td></tr></tfoot></table>` : '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhum atendimento registrado este mês.</p>'}
+        ${d.sales.length ? `<table class="rp-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Data</th><th class="num">Valor</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total</td><td class="num">${baFormatMoney(d.total)}</td></tr></tfoot></table>` : '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhum atendimento registrado no período.</p>'}
       </div>`;
   }
   return `
@@ -4908,7 +4942,8 @@ async function baShareReportWhatsApp(){
     text = `📊 *Meu relatório Prime — ${d.label}*\n\n` +
       `💰 Faturamento gerado: ${baFormatMoney(d.total)}\n` +
       `✅ *Minha comissão: ${baFormatMoney(d.comissao)}*\n` +
-      `✂️ ${d.sales.length} atendimento${d.sales.length===1?'':'s'} no mês\n\n` +
+      `✂️ ${d.sales.length} atendimento${d.sales.length===1?'':'s'}\n` +
+      `👤 ${d.clientesAtendidos} cliente${d.clientesAtendidos===1?'':'s'} atendido${d.clientesAtendidos===1?'':'s'}\n\n` +
       `📎 O detalhamento cliente a cliente está no PDF.`;
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
