@@ -1879,10 +1879,12 @@ async function primeValidateCoupon(code){
   if(error || !data || !data.length) return null;
   return data[0];
 }
-// retorna o preço total já com o cupom aplicado, ou null se o cupom não vale pros serviços escolhidos
+// retorna o preço total já com o cupom aplicado, ou null se o cupom não vale pros serviços escolhidos.
+// coupon.services vazio/null = vale pra qualquer serviço; preenchido = cliente precisa ter escolhido
+// UM único serviço, e esse serviço precisa estar na lista do cupom (não vale pra combos)
 function primeApplyCoupon(coupon, services){
   if(!coupon || !services.length) return null;
-  if(coupon.service && (services.length!==1 || services[0]!==coupon.service)) return null;
+  if(coupon.services && coupon.services.length && (services.length!==1 || !coupon.services.includes(services[0]))) return null;
   const total = services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
   if(coupon.type==='valor_fixo') return coupon.value;
   if(coupon.type==='percentual') return Math.round(total*(1-coupon.value/100)*100)/100;
@@ -3981,9 +3983,9 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
             </select>
           </div>
           <div class="ba-field"><label id="ba-cupom-valor-label">Valor (R$)</label><input type="text" inputmode="decimal" id="ba-cupom-valor" placeholder="Ex: 24,99"></div>
-          <div class="ba-field"><label>Serviço (opcional)</label>
-            <select id="ba-cupom-servico"><option value="">Qualquer serviço escolhido</option></select>
-          </div>
+          <label class="field-lbl">Serviços (opcional — nenhum marcado = vale pra qualquer serviço)</label>
+          <p style="color:var(--prata-dim);font-size:.76rem;margin:-.2rem 0 .5rem">Se marcar mais de um, o cupom vale quando o cliente escolher qualquer UM deles sozinho (não vale pra combos).</p>
+          <div id="ba-cupom-servicos" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem"></div>
           <p class="ba-err" id="ba-cupom-err" style="display:none"></p>
           <button class="ba-btn" style="max-width:100%" onclick="baAddCupom()">Criar cupom</button>
         </div>
@@ -5374,21 +5376,25 @@ async function baFetchCupons(){
   if(error){ console.error('baFetchCupons', error); return []; }
   return data||[];
 }
-function baPopulateCupomServicoSelect(){
-  const sel = document.getElementById('ba-cupom-servico');
-  if(!sel || sel.options.length>1) return;
-  Object.keys(SVC_PRICES).forEach(name=>{
-    const opt = document.createElement('option'); opt.value=name; opt.textContent=name; sel.appendChild(opt);
-  });
+function baPopulateCupomServicos(){
+  const box = document.getElementById('ba-cupom-servicos');
+  if(!box || box.children.length) return;
+  box.innerHTML = Object.keys(SVC_PRICES).map(name=>{
+    const safe = name.replace(/"/g,'&quot;');
+    return `<div class="chip" style="cursor:pointer;font-size:.78rem" onclick="this.classList.toggle('active');this.querySelector('input').checked=this.classList.contains('active')">
+      <input type="checkbox" class="ba-cupom-svc-check" value="${safe}" style="display:none">${name}
+    </div>`;
+  }).join('');
 }
 async function baRenderCupons(){
-  baPopulateCupomServicoSelect();
+  baPopulateCupomServicos();
   const cupons = await baFetchCupons();
   const listEl = document.getElementById('ba-cupons-list');
   if(!listEl) return;
   listEl.innerHTML = cupons.map(c=>{
     const valorLabel = c.type==='percentual' ? `${c.value}% off` : baFormatMoney(c.value);
-    const servicoLabel = c.service ? ` · só ${c.service}` : ' · qualquer serviço';
+    const servicos = c.services||[];
+    const servicoLabel = servicos.length ? ` · só ${servicos.join(' ou ')}` : ' · qualquer serviço';
     const statusLabel = c.active ? 'Ativo' : 'Inativo';
     const statusColor = c.active ? 'var(--verde-neon)' : 'var(--prata-dim)';
     return `<div class="gift-item">
@@ -5418,18 +5424,19 @@ async function baAddCupom(){
   const type = document.getElementById('ba-cupom-tipo').value;
   const valorRaw = document.getElementById('ba-cupom-valor').value;
   const value = parseFloat((valorRaw||'').replace(',','.'));
-  const service = document.getElementById('ba-cupom-servico').value || null;
+  const services = [...document.querySelectorAll('.ba-cupom-svc-check:checked')].map(cb=>cb.value);
   function fail(msg){ errEl.textContent = msg; errEl.style.display = 'block'; }
   if(!code) return fail('Digite um código pro cupom.');
   if(!(value>0)) return fail('Digite um valor válido.');
   if(type==='percentual' && value>=100) return fail('Desconto percentual precisa ser menor que 100%.');
-  const { error } = await sb.from('coupons').insert({code, type, value, service});
+  const { error } = await sb.from('coupons').insert({code, type, value, services});
   if(error){
     if(error.code==='23505') return fail('Já existe um cupom com esse código.');
     return fail('Não foi possível criar o cupom. Tente de novo.');
   }
   codeEl.value = '';
   document.getElementById('ba-cupom-valor').value = '';
+  document.querySelectorAll('.ba-cupom-svc-check:checked').forEach(cb=>{ cb.checked=false; cb.closest('.chip').classList.remove('active'); });
   baRenderCupons();
 }
 
