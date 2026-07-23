@@ -5267,7 +5267,8 @@ async function baAssignProductCode(id){
   return null;
 }
 function baGetProducts(){ return baProductsCache; }
-// margem digitada "trava" a relação custo->preço: preço sugerido = custo + (custo × margem%)
+// margem digitada é a margem REAL sobre o preço de venda (não markup sobre o custo):
+// preço sugerido = custo ÷ (1 - margem%), assim (preço-custo)/preço bate exatamente com o % digitado
 function baProdCalcMargem(){
   const parse = v => parseFloat((v||'').replace(',','.'));
   const custoEl = document.getElementById('ba-prod-custo');
@@ -5277,8 +5278,8 @@ function baProdCalcMargem(){
   const custo = parse(custoEl.value);
   const margemPct = parse(margemEl.value);
   if(!(custo>0)){ info.textContent = ''; return; }
-  if(margemPct>=0 && document.activeElement !== precoEl){
-    const preco = custo * (1 + margemPct/100);
+  if(margemPct>=0 && margemPct<100 && document.activeElement !== precoEl){
+    const preco = custo / (1 - margemPct/100);
     precoEl.value = preco.toFixed(2).replace('.',',');
   }
   const preco = parse(precoEl.value);
@@ -5595,12 +5596,19 @@ function baCloseMargemModal(){
 function baMargemItems(){
   return baGetProducts().filter(p => (p.category||'Outros')===baMargemCategory && p.cost>0);
 }
+// margem aqui é a margem REAL sobre o preço de venda: preço = custo ÷ (1 - margem%).
+// custo nunca muda — só o preço é recalculado, pra bater exatamente com a margem digitada.
 function baMargemPreview(){
   const items = baMargemItems();
   const info = document.getElementById('mg-info');
-  const margin = parseFloat((document.getElementById('mg-margem').value||'').replace(',','.'));
+  const raw = document.getElementById('mg-margem').value;
+  const margin = parseFloat((raw||'').replace(',','.'));
   if(!items.length){
     info.textContent = 'Nenhum produto dessa categoria tem custo cadastrado.';
+    return;
+  }
+  if(raw && margin>=100){
+    info.textContent = 'A margem precisa ser menor que 100%.';
     return;
   }
   if(!(margin>=0)){
@@ -5608,16 +5616,16 @@ function baMargemPreview(){
     return;
   }
   const example = items[0];
-  const examplePrice = Math.round(example.cost * (1 + margin/100) * 100) / 100;
+  const examplePrice = Math.round(example.cost / (1 - margin/100) * 100) / 100;
   info.textContent = `${items.length} produto${items.length>1?'s':''} atualizado${items.length>1?'s':''} · ex: ${example.name} (custo ${baFormatMoney(example.cost)}) vira ${baFormatMoney(examplePrice)}`;
 }
 async function baApplyMargemConfirm(){
   const margin = parseFloat((document.getElementById('mg-margem').value||'').replace(',','.'));
-  if(!(margin>=0)) return;
+  if(!(margin>=0) || margin>=100) return;
   const items = baMargemItems();
   if(!items.length){ baCloseMargemModal(); return; }
   await Promise.all(items.map(p => {
-    const price = Math.round(p.cost * (1 + margin/100) * 100) / 100;
+    const price = Math.round(p.cost / (1 - margin/100) * 100) / 100;
     return sb.from('products').update({price}).eq('id', p.id);
   }));
   await baFetchProducts();
