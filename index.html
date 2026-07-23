@@ -3924,15 +3924,21 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 const BARBER_COMMISSION_PCT = 0.6; // 60% barbeiro / 40% barbearia
 const BARBER_RETURN_DAYS = 15; // estimativa média de retorno pro próximo corte
 
-// serviços/combos/tratamentos e assinaturas sempre comissionam; produto só comissiona se a
-// categoria dele estiver marcada como comissionável pra esse barbeiro específico (padrão: nenhuma)
-function baSaleIsCommissionable(sale, barber){
-  if(sale.type !== 'produto') return true;
-  const cats = (barber && barber.commissionableCategories) || [];
-  return cats.includes(sale.category || 'Outros');
+// serviços/combos/tratamentos e assinaturas sempre usam a comissão principal do barbeiro.
+// produto usa uma % própria por categoria (commissionableCategories: {categoria: fração 0-1}),
+// configurada por barbeiro em Gestão → Equipe → Editar; categoria não configurada = 0% (não comissiona)
+function baSaleCommissionPct(sale, barber){
+  const basePct = (barber && typeof barber.commissionPct==='number') ? barber.commissionPct : BARBER_COMMISSION_PCT;
+  if(sale.type !== 'produto') return basePct;
+  const cats = (barber && barber.commissionableCategories) || {};
+  const pct = cats[sale.category || 'Outros'];
+  return typeof pct==='number' ? pct : 0;
 }
-function baCommissionableTotal(sales, barber){
-  return sales.filter(s=>baSaleIsCommissionable(s, barber)).reduce((s,x)=>s+x.value,0);
+function baSaleCommissionValue(sale, barber){
+  return sale.value * baSaleCommissionPct(sale, barber);
+}
+function baCommissionSum(sales, barber){
+  return sales.reduce((s,x)=> s + baSaleCommissionValue(x, barber), 0);
 }
 let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a cliente/venda é filtrado por ele
 let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê a aba Gestão
@@ -3949,7 +3955,7 @@ async function baLoadRoster(){
   if(error){ console.error('baLoadRoster', error); return; }
   baRosterCache = (data||[]).map(b=>({ id:b.id, name:b.name, email:b.email, role:b.role, isBarber:b.is_barber,
     commissionPct:b.commission_pct, monthlyGoal:b.monthly_goal, hours:b.hours,
-    commissionableCategories: b.commissionable_categories||[] }));
+    commissionableCategories: b.commissionable_categories||{} }));
   renderTeamSection();
 }
 function baGetRoster(){ return baRosterCache; }
@@ -4149,7 +4155,7 @@ async function baRenderVendasHoje(){
   const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
   const pct = baMyCommissionPct();
   const totalDia = realizado + previstoVal;
-  const comissaoDia = (baCommissionableTotal(sales, me) + previstoVal) * pct;
+  const comissaoDia = baCommissionSum(sales, me) + previstoVal*pct;
   box.innerHTML =
     `<div class="vh-title"><svg class="pi-icon" viewBox="0 0 24 24" style="width:15px;height:15px;flex:none"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg> Resumo de hoje</div>
      <div class="vh-row"><span class="vh-lbl">Realizados</span><span class="vh-val">${realizadoCount} corte${realizadoCount!==1?'s':''} · ${baFormatMoney(realizado)}</span></div>
@@ -4164,7 +4170,7 @@ async function baRenderVendas(){
   const total = sales.reduce((s,x)=>s+x.value,0);
   const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
   const pct = baMyCommissionPct();
-  const minha = baCommissionableTotal(sales, me) * pct;
+  const minha = baCommissionSum(sales, me);
   const salao = total-minha;
   const pctLabel = Math.round(pct*100);
   const filterLabel = baVendasFilter==='hoje'?'Hoje':baVendasFilter==='semana'?'Esta semana':baVendasFilter==='mes'?'Este mês':'Período';
@@ -4563,9 +4569,7 @@ async function baShopFinancials(year, month){
   const faturamento = sales.reduce((s,x)=>s+x.value,0);
   const comissoes = sales.reduce((s,x)=>{
     const b = roster.find(r=>r.id===x.barberId);
-    if(!baSaleIsCommissionable(x, b)) return s;
-    const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
-    return s + x.value*pct;
+    return s + baSaleCommissionValue(x, b);
   },0);
   const cmv = sales.filter(x=>x.type==='produto').reduce((s,x)=>s+(x.cost||0),0);
   const despesas = (await baFetchExpenses(from, to)).reduce((s,e)=>s+e.value,0);
@@ -4598,9 +4602,7 @@ async function baComputeDRE(year, month){
   const receitaTotal = receitaServicos + receitaProdutos + receitaAssinaturas;
   const comissoes = sales.reduce((s,x)=>{
     const b = roster.find(r=>r.id===x.barberId);
-    if(!baSaleIsCommissionable(x, b)) return s;
-    const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
-    return s + x.value*pct;
+    return s + baSaleCommissionValue(x, b);
   },0);
   const cmv = sales.filter(s=>s.type==='produto').reduce((s,x)=>s+(x.cost||0),0);
   const expenses = await baFetchExpenses(from, to);
@@ -4800,8 +4802,7 @@ async function baBuildReportData(){
   const sales = (await baFetchMySales(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
   const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
-  const pct = baMyCommissionPct();
-  return { isAdmin:false, label, sales, total, comissao: baCommissionableTotal(sales, me)*pct, name: baCurrentBarber };
+  return { isAdmin:false, label, sales, total, comissao: baCommissionSum(sales, me), name: baCurrentBarber };
 }
 function baReportLogoSrc(){
   // logo é um SVG desenhado inline (não uma <img>), então embutimos o SVG de verdade em vez de
@@ -6812,13 +6813,16 @@ function baBuildEditForm(b, i){
     </label>
     <div class="ba-field"><label>Comissão (%)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-edit-comm-${i}" min="0" max="100" value="${pct}"></div>
     <div class="ba-field"><label>Meta mensal (R$)</label><input type="text" inputmode="decimal" id="ba-edit-goal-${i}" min="0" step="50" placeholder="Ex: 6000" value="${b.monthlyGoal||''}"></div>
-    <div class="ba-slabel" style="margin-top:.2rem">Itens comissionáveis</div>
-    <p style="color:var(--prata-dim);font-size:.78rem;margin:-.3rem 0 .6rem">Cortes, combos, tratamentos e assinaturas sempre geram a comissão acima. Produto só gera comissão nas categorias marcadas aqui.</p>
-    <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">${baProdCategoryList().map(cat=>{
-      const checked = (b.commissionableCategories||[]).includes(cat);
+    <div class="ba-slabel" style="margin-top:.2rem">Comissão de produtos por categoria</div>
+    <p style="color:var(--prata-dim);font-size:.78rem;margin:-.3rem 0 .6rem">Cortes, combos, tratamentos e assinaturas sempre usam a comissão de cima (${pct}%). Produto usa a % própria de cada categoria abaixo — deixe em branco ou 0 pra essa categoria não comissionar.</p>
+    <div style="margin-bottom:1rem">${baProdCategoryList().map(cat=>{
+      const existing = (b.commissionableCategories||{})[cat];
+      const pctVal = typeof existing==='number' ? Math.round(existing*100) : '';
       const safeCat = cat.replace(/"/g,'&quot;');
-      return `<div class="chip${checked?' active':''}" style="cursor:pointer;font-size:.78rem" onclick="this.classList.toggle('active');this.querySelector('input').checked=this.classList.contains('active')">
-        <input type="checkbox" class="ba-edit-commcat-${i}" value="${safeCat}" ${checked?'checked':''} style="display:none">${cat}
+      return `<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
+        <span style="flex:1;font-size:.85rem;color:var(--prata-dim)">${cat}</span>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" class="ba-edit-commcat-${i}" data-cat="${safeCat}" placeholder="0" value="${pctVal}" style="width:64px;text-align:right;background:var(--verde-noite);border:1px solid rgba(237,237,232,.15);color:var(--prata);padding:.4rem;font-size:.85rem">
+        <span style="color:var(--prata-dim);font-size:.8rem">%</span>
       </div>`;
     }).join('')}</div>
     <div class="ba-slabel" style="margin-top:0">Escala semanal</div>
@@ -6846,13 +6850,21 @@ async function baSaveEditBarber(i){
   const newCommPct = Number(document.getElementById('ba-edit-comm-'+i).value);
   const goalRaw = document.getElementById('ba-edit-goal-'+i).value.trim();
   const newGoal = goalRaw === '' ? undefined : Number(goalRaw);
-  const newCommCats = [...document.querySelectorAll(`.ba-edit-commcat-${i}:checked`)].map(cb=>cb.value);
+  const commCatInputs = [...document.querySelectorAll(`.ba-edit-commcat-${i}`)];
 
   function fail(msg){ errEl.textContent = msg; errEl.style.display='block'; }
 
   if(!newName) return fail('Digite um nome.');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail)) return fail('E-mail inválido.');
   if(isNaN(newCommPct) || newCommPct<0 || newCommPct>100) return fail('Comissão inválida.');
+  const newCommCats = {};
+  for(const inp of commCatInputs){
+    const raw = inp.value.trim();
+    if(raw===''){ continue; }
+    const v = Number(raw);
+    if(isNaN(v) || v<0 || v>100) return fail(`Comissão de "${inp.dataset.cat}" inválida.`);
+    if(v>0) newCommCats[inp.dataset.cat] = v/100;
+  }
   if(newGoal!==undefined && (isNaN(newGoal) || newGoal<0)) return fail('Meta mensal inválida.');
   if(roster.some((x,xi)=> xi!==i && x.email.toLowerCase()===newEmail)) return fail('Já existe outro barbeiro com esse e-mail.');
   const otherAdmins = roster.filter((x,xi)=> xi!==i && x.role==='admin');
