@@ -348,7 +348,7 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 
 /* ── INSTAGRAM ── */
 .ig-feed{text-align:center}
-.ig-embed-wrap{display:flex;justify-content:center;margin-top:1rem}
+.ig-embed-wrap{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5rem;margin-top:1rem}
 .ig-embed-wrap iframe{max-width:100%}
 .ig-feed .g-link{display:inline-block;margin-top:2.2rem;color:var(--verde-neon);text-decoration:none;font-size:.85rem;letter-spacing:.15em;text-transform:uppercase}
 .ig-feed .g-link:hover{text-decoration:underline}
@@ -770,15 +770,13 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
 </section>
 
 <!-- INSTAGRAM -->
-<section class="ig-feed">
+<section class="ig-feed" id="ig-feed-section" style="display:none">
   <div class="wrap">
     <div class="sec-head" style="margin-bottom:1.5rem">
       <span class="eyebrow">Acompanhe</span>
       <h2>Direto do<br>nosso Instagram</h2>
     </div>
-    <div class="ig-embed-wrap">
-      <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/Dai1B7hvBZm/" data-instgrm-version="14"></blockquote>
-    </div>
+    <div class="ig-embed-wrap" id="ig-posts-wrap"></div>
     <a class="g-link" href="https://www.instagram.com/primebarbeariamga/" target="_blank" rel="noopener">Seguir @primebarbeariamga →</a>
   </div>
 </section>
@@ -3908,6 +3906,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <button class="ba-btn ghost" data-sub="brindes" onclick="baGestaoTab('brindes')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Brindes</button>
           <button class="ba-btn ghost" data-sub="produtos" onclick="baGestaoTab('produtos')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Produtos</button>
           <button class="ba-btn ghost" data-sub="cupons" onclick="baGestaoTab('cupons')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Cupons</button>
+          <button class="ba-btn ghost" data-sub="instagram" onclick="baGestaoTab('instagram')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Instagram</button>
         </div>
 
         <div class="ba-card" id="ba-admin-panel">
@@ -3988,6 +3987,17 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <div id="ba-cupom-servicos" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem"></div>
           <p class="ba-err" id="ba-cupom-err" style="display:none"></p>
           <button class="ba-btn" style="max-width:100%" onclick="baAddCupom()">Criar cupom</button>
+        </div>
+
+        <div class="ba-card" id="ba-instagram-config" style="display:none">
+          <div class="ba-slabel" style="margin-top:0">Posts do Instagram na landing page</div>
+          <p style="color:var(--prata-dim);font-size:.8rem;margin-bottom:.9rem">Cole o link de um post ou reel público do Instagram (ex: instagram.com/p/XXXXXXX/) pra ele aparecer na seção "Direto do nosso Instagram" do site.</p>
+          <div id="ba-instagram-list"></div>
+          <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+            <input type="text" id="ba-instagram-new" class="ba-field" placeholder="Link do post ou reel..." style="flex:1;min-width:180px;margin:0;padding:.5rem .7rem;font-size:.78rem">
+            <button class="ba-btn" style="width:auto;max-width:none;padding:.5rem .9rem;margin:0;font-size:.68rem" onclick="baAddInstagramPost()">Adicionar</button>
+          </div>
+          <p class="ba-err" id="ba-instagram-err" style="display:none;margin-top:.5rem"></p>
         </div>
       </div>
     </div>
@@ -4192,10 +4202,11 @@ function baGestaoTab(sub){
   document.getElementById('ba-brinde-config').style.display = sub==='brindes' ? 'block' : 'none';
   document.getElementById('ba-produtos-config').style.display = sub==='produtos' ? 'block' : 'none';
   document.getElementById('ba-cupons-config').style.display = sub==='cupons' ? 'block' : 'none';
+  document.getElementById('ba-instagram-config').style.display = sub==='instagram' ? 'block' : 'none';
 }
 function baRenderGestao(){
   if(baCurrentRole!=='admin') return;
-  baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig(); baRenderCupons();
+  baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig(); baRenderCupons(); baRenderInstagramConfig();
 }
 
 function baMyCommissionPct(){
@@ -5438,6 +5449,36 @@ async function baAddCupom(){
   document.getElementById('ba-cupom-valor').value = '';
   document.querySelectorAll('.ba-cupom-svc-check:checked').forEach(cb=>{ cb.checked=false; cb.closest('.chip').classList.remove('active'); });
   baRenderCupons();
+}
+
+// ══ Posts do Instagram (Supabase, admin gerencia, landing page mostra pra todo mundo) ══
+async function baRenderInstagramConfig(){
+  const listEl = document.getElementById('ba-instagram-list');
+  if(!listEl) return;
+  const posts = await baFetchInstagramPosts();
+  listEl.innerHTML = posts.map(p=>
+    `<div class="gift-item"><span class="gi-name" style="word-break:break-all">${p.url}</span><span class="gi-remove" onclick="baRemoveInstagramPost(${p.id})">remover</span></div>`
+  ).join('') || '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum post cadastrado.</p>';
+}
+async function baRemoveInstagramPost(id){
+  const { error } = await sb.from('instagram_posts').delete().eq('id', id);
+  if(error) console.error('baRemoveInstagramPost', error);
+  baRenderInstagramConfig();
+  renderInstagramPosts();
+}
+async function baAddInstagramPost(){
+  const errEl = document.getElementById('ba-instagram-err');
+  errEl.style.display = 'none';
+  const input = document.getElementById('ba-instagram-new');
+  const url = input.value.trim();
+  function fail(msg){ errEl.textContent = msg; errEl.style.display = 'block'; }
+  if(!url) return fail('Cole o link do post.');
+  if(!/^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[^/?\s]+\/?/.test(url)) return fail('Link inválido — precisa ser um link de post ou reel do Instagram (instagram.com/p/... ou /reel/...).');
+  const { error } = await sb.from('instagram_posts').insert({url});
+  if(error){ console.error('baAddInstagramPost', error); return fail('Não foi possível adicionar. Tente de novo.'); }
+  input.value = '';
+  baRenderInstagramConfig();
+  renderInstagramPosts();
 }
 
 // ══ Catálogo de produtos (Supabase, global/compartilhado) — usado no carrinho ao vivo do atendimento ══
@@ -7369,6 +7410,22 @@ const tratCarousel = primeMakeCarousel('trat', 3);
 svcCarousel.init();
 comboCarousel.init();
 tratCarousel.init();
+// ══ Posts do Instagram na landing page (link gerenciado pelo admin em Gestão) ══
+async function baFetchInstagramPosts(){
+  const { data, error } = await sb.from('instagram_posts').select('*').order('created_at',{ascending:false});
+  if(error){ console.error('baFetchInstagramPosts', error); return []; }
+  return data||[];
+}
+async function renderInstagramPosts(){
+  const posts = await baFetchInstagramPosts();
+  const section = document.getElementById('ig-feed-section');
+  const wrap = document.getElementById('ig-posts-wrap');
+  if(!section || !wrap) return;
+  if(!posts.length){ section.style.display = 'none'; return; }
+  section.style.display = '';
+  wrap.innerHTML = posts.map(p=>`<blockquote class="instagram-media" data-instgrm-permalink="${p.url}" data-instgrm-version="14"></blockquote>`).join('');
+  if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
+}
 async function renderLandingProducts(){
   const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
   if(error){ console.error('renderLandingProducts', error); return; }
@@ -7451,6 +7508,7 @@ function primeRenderProductCatalog(search){
 (async function baBootstrapAuth(){
   await baLoadRoster();
   renderLandingProducts();
+  renderInstagramPosts();
   primeUpdatePriceVisibility();
   const { data:{ session } } = await sb.auth.getSession();
   if(session){
