@@ -1631,6 +1631,37 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
   </div>
 </div>
 
+<!-- MODAL: confirmação de admin p/ barbeiro cancelar horário -->
+<div class="modal-backdrop" id="baAdminGateModal" role="dialog" aria-modal="true" style="z-index:1200" onclick="if(event.target===this)baCloseAdminGate()">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <button class="close" aria-label="Fechar" onclick="baCloseAdminGate()">✕</button>
+    <h3>Confirmação do admin</h3>
+    <p style="color:var(--prata-dim);font-size:.85rem;margin:.8rem 0 1.2rem">Pra cancelar esse horário, peça pra um admin confirmar com o login dele.</p>
+    <input type="email" id="baAdminGateEmail" placeholder="E-mail do admin" autocomplete="off" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:.8rem">
+    <input type="password" id="baAdminGatePass" placeholder="Senha" autocomplete="off" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:1rem">
+    <p id="baAdminGateErr" style="color:var(--erro);font-size:.82rem;margin-bottom:1rem;display:none"></p>
+    <div style="display:flex;flex-direction:column;gap:.8rem">
+      <button class="btn btn-primary" id="baAdminGateConfirm" style="background:#8a3a2a;box-shadow:none">Confirmar cancelamento</button>
+      <button class="btn btn-ghost" onclick="baCloseAdminGate()">Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: remarcar horário (barbeiro escolhe nova data/hora) -->
+<div class="modal-backdrop" id="baRemarcarModal" role="dialog" aria-modal="true" style="z-index:1200" onclick="if(event.target===this)baCloseRemarcar()">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <button class="close" aria-label="Fechar" onclick="baCloseRemarcar()">✕</button>
+    <h3>Remarcar horário</h3>
+    <p style="color:var(--prata-dim);font-size:.85rem;margin:.8rem 0 1.2rem" id="baRemarcarSub"></p>
+    <input type="date" id="baRemarcarDate" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:.8rem;color-scheme:dark">
+    <select id="baRemarcarTime" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:1rem">
+      <option value="">Escolha a data primeiro</option>
+    </select>
+    <p id="baRemarcarErr" style="color:var(--erro);font-size:.82rem;margin-bottom:1rem;display:none"></p>
+    <button class="btn btn-primary" style="width:100%" id="baRemarcarConfirm">Confirmar novo horário</button>
+  </div>
+</div>
+
 <!-- MODAL: feedback com estrelas -->
 <div class="modal-backdrop" id="feedbackModal" role="dialog" aria-modal="true" style="z-index:1200">
   <div class="modal" style="max-width:420px;text-align:center">
@@ -3173,6 +3204,8 @@ addEventListener('resize', caApplyMode, {passive:true});
 #barberApp .ba-mini-btn{border:none;font-family:var(--font-body);font-weight:500;font-size:.65rem;letter-spacing:.04em;text-transform:uppercase;padding:.35rem .7rem;border-radius:4px;cursor:pointer;white-space:nowrap}
 #barberApp .ba-mini-btn.amber{background:var(--alerta);color:#1a1506}
 #barberApp .ba-mini-btn.primary{background:var(--dourado);color:#1a1506}
+#barberApp .ba-mini-btn.ghost{background:transparent;border:1px solid rgba(237,237,232,.25);color:var(--prata-dim)}
+#barberApp .ba-mini-btn.danger{background:var(--erro);color:#2a120c}
 #barberApp .gift-dot{width:7px;height:7px;border-radius:50%;background:var(--dourado);box-shadow:0 0 5px rgba(198,167,94,.6);flex:none;animation:giftPulse 2.2s ease-in-out infinite}
 @keyframes giftPulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){#barberApp .gift-dot{animation:none}}
@@ -5950,7 +5983,11 @@ async function baBuildAgendaTimes(){
   tlBox.innerHTML = '';
   if(!baAgendaDay) return;
   const d = new Date(baAgendaDay+'T12:00:00');
-  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
+  if(baCurrentRole==='vendas' && !baActingBarberId){
+    tlBox.innerHTML = '<p style="color:var(--prata-dim);padding:.6rem 0">Escolha um barbeiro em "Atendendo em nome de" pra ver a agenda.</p>';
+    return;
+  }
+  const me = baGetRoster().find(b=>b.id===baActingBarberId);
   const appts = await baFetchAgendaAppointments(baAgendaDay);
   const h = resolveBarberHours(me, d.getDay());
   if(!h){
@@ -5983,10 +6020,13 @@ async function baBuildAgendaTimes(){
       const detailText = emAndamento
         ? `${svcName} · iniciado há ${baElapsedMin(a.iniciadoEm)}min`
         : `${svcName}${dur} · <span style="color:${statusColor[st]}">${statusLabel[st]||st}</span>`;
-      const action = st==='pendente' ? `<button class="ba-btn" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baAcceptAppt(${a.id})">Aceitar</button>`
+      const statusBtn = st==='pendente' ? `<button class="ba-btn" style="width:auto;max-width:none;padding:.3rem .6rem;margin:0;font-size:.65rem" onclick="baAcceptAppt(${a.id})">Aceitar</button>`
         : emAndamento ? `<button class="ba-mini-btn amber" onclick="baOpenCarrinho(${a.id})">Abrir carrinho</button>`
         : st==='confirmado' ? `<button class="ba-mini-btn primary" onclick="baIniciarAtendimento(${a.id})">Iniciar</button>`
         : '';
+      const canManage = (st==='pendente' || st==='confirmado') && !emAndamento;
+      const manageBtns = canManage ? `<button class="ba-mini-btn ghost" onclick="baOpenReagendar(${a.id})">Remarcar</button><button class="ba-mini-btn danger" onclick="baOpenAdminGateCancel(${a.id})">Cancelar</button>` : '';
+      const action = (statusBtn || manageBtns) ? `<div style="display:flex;flex-direction:column;gap:.3rem;align-items:stretch">${statusBtn}${manageBtns}</div>` : '';
       const notesLine = a.notes ? `<div class="ts-detail" style="color:var(--dourado-dim)">📝 ${primeEsc(a.notes)}</div>` : '';
       html += `<div class="ba-tslot ${cls}">
         <div class="ts-time">${timeStr}</div>
@@ -6022,12 +6062,139 @@ async function baBuildAgendaTimes(){
   tlBox.innerHTML = summary + legend + html;
 }
 
+// ── Cancelamento de horário pelo barbeiro (exige confirmação de um admin) ──
+let baAdminGateApptId = null;
+function baOpenAdminGateCancel(id){
+  baAdminGateApptId = id;
+  document.getElementById('baAdminGateEmail').value = '';
+  document.getElementById('baAdminGatePass').value = '';
+  document.getElementById('baAdminGateErr').style.display = 'none';
+  document.getElementById('baAdminGateModal').classList.add('open');
+}
+function baCloseAdminGate(){
+  document.getElementById('baAdminGateModal').classList.remove('open');
+  baAdminGateApptId = null;
+}
+document.getElementById('baAdminGateConfirm').addEventListener('click', async ()=>{
+  const email = document.getElementById('baAdminGateEmail').value.trim();
+  const pass = document.getElementById('baAdminGatePass').value;
+  const errEl = document.getElementById('baAdminGateErr');
+  errEl.style.display = 'none';
+  if(!email || !pass){ errEl.textContent = 'Preencha e-mail e senha do admin.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('baAdminGateConfirm');
+  btn.disabled = true; btn.classList.add('btn-loading');
+  try{
+    // client à parte (persistSession:false) só pra validar a senha, sem derrubar a sessão do barbeiro logado
+    const sbCheck = window.supabase.createClient(
+      'https://yojvzwkvtedxqlohpuug.supabase.co',
+      'sb_publishable_Sr6YB54aCIQVdvhdrNWlSA_PMjlAdMG',
+      { auth: { persistSession: false } }
+    );
+    const { data, error } = await sbCheck.auth.signInWithPassword({ email, password: pass });
+    if(error || !data.user){ errEl.textContent = 'E-mail ou senha inválidos.'; errEl.style.display = 'block'; return; }
+    const { data: barberRow } = await sb.from('barbers').select('role').eq('id', data.user.id).maybeSingle();
+    await sbCheck.auth.signOut();
+    if(!barberRow || barberRow.role!=='admin'){ errEl.textContent = 'Essa conta não é de um admin.'; errEl.style.display = 'block'; return; }
+    const id = baAdminGateApptId;
+    baCloseAdminGate();
+    await baExecuteCancel(id);
+  } catch(e){
+    console.error('baAdminGateConfirm', e);
+    errEl.textContent = 'Erro ao verificar. Tente de novo.'; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.classList.remove('btn-loading');
+  }
+});
+async function baExecuteCancel(id){
+  const ap = await primeFetchAppointmentById(id);
+  if(!ap) return;
+  await primeUpdateAppointment(id, {status:'cancelado'});
+  let phone = null;
+  if(ap.clientId){
+    await primeAddNotif({forRole:'client', recipientClientId:ap.clientId, type:'cancelado-barbeiro', apptId:id,
+      text:`Seu horário de ${ap.dayLabel} às ${ap.time} foi cancelado pelo barbeiro. Toque aqui para reagendar.`});
+    const { data: cli } = await sb.from('clients').select('phone').eq('id', ap.clientId).maybeSingle();
+    phone = cli && cli.phone;
+  }
+  const msg = `Oi ${ap.name||''}! Infelizmente precisei cancelar seu horário de ${ap.dayLabel} às ${ap.time} na Prime Barbearia. Bora marcar de novo? 🙏`;
+  const waNum = phone ? phone.replace(/\D/g,'') : '';
+  window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`, '_blank');
+  baBuildAgendaTimes();
+}
+
+// ── Remarcar horário (barbeiro escolhe nova data/hora, sem gate de admin) ──
+let baRemarcarApptId = null;
+let baRemarcarAppt = null;
+async function baOpenReagendar(id){
+  const ap = await primeFetchAppointmentById(id);
+  if(!ap) return;
+  baRemarcarAppt = ap;
+  baRemarcarApptId = id;
+  document.getElementById('baRemarcarSub').textContent = `Horário atual: ${ap.dayLabel} às ${ap.time}`;
+  const dateEl = document.getElementById('baRemarcarDate');
+  dateEl.min = primeLocalDate(new Date());
+  dateEl.value = ap.day;
+  document.getElementById('baRemarcarErr').style.display = 'none';
+  await baRemarcarBuildTimes();
+  document.getElementById('baRemarcarModal').classList.add('open');
+}
+function baCloseRemarcar(){
+  document.getElementById('baRemarcarModal').classList.remove('open');
+  baRemarcarApptId = null; baRemarcarAppt = null;
+}
+document.getElementById('baRemarcarDate').addEventListener('change', baRemarcarBuildTimes);
+async function baRemarcarBuildTimes(){
+  const sel = document.getElementById('baRemarcarTime');
+  const day = document.getElementById('baRemarcarDate').value;
+  if(!day){ sel.innerHTML = '<option value="">Escolha a data primeiro</option>'; return; }
+  const d = new Date(day+'T12:00:00');
+  const me = baGetRoster().find(b=>b.id===baRemarcarAppt.barberId);
+  const h = resolveBarberHours(me, d.getDay());
+  if(!h){ sel.innerHTML = '<option value="">Barbeiro de folga nesse dia</option>'; return; }
+  const [oH,oM]=h[0].split(':').map(Number), [cH,cM]=h[1].split(':').map(Number);
+  const { data: dayRows } = await sb.from('appointments').select('id,time').eq('barber_id', baRemarcarAppt.barberId).eq('day', day).neq('status','cancelado');
+  const appts = dayRows || [];
+  const now = new Date(); const isToday = day===primeLocalDate(now);
+  const taken = new Set(appts.filter(a=>a.id!==baRemarcarApptId).map(a=>a.time));
+  let opts = '';
+  for(let t=oH*60+oM; t+SLOT_MIN<=cH*60+cM; t+=SLOT_MIN){
+    if(isToday && t <= now.getHours()*60+now.getMinutes()+30) continue;
+    const timeStr = `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
+    if(taken.has(timeStr)) continue;
+    const selectedAttr = (day===baRemarcarAppt.day && timeStr===baRemarcarAppt.time) ? 'selected' : '';
+    opts += `<option value="${timeStr}" ${selectedAttr}>${timeStr}</option>`;
+  }
+  sel.innerHTML = opts || '<option value="">Nenhum horário livre nesse dia</option>';
+}
+document.getElementById('baRemarcarConfirm').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('baRemarcarErr');
+  errEl.style.display = 'none';
+  const day = document.getElementById('baRemarcarDate').value;
+  const time = document.getElementById('baRemarcarTime').value;
+  if(!day || !time){ errEl.textContent = 'Escolha uma data e horário válidos.'; errEl.style.display = 'block'; return; }
+  const d = new Date(day+'T12:00:00');
+  const dayLabel = `${DIAS[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  const oldLabel = `${baRemarcarAppt.dayLabel} às ${baRemarcarAppt.time}`;
+  const btn = document.getElementById('baRemarcarConfirm');
+  btn.disabled = true; btn.classList.add('btn-loading');
+  const id = baRemarcarApptId, clientId = baRemarcarAppt.clientId;
+  await primeUpdateAppointment(id, {day, dayLabel, time});
+  if(clientId){
+    await primeAddNotif({forRole:'client', recipientClientId:clientId, type:'remarcado', apptId:id,
+      text:`Seu horário que era ${oldLabel} foi remarcado pelo barbeiro para ${dayLabel} às ${time}.`});
+  }
+  btn.disabled = false; btn.classList.remove('btn-loading');
+  baCloseRemarcar();
+  baBuildAgendaTimes();
+});
+
 function baToggleEncaixe(){
   const form = document.getElementById('ba-encaixe-form');
   if(form.style.display !== 'none'){ form.style.display='none'; form.innerHTML=''; return; }
-  const me = baGetRoster().find(b=>b.name===baCurrentBarber);
+  if(!baActingBarberId){ alert('Escolha um barbeiro em "Atendendo em nome de" antes de criar um encaixe.'); return; }
+  const me = baGetRoster().find(b=>b.id===baActingBarberId);
   const h = resolveBarberHours(me, new Date(baAgendaDay+'T12:00:00').getDay());
-  if(!h){ alert('Você está de folga neste dia.'); return; }
+  if(!h){ alert('Esse barbeiro está de folga neste dia.'); return; }
   const svcsHtml = Object.keys(SVC_PRICES).map(name=>
     `<div class="ba-svc-chip" onclick="this.classList.toggle('selected');this.querySelector('input').checked=this.classList.contains('selected')">
       <input type="checkbox" class="ba-enc-svc" value="${name}">
@@ -6139,6 +6306,7 @@ async function baSaveEncaixe(){
   const errEl = document.getElementById('ba-enc-err');
   const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; };
   errEl.style.display='none';
+  if(!baActingBarberId) return fail('Escolha um barbeiro em "Atendendo em nome de" antes de confirmar.');
   if(baEncMode==='novo'){
     const name = document.getElementById('ba-enc-new-name').value.trim();
     const phoneRaw = document.getElementById('ba-enc-new-phone').value.trim();
@@ -6346,6 +6514,7 @@ async function baAtRegistrar(){
   const errEl = document.getElementById('at-err');
   const fail = msg => { errEl.textContent=msg; errEl.style.display='block'; document.getElementById('at-success').style.display='none'; };
   errEl.style.display='none';
+  if(!baActingBarberId) return fail('Escolha um barbeiro em "Atendendo em nome de" antes de registrar.');
 
   let clientName;
   if(baAtMode==='buscar'){
