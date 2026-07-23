@@ -6177,12 +6177,18 @@ document.getElementById('baRemarcarConfirm').addEventListener('click', async ()=
   const oldLabel = `${baRemarcarAppt.dayLabel} às ${baRemarcarAppt.time}`;
   const btn = document.getElementById('baRemarcarConfirm');
   btn.disabled = true; btn.classList.add('btn-loading');
-  const id = baRemarcarApptId, clientId = baRemarcarAppt.clientId;
+  const id = baRemarcarApptId, clientId = baRemarcarAppt.clientId, clientName = baRemarcarAppt.name;
   await primeUpdateAppointment(id, {day, dayLabel, time});
+  let phone = null;
   if(clientId){
     await primeAddNotif({forRole:'client', recipientClientId:clientId, type:'remarcado', apptId:id,
       text:`Seu horário que era ${oldLabel} foi remarcado pelo barbeiro para ${dayLabel} às ${time}.`});
+    const { data: cli } = await sb.from('clients').select('phone').eq('id', clientId).maybeSingle();
+    phone = cli && cli.phone;
   }
+  const msg = `Oi ${clientName||''}! Seu horário na Prime Barbearia que era ${oldLabel} foi remarcado para ${dayLabel} às ${time}. Qualquer coisa é só chamar 🙏`;
+  const waNum = phone ? phone.replace(/\D/g,'') : '';
+  window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`, '_blank');
   btn.disabled = false; btn.classList.remove('btn-loading');
   baCloseRemarcar();
   baBuildAgendaTimes();
