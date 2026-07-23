@@ -4305,7 +4305,6 @@ async function baRenderDashboard(){
   baRenderDashLine(baDashLineMonths);
   document.getElementById('ba-dash-ranking-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderRanking(baDashRankSort);
-  document.getElementById('ba-report-filtros').style.display = isAdmin ? 'none' : 'flex';
   document.getElementById('ba-dash-despesas-wrap').style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) baRenderDespesas();
   document.getElementById('ba-dash-lucro-wrap').style.display = isAdmin ? 'block' : 'none';
@@ -4569,10 +4568,7 @@ async function baRemoveExpense(id){
 }
 
 // ══ Lucro líquido estimado (admin) — faturamento da barbearia toda - comissões - despesas ══
-async function baShopFinancials(year, month){
-  const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
-  const d = new Date(year, month+1, 0);
-  const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+async function baShopFinancialsRange(from, to){
   const sales = await baFetchShopSales(from, to);
   const roster = baGetRoster();
   const faturamento = sales.reduce((s,x)=>s+x.value,0);
@@ -4583,6 +4579,12 @@ async function baShopFinancials(year, month){
   const cmv = sales.filter(x=>x.type==='produto').reduce((s,x)=>s+(x.cost||0),0);
   const despesas = (await baFetchExpenses(from, to)).reduce((s,e)=>s+e.value,0);
   return { faturamento, comissoes, cmv, despesas, lucro: faturamento - comissoes - cmv - despesas };
+}
+async function baShopFinancials(year, month){
+  const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
+  const d = new Date(year, month+1, 0);
+  const to = `${year}-${String(month+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return baShopFinancialsRange(from, to);
 }
 async function baRenderLucro(){
   const el = document.getElementById('ba-dash-lucro');
@@ -4792,14 +4794,14 @@ function baReportMonthRange(){
   const monthName = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][today.getMonth()];
   return { from, to, label: `${monthName} de ${today.getFullYear()}` };
 }
-// período do relatório PESSOAL (barbeiro) — admin continua fixo no mês atual (tem o DRE separado pra isso)
+// período do relatório (admin e barbeiro) — chips Semana/Mês/Período, compartilhado pelos dois
 let baReportFilter = 'mes';
 function baSetReportFilter(f){
   baReportFilter = f;
   document.querySelectorAll('#ba-report-filtros .ba-vf').forEach(b=>b.classList.toggle('active', b.dataset.rf===f));
   document.getElementById('ba-rf-dates').style.display = f==='custom' ? 'flex' : 'none';
 }
-function baPersonalReportRange(){
+function baReportRange(){
   const now = new Date();
   const todayStr = primeLocalDate(now);
   if(baReportFilter==='semana'){
@@ -4816,10 +4818,9 @@ function baPersonalReportRange(){
 }
 async function baBuildReportData(){
   const isAdmin = baCurrentRole==='admin';
+  const { from, to, label } = baReportRange();
   if(isAdmin){
-    const { from, to, label } = baReportMonthRange();
-    const today = new Date();
-    const fin = await baShopFinancials(today.getFullYear(), today.getMonth());
+    const fin = await baShopFinancialsRange(from, to);
     const despesas = (await baFetchExpenses(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
     const roster = baGetRoster();
     const sales = await baFetchShopSales(from, to);
@@ -4828,9 +4829,9 @@ async function baBuildReportData(){
       const mine = sales.filter(s=>s.barberId===b.id).sort((a,b2)=>a.date.localeCompare(b2.date));
       if(mine.length) byBarber[b.name] = mine;
     });
-    return { isAdmin:true, label, fin, despesas, byBarber };
+    const clientesAtendidos = new Set(sales.map(s=>s.client)).size;
+    return { isAdmin:true, label, fin, despesas, byBarber, clientesAtendidos };
   }
-  const { from, to, label } = baPersonalReportRange();
   const sales = (await baFetchMySales(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
   const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
@@ -4871,17 +4872,19 @@ async function baRenderReportHTML(){
         <div class="rp-grid">
           <div class="rp-stat"><div class="lbl">Faturamento</div><div class="val">${baFormatMoney(d.fin.faturamento)}</div></div>
           <div class="rp-stat"><div class="lbl">Comissões repassadas</div><div class="val">${baFormatMoney(d.fin.comissoes)}</div></div>
+          <div class="rp-stat"><div class="lbl">Custo de produtos</div><div class="val">${baFormatMoney(d.fin.cmv)}</div></div>
           <div class="rp-stat"><div class="lbl">Despesas</div><div class="val">${baFormatMoney(d.fin.despesas)}</div></div>
           <div class="rp-stat highlight"><div class="lbl">Lucro líquido</div><div class="val">${baFormatMoney(d.fin.lucro)}</div></div>
+          <div class="rp-stat"><div class="lbl">Clientes atendidos</div><div class="val">${d.clientesAtendidos}</div></div>
         </div>
       </div>
       <div class="rp-section">
-        <div class="rp-section-head"><span class="rp-slabel" style="margin-bottom:0">Despesas do mês</span><span class="rp-section-total">total: <b>${baFormatMoney(d.fin.despesas)}</b></span></div>
-        ${d.despesas.length ? `<table class="rp-table"><thead><tr><th>Descrição</th><th>Data</th><th class="num">Valor</th></tr></thead><tbody>${despesasRows}</tbody></table>` : '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhuma despesa registrada este mês.</p>'}
+        <div class="rp-section-head"><span class="rp-slabel" style="margin-bottom:0">Despesas do período</span><span class="rp-section-total">total: <b>${baFormatMoney(d.fin.despesas)}</b></span></div>
+        ${d.despesas.length ? `<table class="rp-table"><thead><tr><th>Descrição</th><th>Data</th><th class="num">Valor</th></tr></thead><tbody>${despesasRows}</tbody></table>` : '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhuma despesa registrada no período.</p>'}
       </div>
       <div class="rp-section">
         <div class="rp-slabel">Atendimentos por barbeiro</div>
-        ${barberBlocks || '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhum atendimento registrado este mês.</p>'}
+        ${barberBlocks || '<p style="color:var(--rp-ink-dim);font-size:.82rem">Nenhum atendimento registrado no período.</p>'}
       </div>`;
   } else {
     const rows = d.sales.map(s=>`<tr><td>${s.client}</td><td class="muted">${s.service}</td><td class="muted">${baFormatDate(s.date)}</td><td class="num">${baFormatMoney(s.value)}</td></tr>`).join('');
@@ -4936,7 +4939,8 @@ async function baShareReportWhatsApp(){
       `👥 Comissões: ${baFormatMoney(d.fin.comissoes)}\n` +
       `📦 Custo de produtos: ${baFormatMoney(d.fin.cmv)}\n` +
       `📉 Despesas: ${baFormatMoney(d.fin.despesas)}\n` +
-      `✅ *Lucro líquido: ${baFormatMoney(d.fin.lucro)}*\n\n` +
+      `✅ *Lucro líquido: ${baFormatMoney(d.fin.lucro)}*\n` +
+      `👤 ${d.clientesAtendidos} cliente${d.clientesAtendidos===1?'':'s'} atendido${d.clientesAtendidos===1?'':'s'}\n\n` +
       `📎 O detalhamento completo (cliente a cliente, despesa a despesa) está no PDF.`;
   } else {
     text = `📊 *Meu relatório Prime — ${d.label}*\n\n` +
