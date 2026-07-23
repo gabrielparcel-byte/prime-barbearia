@@ -3923,6 +3923,17 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
 <script>
 const BARBER_COMMISSION_PCT = 0.6; // 60% barbeiro / 40% barbearia
 const BARBER_RETURN_DAYS = 15; // estimativa média de retorno pro próximo corte
+
+// serviços/combos/tratamentos e assinaturas sempre comissionam; produto só comissiona se a
+// categoria dele estiver marcada como comissionável pra esse barbeiro específico (padrão: nenhuma)
+function baSaleIsCommissionable(sale, barber){
+  if(sale.type !== 'produto') return true;
+  const cats = (barber && barber.commissionableCategories) || [];
+  return cats.includes(sale.category || 'Outros');
+}
+function baCommissionableTotal(sales, barber){
+  return sales.filter(s=>baSaleIsCommissionable(s, barber)).reduce((s,x)=>s+x.value,0);
+}
 let baCurrentBarber = null; // nome do barbeiro logado agora — todo acesso a cliente/venda é filtrado por ele
 let baCurrentRole = null; // 'admin' ou 'barbeiro' — só admin vê a aba Gestão
 let baCurrentBarberEmail = null;
@@ -3937,7 +3948,8 @@ async function baLoadRoster(){
   const { data, error } = await sb.from('barbers').select('*').order('created_at');
   if(error){ console.error('baLoadRoster', error); return; }
   baRosterCache = (data||[]).map(b=>({ id:b.id, name:b.name, email:b.email, role:b.role, isBarber:b.is_barber,
-    commissionPct:b.commission_pct, monthlyGoal:b.monthly_goal, hours:b.hours }));
+    commissionPct:b.commission_pct, monthlyGoal:b.monthly_goal, hours:b.hours,
+    commissionableCategories: b.commissionable_categories||[] }));
   renderTeamSection();
 }
 function baGetRoster(){ return baRosterCache; }
@@ -3948,7 +3960,7 @@ function baSaleFromRow(r){
   if(!r) return r;
   return { id:r.id, barberId:r.barber_id, client:r.client_name, appointmentId:r.appointment_id,
     service:r.service, value:r.value, date:r.date, time:r.time, notaId:r.nota_id,
-    qty:r.qty, type:r.type, createdAt:r.created_at };
+    qty:r.qty, type:r.type, category:r.category, cost:r.cost, createdAt:r.created_at };
 }
 function baSaleToRow(s){
   const row = {};
@@ -3962,6 +3974,8 @@ function baSaleToRow(s){
   if('notaId' in s) row.nota_id = s.notaId;
   if('qty' in s) row.qty = s.qty;
   if('type' in s) row.type = s.type;
+  if('category' in s) row.category = s.category;
+  if('cost' in s) row.cost = s.cost;
   return row;
 }
 async function baInsertSales(rows){
@@ -4132,9 +4146,10 @@ async function baRenderVendasHoje(){
     return s + svcs.reduce((t,name)=> t + (SVC_PRICES[name]||0), 0);
   },0);
   const previstoCount = appts.length;
+  const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
   const pct = baMyCommissionPct();
   const totalDia = realizado + previstoVal;
-  const comissaoDia = totalDia * pct;
+  const comissaoDia = (baCommissionableTotal(sales, me) + previstoVal) * pct;
   box.innerHTML =
     `<div class="vh-title"><svg class="pi-icon" viewBox="0 0 24 24" style="width:15px;height:15px;flex:none"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg> Resumo de hoje</div>
      <div class="vh-row"><span class="vh-lbl">Realizados</span><span class="vh-val">${realizadoCount} corte${realizadoCount!==1?'s':''} · ${baFormatMoney(realizado)}</span></div>
@@ -4147,15 +4162,16 @@ async function baRenderVendas(){
   const [from, to] = baGetFilterRange();
   const sales = (await baFetchMySales(from, to)).sort((a,b)=> b.date.localeCompare(a.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
+  const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
   const pct = baMyCommissionPct();
-  const minha = total*pct;
+  const minha = baCommissionableTotal(sales, me) * pct;
   const salao = total-minha;
-  const pctLabel = Math.round(pct*100), salaoLabel = 100-pctLabel;
+  const pctLabel = Math.round(pct*100);
   const filterLabel = baVendasFilter==='hoje'?'Hoje':baVendasFilter==='semana'?'Esta semana':baVendasFilter==='mes'?'Este mês':'Período';
   document.getElementById('ba-comm-card').innerHTML =
     `<div class="row"><span class="lbl">Total vendido · ${filterLabel}</span><span class="val small">${baFormatMoney(total)}</span></div>
-     <div class="row"><span class="lbl">Sua comissão (${pctLabel}%)</span><span class="val">${baFormatMoney(minha)}</span></div>
-     <div class="row"><span class="lbl">Repasse à barbearia (${salaoLabel}%)</span><span class="val small">${baFormatMoney(salao)}</span></div>`;
+     <div class="row"><span class="lbl">Sua comissão (${pctLabel}% sobre itens comissionáveis)</span><span class="val">${baFormatMoney(minha)}</span></div>
+     <div class="row"><span class="lbl">Repasse à barbearia</span><span class="val small">${baFormatMoney(salao)}</span></div>`;
   const groups = {};
   sales.forEach(s=>{ if(!groups[s.date]) groups[s.date]=[]; groups[s.date].push(s); });
   const listHtml = Object.keys(groups).sort((a,b)=>b.localeCompare(a)).map(date=>{
@@ -4547,11 +4563,13 @@ async function baShopFinancials(year, month){
   const faturamento = sales.reduce((s,x)=>s+x.value,0);
   const comissoes = sales.reduce((s,x)=>{
     const b = roster.find(r=>r.id===x.barberId);
+    if(!baSaleIsCommissionable(x, b)) return s;
     const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
     return s + x.value*pct;
   },0);
+  const cmv = sales.filter(x=>x.type==='produto').reduce((s,x)=>s+(x.cost||0),0);
   const despesas = (await baFetchExpenses(from, to)).reduce((s,e)=>s+e.value,0);
-  return { faturamento, comissoes, despesas, lucro: faturamento - comissoes - despesas };
+  return { faturamento, comissoes, cmv, despesas, lucro: faturamento - comissoes - cmv - despesas };
 }
 async function baRenderLucro(){
   const el = document.getElementById('ba-dash-lucro');
@@ -4561,6 +4579,7 @@ async function baRenderLucro(){
   el.innerHTML = `
     <div class="row"><span class="lbl">Faturamento (equipe toda)</span><span class="val small">${baFormatMoney(f.faturamento)}</span></div>
     <div class="row"><span class="lbl">Comissões repassadas</span><span class="val small">${baFormatMoney(f.comissoes)}</span></div>
+    <div class="row"><span class="lbl">Custo de produtos vendidos</span><span class="val small">${baFormatMoney(f.cmv)}</span></div>
     <div class="row"><span class="lbl">Despesas</span><span class="val small">${baFormatMoney(f.despesas)}</span></div>
     <div class="row"><span class="lbl">Lucro líquido</span><span class="val">${baFormatMoney(f.lucro)}</span></div>`;
 }
@@ -4579,19 +4598,21 @@ async function baComputeDRE(year, month){
   const receitaTotal = receitaServicos + receitaProdutos + receitaAssinaturas;
   const comissoes = sales.reduce((s,x)=>{
     const b = roster.find(r=>r.id===x.barberId);
+    if(!baSaleIsCommissionable(x, b)) return s;
     const pct = (b && typeof b.commissionPct==='number') ? b.commissionPct : BARBER_COMMISSION_PCT;
     return s + x.value*pct;
   },0);
+  const cmv = sales.filter(s=>s.type==='produto').reduce((s,x)=>s+(x.cost||0),0);
   const expenses = await baFetchExpenses(from, to);
   const taxaMaquininha = expenses.filter(e=>e.category==='taxa_maquininha').reduce((s,e)=>s+e.value,0);
-  const custoDireto = comissoes + taxaMaquininha;
+  const custoDireto = comissoes + cmv + taxaMaquininha;
   const lucroBruto = receitaTotal - custoDireto;
   const despesasOperacionais = expenses.filter(e=>e.category!=='taxa_maquininha');
   const totalDespesas = despesasOperacionais.reduce((s,e)=>s+e.value,0);
   const lucroLiquido = lucroBruto - totalDespesas;
   const margem = receitaTotal ? (lucroLiquido/receitaTotal) : 0;
   return { year, month, receitaServicos, receitaProdutos, receitaAssinaturas, receitaTotal,
-    comissoes, taxaMaquininha, custoDireto, lucroBruto, despesasOperacionais, totalDespesas, lucroLiquido, margem };
+    comissoes, cmv, taxaMaquininha, custoDireto, lucroBruto, despesasOperacionais, totalDespesas, lucroLiquido, margem };
 }
 const BA_DRE_MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function baPopulateDREMonths(){
@@ -4640,6 +4661,7 @@ async function baRenderDREScreen(){
     </div>
     <div class="ba-comm" style="margin-bottom:.9rem">
       <div class="row"><span class="lbl">Comissão dos barbeiros</span><span class="val small">− ${baFormatMoney(dre.comissoes)}</span></div>
+      <div class="row"><span class="lbl">Custo de produtos vendidos (CMV)</span><span class="val small">− ${baFormatMoney(dre.cmv)}</span></div>
       <div class="row"><span class="lbl">Taxa de maquininha</span><span class="val small">− ${baFormatMoney(dre.taxaMaquininha)}</span></div>
       <div class="row"><span class="lbl"><b>Lucro bruto</b></span><span class="val">${baFormatMoney(dre.lucroBruto)}${baDREVarLabel(dre.lucroBruto, prev.lucroBruto)}</span></div>
     </div>
@@ -4681,6 +4703,7 @@ async function baExportDREPDF(){
       <div class="rp-slabel">Custos diretos</div>
       <table class="rp-table"><tbody>
         <tr><td>Comissão dos barbeiros</td><td class="num">${baFormatMoney(d.comissoes)}</td></tr>
+        <tr><td>Custo de produtos vendidos (CMV)</td><td class="num">${baFormatMoney(d.cmv)}</td></tr>
         <tr><td>Taxa de maquininha</td><td class="num">${baFormatMoney(d.taxaMaquininha)}</td></tr>
       </tbody><tfoot><tr><td>Lucro bruto</td><td class="num">${baFormatMoney(d.lucroBruto)}</td></tr></tfoot></table>
     </div>
@@ -4776,8 +4799,9 @@ async function baBuildReportData(){
   }
   const sales = (await baFetchMySales(from, to)).sort((a,b)=>a.date.localeCompare(b.date));
   const total = sales.reduce((s,x)=>s+x.value,0);
+  const me = baGetRoster().find(b=>b.id===baCurrentBarberId);
   const pct = baMyCommissionPct();
-  return { isAdmin:false, label, sales, total, comissao: total*pct, name: baCurrentBarber };
+  return { isAdmin:false, label, sales, total, comissao: baCommissionableTotal(sales, me)*pct, name: baCurrentBarber };
 }
 function baReportLogoSrc(){
   // logo é um SVG desenhado inline (não uma <img>), então embutimos o SVG de verdade em vez de
@@ -4875,6 +4899,7 @@ async function baShareReportWhatsApp(){
     text = `📊 *Relatório Prime — ${d.label}*\n\n` +
       `💰 Faturamento: ${baFormatMoney(d.fin.faturamento)}\n` +
       `👥 Comissões: ${baFormatMoney(d.fin.comissoes)}\n` +
+      `📦 Custo de produtos: ${baFormatMoney(d.fin.cmv)}\n` +
       `📉 Despesas: ${baFormatMoney(d.fin.despesas)}\n` +
       `✅ *Lucro líquido: ${baFormatMoney(d.fin.lucro)}*\n\n` +
       `📎 O detalhamento completo (cliente a cliente, despesa a despesa) está no PDF.`;
@@ -5458,6 +5483,12 @@ function baProdMargemLabel(p){
   return `<span class="prod-margem">${margem.toFixed(0)}% margem</span>`;
 }
 const PROD_CATEGORY_ORDER = ['Cabelo e Barba','Geladeira','Conveniência'];
+// todas as categorias que existem hoje (ordem fixa + qualquer categoria custom + 'Outros'), usado
+// na tela de "itens comissionáveis" de cada barbeiro
+function baProdCategoryList(){
+  const found = new Set(baGetProducts().map(p=>p.category||'Outros'));
+  return [...new Set([...PROD_CATEGORY_ORDER, ...found, 'Outros'])];
+}
 function baGroupProductsByCategory(products){
   const byCat = {};
   products.forEach(p=>{
@@ -5900,7 +5931,8 @@ async function baFinalizarCarrinho(){
     const p = products.find(x=>x.id===item.product_id);
     if(!p) continue;
     rows.push({barberId: baActingBarberId, client: appt.name||'Cliente', appointmentId: appt.id,
-      service: p.name, value: p.price*item.qty, qty: item.qty, date: today, time: now, notaId, type:'produto'});
+      service: p.name, value: p.price*item.qty, qty: item.qty, date: today, time: now, notaId, type:'produto',
+      category: p.category||'Outros', cost: (p.cost||0)*item.qty});
     await baDecrementStock(p.id, item.qty);
   }
   await baInsertSales(rows);
@@ -6591,7 +6623,8 @@ async function baAtRegistrar(){
   for(const item of baAtCart){
     const p = products.find(x=>x.id===item.productId);
     if(!p) continue;
-    rows.push({barberId: baActingBarberId, client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, notaId, type:'produto'});
+    rows.push({barberId: baActingBarberId, client:clientName, service:p.name, value:p.price*item.qty, qty:item.qty, date, time, notaId, type:'produto',
+      category: p.category||'Outros', cost: (p.cost||0)*item.qty});
     await baDecrementStock(p.id, item.qty);
   }
   await baInsertSales(rows);
@@ -6779,6 +6812,15 @@ function baBuildEditForm(b, i){
     </label>
     <div class="ba-field"><label>Comissão (%)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="ba-edit-comm-${i}" min="0" max="100" value="${pct}"></div>
     <div class="ba-field"><label>Meta mensal (R$)</label><input type="text" inputmode="decimal" id="ba-edit-goal-${i}" min="0" step="50" placeholder="Ex: 6000" value="${b.monthlyGoal||''}"></div>
+    <div class="ba-slabel" style="margin-top:.2rem">Itens comissionáveis</div>
+    <p style="color:var(--prata-dim);font-size:.78rem;margin:-.3rem 0 .6rem">Cortes, combos, tratamentos e assinaturas sempre geram a comissão acima. Produto só gera comissão nas categorias marcadas aqui.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">${baProdCategoryList().map(cat=>{
+      const checked = (b.commissionableCategories||[]).includes(cat);
+      const safeCat = cat.replace(/"/g,'&quot;');
+      return `<div class="chip${checked?' active':''}" style="cursor:pointer;font-size:.78rem" onclick="this.classList.toggle('active');this.querySelector('input').checked=this.classList.contains('active')">
+        <input type="checkbox" class="ba-edit-commcat-${i}" value="${safeCat}" ${checked?'checked':''} style="display:none">${cat}
+      </div>`;
+    }).join('')}</div>
     <div class="ba-slabel" style="margin-top:0">Escala semanal</div>
     ${scheduleRows}
     <p class="ba-err" id="ba-edit-err-${i}" style="display:none;margin-top:.4rem"></p>
@@ -6804,6 +6846,7 @@ async function baSaveEditBarber(i){
   const newCommPct = Number(document.getElementById('ba-edit-comm-'+i).value);
   const goalRaw = document.getElementById('ba-edit-goal-'+i).value.trim();
   const newGoal = goalRaw === '' ? undefined : Number(goalRaw);
+  const newCommCats = [...document.querySelectorAll(`.ba-edit-commcat-${i}:checked`)].map(cb=>cb.value);
 
   function fail(msg){ errEl.textContent = msg; errEl.style.display='block'; }
 
@@ -6837,11 +6880,12 @@ async function baSaveEditBarber(i){
 
   const { error } = await sb.from('barbers').update({
     name:newName, role:newRole, is_barber:newIsBarber,
-    commission_pct:newCommPct/100, monthly_goal:newGoal ?? null, hours:hoursVal
+    commission_pct:newCommPct/100, monthly_goal:newGoal ?? null, hours:hoursVal,
+    commissionable_categories:newCommCats
   }).eq('id', b.id);
   if(error){ return fail('Não foi possível salvar. Tente de novo.'); }
 
-  roster[i] = { ...b, name:newName, role:newRole, isBarber:newIsBarber, commissionPct:newCommPct/100, monthlyGoal:newGoal, hours:hoursVal||undefined };
+  roster[i] = { ...b, name:newName, role:newRole, isBarber:newIsBarber, commissionPct:newCommPct/100, monthlyGoal:newGoal, hours:hoursVal||undefined, commissionableCategories:newCommCats };
 
   // vendas, agendamentos e carteira de clientes não precisam mais de propagação — todos guardam
   // barber_id (FK), o nome é resolvido ao vivo via apBarberName()/baSaleBarberName()
