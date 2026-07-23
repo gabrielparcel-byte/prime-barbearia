@@ -878,6 +878,12 @@ footer{border-top:1px solid var(--dourado-dim);padding:3.5rem clamp(1.2rem,6vw,4
       <input type="text" id="wName" placeholder="Como podemos te chamar?">
       <label class="field-lbl" for="wNotes">Observação (opcional)</label>
       <textarea id="wNotes" placeholder="Alguma preferência ou detalhe pro barbeiro?" style="width:100%;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;margin-bottom:1rem;resize:vertical;min-height:70px"></textarea>
+      <label class="field-lbl" for="wCoupon">Cupom de desconto (opcional)</label>
+      <div style="display:flex;gap:.5rem;margin-bottom:.4rem">
+        <input type="text" id="wCoupon" placeholder="Ex: PRIMEIROCORTE" style="flex:1;background:var(--verde-noite);border:1px solid rgba(237,237,232,.2);color:var(--prata);padding:.85rem 1rem;font-family:var(--font-body);font-size:.9rem;text-transform:uppercase">
+        <button type="button" class="btn btn-ghost" id="wCouponApply" style="padding:0 1.3rem">Aplicar</button>
+      </div>
+      <p id="wCouponMsg" style="font-size:.82rem;margin-bottom:.6rem;min-height:1.2em"></p>
       <p style="font-size:.78rem;color:var(--prata-dim)">Ao confirmar, você será direcionado pro nosso WhatsApp com a solicitação pronta. A confirmação do horário é feita pela nossa equipe.</p>
     </div>
 
@@ -968,7 +974,7 @@ function barbersScheduledAt(weekday, timeStr){
 }
 
 // ══ Estado do wizard ══
-const state = {step:1, services:[], day:null, dayLabel:null, time:null, barber:null, barberId:null, barberIntroAnswered:null};
+const state = {step:1, services:[], day:null, dayLabel:null, time:null, barber:null, barberId:null, barberIntroAnswered:null, couponCode:null, discountPrice:null};
 let pendingBooking = null;
 let pendingProductCatalog = false;
 const AUTH_PROMPT_COPY = {
@@ -1021,8 +1027,12 @@ function render(){
   next.textContent = state.step===5 ? 'Solicitar pelo WhatsApp' : 'Próximo →';
   if(state.step===5){
     const total = state.services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
+    const hasCoupon = typeof state.discountPrice==='number';
+    const valorLine = hasCoupon
+      ? `Valor total: <s style="color:var(--prata-dim)">R$ ${total.toFixed(2).replace('.',',')}</s> <b style="color:var(--verde-neon)">R$ ${state.discountPrice.toFixed(2).replace('.',',')}</b> <span style="color:var(--dourado);font-size:.8rem">(cupom ${state.couponCode})</span>`
+      : `Valor total: <b style="color:var(--verde-neon)">R$ ${total.toFixed(2).replace('.',',')}</b>`;
     document.getElementById('wSummary').innerHTML =
-      `Serviço: <b>${state.services.join(' + ')}</b><br>Dia: <b>${state.dayLabel}</b><br>Horário: <b>${state.time}</b><br>Barbeiro: <b>${state.barber}</b><br>Valor total: <b style="color:var(--verde-neon)">R$ ${total.toFixed(2).replace('.',',')}</b>`;
+      `Serviço: <b>${state.services.join(' + ')}</b><br>Dia: <b>${state.dayLabel}</b><br>Horário: <b>${state.time}</b><br>Barbeiro: <b>${state.barber}</b><br>${valorLine}`;
     const nameInput = document.getElementById('wName');
     if(!nameInput.value.trim()){
       const acc = typeof primeGetAccount==='function' ? primeGetAccount() : null;
@@ -1042,6 +1052,24 @@ document.getElementById('wService').addEventListener('click',e=>{
   const c=e.target.closest('.chip'); if(!c) return;
   c.classList.toggle('active');
   state.services = [...document.querySelectorAll('#wService .chip.active')].map(x=>x.dataset.v);
+  state.couponCode = null; state.discountPrice = null;
+  const cm = document.getElementById('wCouponMsg'); if(cm) cm.textContent = '';
+  render();
+});
+document.getElementById('wCouponApply').addEventListener('click', async ()=>{
+  const codeInput = document.getElementById('wCoupon');
+  const msgEl = document.getElementById('wCouponMsg');
+  const code = codeInput.value.trim().toUpperCase();
+  codeInput.value = code;
+  if(!code){ state.couponCode=null; state.discountPrice=null; msgEl.textContent=''; render(); return; }
+  msgEl.textContent = 'Verificando...'; msgEl.style.color = 'var(--prata-dim)';
+  const coupon = await primeValidateCoupon(code);
+  if(!coupon){ state.couponCode=null; state.discountPrice=null; msgEl.textContent='Cupom inválido.'; msgEl.style.color='var(--erro)'; render(); return; }
+  const applied = primeApplyCoupon(coupon, state.services);
+  if(applied===null){ state.couponCode=null; state.discountPrice=null; msgEl.textContent='Esse cupom não vale pro serviço escolhido.'; msgEl.style.color='var(--erro)'; render(); return; }
+  state.couponCode = coupon.code; state.discountPrice = applied;
+  msgEl.textContent = `Cupom aplicado! Novo valor: R$ ${applied.toFixed(2).replace('.',',')}`;
+  msgEl.style.color = 'var(--verde-neon)';
   render();
 });
 chipSelect('wDay', c=>{ state.day=c.dataset.iso; state.dayLabel=c.dataset.label; state.time=null; state.barber=null; state.barberId=null; buildTimes(); });
@@ -1167,11 +1195,14 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
   }
   const name=document.getElementById('wName').value.trim()||'Cliente';
   const notes=document.getElementById('wNotes').value.trim()||null;
-  const waTotal = state.services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
-  const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n💰 Valor total: *R$ ${waTotal.toFixed(2).replace('.',',')}*${notes?`\n📝 Observação: *${notes}*`:''}\n\nPode confirmar pra mim?`;
+  const rawTotal = state.services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
+  const hasCoupon = typeof state.discountPrice==='number';
+  const waTotal = hasCoupon ? state.discountPrice : rawTotal;
+  const cupomLine = hasCoupon ? `\n🎟️ Cupom: *${state.couponCode}*` : '';
+  const msg=`Olá! Sou ${name} e gostaria de agendar na Prime Barbearia:\n\n✂️ Serviço: *${state.services.join(' + ')}*\n📅 Dia: *${state.dayLabel}*\n⏰ Horário: *${state.time}*\n💈 Barbeiro: *${state.barber}*\n💰 Valor total: *R$ ${waTotal.toFixed(2).replace('.',',')}*${cupomLine}${notes?`\n📝 Observação: *${notes}*`:''}\n\nPode confirmar pra mim?`;
   window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
   const acc = primeGetAccount();
-  const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, notes, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email});
+  const savedAppt = await primeCreateAppointment({services:[...state.services], day:state.day, dayLabel:state.dayLabel, time:state.time, name, notes, barberId:state.barberId, clientId: acc && acc.id, clientEmail: acc && acc.email, couponCode: state.couponCode, discountPrice: state.discountPrice});
   // notifica o barbeiro sobre o novo pedido de agendamento
   await primeAddNotif({forRole:'barber', recipientBarberId:state.barberId, type:'novo', apptId:savedAppt.id,
     text:`Novo agendamento de ${name} — ${state.dayLabel} às ${state.time} (${state.services.join(' + ')})`});
@@ -1179,9 +1210,12 @@ document.getElementById('wNext').addEventListener('click', async ()=>{
   if(acc && acc.email) await primeCheckAchievements({bookedTime: state.time, bookedDay: state.day});
   closeModal();
   state.step=1; state.services=[]; state.day=null; state.dayLabel=null; state.time=null; state.barber=null; state.barberId=null; state.barberIntroAnswered=null;
+  state.couponCode=null; state.discountPrice=null;
   document.querySelectorAll('#wService .chip, #wDay .chip, #wTime .chip').forEach(c=>c.classList.remove('active'));
   document.getElementById('wName').value='';
   document.getElementById('wNotes').value='';
+  document.getElementById('wCoupon').value='';
+  document.getElementById('wCouponMsg').textContent='';
   render();
   caOpen();
   caTab('hist');
@@ -1808,7 +1842,8 @@ function primeApptFromRow(r){
     iniciadoEm:r.iniciado_em ? new Date(r.iniciado_em).getTime() : null, rating:r.rating,
     ratingComment:r.rating_comment, ratingBy:r.rating_by, clientRating:r.client_rating,
     clientRatingComment:r.client_rating_comment, barberReply:r.barber_reply, name:r.client_name,
-    clientEmail:r.client_email, createdAt:r.created_at, notes:r.notes
+    clientEmail:r.client_email, createdAt:r.created_at, notes:r.notes,
+    couponCode:r.coupon_code, discountPrice:r.discount_price
   };
 }
 function primeApptToRow(a){
@@ -1832,7 +1867,26 @@ function primeApptToRow(a){
   if('clientId' in a) row.client_id = a.clientId;
   if('barberId' in a) row.barber_id = a.barberId;
   if('notes' in a) row.notes = a.notes;
+  if('couponCode' in a) row.coupon_code = a.couponCode;
+  if('discountPrice' in a) row.discount_price = a.discountPrice;
   return row;
+}
+// ══ Cupons de desconto ══
+// consulta via RPC (security definer) — nunca lista a tabela toda, só valida um código exato de cada vez
+async function primeValidateCoupon(code){
+  if(!code) return null;
+  const { data, error } = await sb.rpc('validate_coupon', { p_code: code.trim() });
+  if(error || !data || !data.length) return null;
+  return data[0];
+}
+// retorna o preço total já com o cupom aplicado, ou null se o cupom não vale pros serviços escolhidos
+function primeApplyCoupon(coupon, services){
+  if(!coupon || !services.length) return null;
+  if(coupon.service && (services.length!==1 || services[0]!==coupon.service)) return null;
+  const total = services.reduce((s,n)=>s+(SVC_PRICES[n]||0),0);
+  if(coupon.type==='valor_fixo') return coupon.value;
+  if(coupon.type==='percentual') return Math.round(total*(1-coupon.value/100)*100)/100;
+  return null;
 }
 async function primeCreateAppointment(appt){
   const row = primeApptToRow(appt);
@@ -3851,6 +3905,7 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           <button class="ba-btn ghost active" data-sub="equipe" onclick="baGestaoTab('equipe')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Equipe</button>
           <button class="ba-btn ghost" data-sub="brindes" onclick="baGestaoTab('brindes')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Brindes</button>
           <button class="ba-btn ghost" data-sub="produtos" onclick="baGestaoTab('produtos')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Produtos</button>
+          <button class="ba-btn ghost" data-sub="cupons" onclick="baGestaoTab('cupons')" style="width:auto;max-width:none;padding:.45rem .9rem;margin:0;font-size:.72rem">Cupons</button>
         </div>
 
         <div class="ba-card" id="ba-admin-panel">
@@ -3911,6 +3966,26 @@ c-56 31 -115 101 -142 171 -17 44 -22 157 -8 180 5 7 31 22 58 32 68 28 190
           </div>
           <p id="ba-prod-margem-info" style="font-size:.72rem;color:var(--prata-dim);margin:.4rem 0 0;min-height:1.2em"></p>
           <button class="ba-btn" style="width:auto;max-width:none;padding:.45rem .8rem;margin:.6rem 0 0;font-size:.68rem" onclick="baAddProduct()">Adicionar</button>
+        </div>
+
+        <div class="ba-card" id="ba-cupons-config" style="display:none">
+          <div class="ba-slabel" style="margin-top:0">Cupons de desconto</div>
+          <p style="color:var(--prata-dim);font-size:.8rem;margin-bottom:.9rem">O cliente digita o código na hora de agendar. "Valor fixo" define o preço final do atendimento; "Desconto percentual" tira uma % do valor normal.</p>
+          <div id="ba-cupons-list"></div>
+          <div class="ba-slabel">Novo cupom</div>
+          <div class="ba-field"><label>Código</label><input type="text" id="ba-cupom-codigo" placeholder="Ex: PRIMEIROCORTE" style="text-transform:uppercase"></div>
+          <div class="ba-field"><label>Tipo</label>
+            <select id="ba-cupom-tipo" onchange="baCupomTipoChanged()">
+              <option value="valor_fixo">Valor fixo (define o preço do serviço)</option>
+              <option value="percentual">Desconto percentual</option>
+            </select>
+          </div>
+          <div class="ba-field"><label id="ba-cupom-valor-label">Valor (R$)</label><input type="text" inputmode="decimal" id="ba-cupom-valor" placeholder="Ex: 24,99"></div>
+          <div class="ba-field"><label>Serviço (opcional)</label>
+            <select id="ba-cupom-servico"><option value="">Qualquer serviço escolhido</option></select>
+          </div>
+          <p class="ba-err" id="ba-cupom-err" style="display:none"></p>
+          <button class="ba-btn" style="max-width:100%" onclick="baAddCupom()">Criar cupom</button>
         </div>
       </div>
     </div>
@@ -4114,10 +4189,11 @@ function baGestaoTab(sub){
   document.getElementById('ba-admin-panel').style.display = sub==='equipe' ? 'block' : 'none';
   document.getElementById('ba-brinde-config').style.display = sub==='brindes' ? 'block' : 'none';
   document.getElementById('ba-produtos-config').style.display = sub==='produtos' ? 'block' : 'none';
+  document.getElementById('ba-cupons-config').style.display = sub==='cupons' ? 'block' : 'none';
 }
 function baRenderGestao(){
   if(baCurrentRole!=='admin') return;
-  baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig();
+  baRenderRoster(); baRenderBrindeConfig(); baRenderProdutosConfig(); baRenderCupons();
 }
 
 function baMyCommissionPct(){
@@ -5288,6 +5364,75 @@ async function baAddBrindeOpt(){
   baRenderBrindeConfig();
 }
 
+// ══ Cupons de desconto (Supabase, admin-only) ══
+function baCupomTipoChanged(){
+  const tipo = document.getElementById('ba-cupom-tipo').value;
+  document.getElementById('ba-cupom-valor-label').textContent = tipo==='percentual' ? 'Desconto (%)' : 'Valor (R$)';
+}
+async function baFetchCupons(){
+  const { data, error } = await sb.from('coupons').select('*').order('created_at',{ascending:false});
+  if(error){ console.error('baFetchCupons', error); return []; }
+  return data||[];
+}
+function baPopulateCupomServicoSelect(){
+  const sel = document.getElementById('ba-cupom-servico');
+  if(!sel || sel.options.length>1) return;
+  Object.keys(SVC_PRICES).forEach(name=>{
+    const opt = document.createElement('option'); opt.value=name; opt.textContent=name; sel.appendChild(opt);
+  });
+}
+async function baRenderCupons(){
+  baPopulateCupomServicoSelect();
+  const cupons = await baFetchCupons();
+  const listEl = document.getElementById('ba-cupons-list');
+  if(!listEl) return;
+  listEl.innerHTML = cupons.map(c=>{
+    const valorLabel = c.type==='percentual' ? `${c.value}% off` : baFormatMoney(c.value);
+    const servicoLabel = c.service ? ` · só ${c.service}` : ' · qualquer serviço';
+    const statusLabel = c.active ? 'Ativo' : 'Inativo';
+    const statusColor = c.active ? 'var(--verde-neon)' : 'var(--prata-dim)';
+    return `<div class="gift-item">
+      <span class="gi-name"><b>${c.code}</b> — ${valorLabel}${servicoLabel} · <span style="color:${statusColor}">${statusLabel}</span></span>
+      <span style="display:flex;gap:.6rem;flex:none">
+        <span class="gi-remove" onclick="baToggleCupomActive(${c.id},${!c.active})">${c.active?'desativar':'ativar'}</span>
+        <span class="gi-remove" onclick="baRemoveCupom(${c.id})">remover</span>
+      </span>
+    </div>`;
+  }).join('') || '<p style="color:var(--prata-dim);font-size:.78rem">Nenhum cupom cadastrado.</p>';
+}
+async function baToggleCupomActive(id, newActive){
+  const { error } = await sb.from('coupons').update({active:newActive}).eq('id', id);
+  if(error) console.error('baToggleCupomActive', error);
+  baRenderCupons();
+}
+async function baRemoveCupom(id){
+  const { error } = await sb.from('coupons').delete().eq('id', id);
+  if(error) console.error('baRemoveCupom', error);
+  baRenderCupons();
+}
+async function baAddCupom(){
+  const errEl = document.getElementById('ba-cupom-err');
+  errEl.style.display = 'none';
+  const codeEl = document.getElementById('ba-cupom-codigo');
+  const code = codeEl.value.trim().toUpperCase();
+  const type = document.getElementById('ba-cupom-tipo').value;
+  const valorRaw = document.getElementById('ba-cupom-valor').value;
+  const value = parseFloat((valorRaw||'').replace(',','.'));
+  const service = document.getElementById('ba-cupom-servico').value || null;
+  function fail(msg){ errEl.textContent = msg; errEl.style.display = 'block'; }
+  if(!code) return fail('Digite um código pro cupom.');
+  if(!(value>0)) return fail('Digite um valor válido.');
+  if(type==='percentual' && value>=100) return fail('Desconto percentual precisa ser menor que 100%.');
+  const { error } = await sb.from('coupons').insert({code, type, value, service});
+  if(error){
+    if(error.code==='23505') return fail('Já existe um cupom com esse código.');
+    return fail('Não foi possível criar o cupom. Tente de novo.');
+  }
+  codeEl.value = '';
+  document.getElementById('ba-cupom-valor').value = '';
+  baRenderCupons();
+}
+
 // ══ Catálogo de produtos (Supabase, global/compartilhado) — usado no carrinho ao vivo do atendimento ══
 const PROD_LOW_STOCK = 5;
 // código de registro: aleatório, fixo, sem caracteres ambíguos (0/O, 1/I/L) — pra colar numa etiqueta física
@@ -5872,7 +6017,7 @@ async function baOpenCarrinho(apptId){
   if(!appt) return;
   baCarrinhoApptId = apptId;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
-  const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  const svcValue = typeof appt.discountPrice==='number' ? appt.discountPrice : svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
   document.getElementById('cart-client-name').textContent = appt.name || 'Cliente';
   document.getElementById('cart-elapsed').innerHTML = `<span class="dot"></span>${baElapsedMin(appt.iniciadoEm)} min`;
   document.getElementById('cart-started-at').textContent = `Atendimento iniciado às ${new Date(appt.iniciadoEm).toTimeString().slice(0,5)}`;
@@ -5929,7 +6074,7 @@ async function baRenderCartItems(){
   const appt = await primeFetchAppointmentById(baCarrinhoApptId);
   if(!appt) return;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
-  const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  const svcValue = typeof appt.discountPrice==='number' ? appt.discountPrice : svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
   const items = await baFetchCartItems(baCarrinhoApptId);
   const products = baGetProducts();
   const enriched = items.map(i=>{
@@ -5958,7 +6103,7 @@ async function baFinalizarCarrinho(){
   const appt = await primeFetchAppointmentById(baCarrinhoApptId);
   if(!appt) return;
   const svcs = appt.services || (appt.service ? [appt.service] : []);
-  const svcValue = svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
+  const svcValue = typeof appt.discountPrice==='number' ? appt.discountPrice : svcs.reduce((s,name)=> s + (SVC_PRICES[name]||0), 0);
   const items = await baFetchCartItems(baCarrinhoApptId);
   const products = baGetProducts();
   const notaId = primeNextId();
