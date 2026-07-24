@@ -7453,6 +7453,20 @@ function igFitAllEmbeds(){
   document.querySelectorAll('#ig-car-track .ig-post-item').forEach(igFitEmbed);
 }
 let igResizeListenerBound = false;
+let igFitPollTimer = null;
+// o tempo que o Instagram leva pra trocar o <blockquote> por um <iframe> de verdade varia bastante
+// (rede, se o script já tinha carregado antes, etc) — em vez de chutar um prazo fixo, tenta reajustar
+// a escala a cada 1s por até 20s, o que cobre até conexões bem lentas
+function igStartFitPolling(){
+  if(igFitPollTimer) clearInterval(igFitPollTimer);
+  let tries = 0;
+  igFitPollTimer = setInterval(()=>{
+    tries++;
+    igFitAllEmbeds();
+    if(typeof igCarousel!=='undefined') igCarousel.nav(0);
+    if(tries>=20) clearInterval(igFitPollTimer);
+  }, 1000);
+}
 async function renderInstagramPosts(){
   const posts = await baFetchInstagramPosts();
   const section = document.getElementById('ig-feed-section');
@@ -7463,9 +7477,7 @@ async function renderInstagramPosts(){
   wrap.innerHTML = posts.map(p=>`<div class="ig-post-item"><blockquote class="instagram-media" data-instgrm-permalink="${p.url}" data-instgrm-version="14"></blockquote></div>`).join('');
   if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
   if(typeof igCarousel!=='undefined') igCarousel.nav(0); // recalcula o layout sem duplicar os listeners do init()
-  // o Instagram troca o <blockquote> por um <iframe> de forma assíncrona (às vezes demora alguns
-  // segundos), então tenta reajustar a escala várias vezes cobrindo essa janela de tempo
-  [400,800,1200,1800,2500,3500,5000].forEach(ms=>setTimeout(igFitAllEmbeds, ms));
+  igStartFitPolling();
   if(!igResizeListenerBound){ igResizeListenerBound = true; window.addEventListener('resize', igFitAllEmbeds); }
 }
 async function renderLandingProducts(){
