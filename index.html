@@ -353,8 +353,8 @@ nav.solid{background:rgba(11,20,13,.95);border-bottom:1px solid var(--dourado-di
 .ig-feed .lp-car-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;background:rgba(11,20,13,.8);backdrop-filter:blur(3px)}
 .ig-feed .lp-car-prev{left:0}
 .ig-feed .lp-car-next{right:0}
-.lp-car-track .ig-post-item{flex:none;display:flex;justify-content:center;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.ig-post-item iframe{max-width:100%}
+.lp-car-track .ig-post-item{flex:none;display:flex;justify-content:center;align-items:flex-start;width:100%;overflow:hidden}
+.ig-post-item .instagram-media{transition:transform .2s ease}
 @media(max-width:480px){.ig-feed .lp-carousel{padding:0 2.2rem}}
 .ig-feed .g-link{display:inline-block;margin-top:2.2rem;color:var(--verde-neon);text-decoration:none;font-size:.85rem;letter-spacing:.15em;text-transform:uppercase}
 .ig-feed .g-link:hover{text-decoration:underline}
@@ -7431,6 +7431,28 @@ async function baFetchInstagramPosts(){
   if(error){ console.error('baFetchInstagramPosts', error); return []; }
   return data||[];
 }
+// o embed do Instagram tem uma largura mínima própria (~326px) que não encolhe sozinha — em telas
+// estreitas isso cortava as bordas do post. Em vez de cortar, encolhe o post inteiro (escala) pra
+// caber igualzinho dentro da caixa, sem perder nenhuma borda.
+function igFitEmbed(item){
+  const inner = item.querySelector('.instagram-media');
+  if(!inner) return;
+  inner.style.transform = 'none';
+  inner.style.marginBottom = '0px';
+  const containerWidth = item.clientWidth;
+  const naturalWidth = inner.offsetWidth;
+  const naturalHeight = inner.offsetHeight;
+  if(!containerWidth || !naturalWidth || !naturalHeight) return;
+  if(naturalWidth <= containerWidth) return; // já cabe, não precisa encolher
+  const scale = containerWidth / naturalWidth;
+  inner.style.transformOrigin = 'top center';
+  inner.style.transform = `scale(${scale})`;
+  inner.style.marginBottom = `-${naturalHeight * (1 - scale)}px`;
+}
+function igFitAllEmbeds(){
+  document.querySelectorAll('#ig-car-track .ig-post-item').forEach(igFitEmbed);
+}
+let igResizeObserver = null;
 async function renderInstagramPosts(){
   const posts = await baFetchInstagramPosts();
   const section = document.getElementById('ig-feed-section');
@@ -7441,6 +7463,15 @@ async function renderInstagramPosts(){
   wrap.innerHTML = posts.map(p=>`<div class="ig-post-item"><blockquote class="instagram-media" data-instgrm-permalink="${p.url}" data-instgrm-version="14"></blockquote></div>`).join('');
   if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
   if(typeof igCarousel!=='undefined') igCarousel.nav(0); // recalcula o layout sem duplicar os listeners do init()
+  // o Instagram processa o blockquote e monta o iframe de forma assíncrona — observa o tamanho de
+  // cada post e reajusta a escala assim que ele terminar de renderizar (e de novo se a tela mudar)
+  if(igResizeObserver) igResizeObserver.disconnect();
+  if(window.ResizeObserver){
+    igResizeObserver = new ResizeObserver(()=>{ igFitAllEmbeds(); if(typeof igCarousel!=='undefined') igCarousel.nav(0); });
+    wrap.querySelectorAll('.ig-post-item').forEach(item=>igResizeObserver.observe(item));
+  }
+  setTimeout(igFitAllEmbeds, 1200);
+  setTimeout(igFitAllEmbeds, 2500);
 }
 async function renderLandingProducts(){
   const { data, error } = await sb.from('products_public').select('id,name,price,stock,image_url,category').order('name');
